@@ -5,6 +5,7 @@ import {
   Bell, CheckCircle2, XCircle, MessageSquare,
   Clock, FileText, Check, Wrench, ClipboardList,
   Instagram, AlertTriangle, CheckCheck, Lightbulb, X, BarChart3,
+  CalendarClock, Magnet, Eye, Trophy, PenLine, Zap,
 } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -32,6 +33,13 @@ const typeConfig: Record<NotificationType, { Icon: React.ElementType; color: str
   NOTE_REQUEST:       { Icon: Lightbulb,     color: 'text-[#60a5fa]', bg: 'bg-[#2563eb]/15' },
   NEW_REPORT:         { Icon: BarChart3,     color: 'text-[#4ade80]', bg: 'bg-[#22c55e]/15' },
   IG_TOKEN_EXPIRING:  { Icon: AlertTriangle, color: 'text-[#fbbf24]', bg: 'bg-[#f59e0b]/15' },
+  CRM_FOLLOWUP:          { Icon: CalendarClock, color: 'text-[#fbbf24]', bg: 'bg-[#f59e0b]/15' },
+  CRM_LEAD_NEW:          { Icon: Magnet,        color: 'text-[#60a5fa]', bg: 'bg-[#2563eb]/15' },
+  CRM_PROPOSAL_VIEWED:   { Icon: Eye,           color: 'text-[#a78bfa]', bg: 'bg-[#8b5cf6]/15' },
+  CRM_PROPOSAL_ACCEPTED: { Icon: Trophy,        color: 'text-[#4ade80]', bg: 'bg-[#22c55e]/15' },
+  CRM_PROPOSAL_REJECTED: { Icon: XCircle,       color: 'text-[#f87171]', bg: 'bg-[#ef4444]/15' },
+  CRM_CONTRACT_SIGNED:   { Icon: PenLine,       color: 'text-[#4ade80]', bg: 'bg-[#22c55e]/15' },
+  CRM_AUTOMATION:        { Icon: Zap,           color: 'text-[#818cf8]', bg: 'bg-[#6366f1]/15' },
 }
 
 // Variante de alto contraste para tema claro (cores sólidas)
@@ -50,6 +58,13 @@ const typeConfigLight: Record<NotificationType, { color: string; bg: string }> =
   NOTE_REQUEST:       { color: 'text-blue-600',   bg: 'bg-blue-100'   },
   NEW_REPORT:         { color: 'text-green-600',  bg: 'bg-green-100'  },
   IG_TOKEN_EXPIRING:  { color: 'text-amber-600',  bg: 'bg-amber-100'  },
+  CRM_FOLLOWUP:          { color: 'text-amber-600',  bg: 'bg-amber-100'  },
+  CRM_LEAD_NEW:          { color: 'text-blue-600',   bg: 'bg-blue-100'   },
+  CRM_PROPOSAL_VIEWED:   { color: 'text-purple-600', bg: 'bg-purple-100' },
+  CRM_PROPOSAL_ACCEPTED: { color: 'text-green-600',  bg: 'bg-green-100'  },
+  CRM_PROPOSAL_REJECTED: { color: 'text-red-600',    bg: 'bg-red-100'    },
+  CRM_CONTRACT_SIGNED:   { color: 'text-green-600',  bg: 'bg-green-100'  },
+  CRM_AUTOMATION:        { color: 'text-indigo-600', bg: 'bg-indigo-100' },
 }
 
 // ─── Categorias (abas) ────────────────────────────────────────────────────────
@@ -71,10 +86,18 @@ const CATEGORY_OF: Record<NotificationType, string> = {
   FORM_SUBMITTED:     'solicitacoes',
   NOTE_REQUEST:       'solicitacoes',
   NEW_REPORT:         'relatorios',
+  CRM_FOLLOWUP:          'crm',
+  CRM_LEAD_NEW:          'crm',
+  CRM_PROPOSAL_VIEWED:   'crm',
+  CRM_PROPOSAL_ACCEPTED: 'crm',
+  CRM_PROPOSAL_REJECTED: 'crm',
+  CRM_CONTRACT_SIGNED:   'crm',
+  CRM_AUTOMATION:        'crm',
 }
 
-const CATEGORY_ORDER = ['aprovacoes', 'conteudo', 'instagram', 'tarefas', 'solicitacoes', 'relatorios']
+const CATEGORY_ORDER = ['crm', 'aprovacoes', 'conteudo', 'instagram', 'tarefas', 'solicitacoes', 'relatorios']
 const CATEGORY_LABEL: Record<string, string> = {
+  crm:          'CRM',
   aprovacoes:   'Aprovações',
   conteudo:     'Conteúdo',
   instagram:    'Instagram',

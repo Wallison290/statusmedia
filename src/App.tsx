@@ -22,6 +22,14 @@ const ClientList        = lazy(() => import('@/pages/clients/ClientList').then(m
 const ClientForm        = lazy(() => import('@/pages/clients/ClientForm').then(m => ({ default: m.ClientForm })))
 const ClientProfile     = lazy(() => import('@/pages/clients/ClientProfile').then(m => ({ default: m.ClientProfile })))
 const CrmBoard          = lazy(() => import('@/pages/crm/CrmBoard').then(m => ({ default: m.CrmBoard })))
+const CrmProposals      = lazy(() => import('@/pages/crm/CrmProposals').then(m => ({ default: m.CrmProposals })))
+const CrmContracts      = lazy(() => import('@/pages/crm/CrmContracts').then(m => ({ default: m.CrmContracts })))
+const CrmAutomations    = lazy(() => import('@/pages/crm/CrmAutomations').then(m => ({ default: m.CrmAutomations })))
+const CrmReports        = lazy(() => import('@/pages/crm/CrmReports').then(m => ({ default: m.CrmReports })))
+const CrmSettingsPage   = lazy(() => import('@/pages/crm/CrmSettingsPage').then(m => ({ default: m.CrmSettingsPage })))
+const PublicProposalPage = lazy(() => import('@/pages/public/PublicProposalPage').then(m => ({ default: m.PublicProposalPage })))
+const PublicContractPage = lazy(() => import('@/pages/public/PublicContractPage').then(m => ({ default: m.PublicContractPage })))
+const LeadCapturePage    = lazy(() => import('@/pages/public/LeadCapturePage').then(m => ({ default: m.LeadCapturePage })))
 const FeedOrganizer     = lazy(() => import('@/pages/feed/FeedOrganizer').then(m => ({ default: m.FeedOrganizer })))
 const Planner           = lazy(() => import('@/pages/planner/Planner').then(m => ({ default: m.Planner })))
 const Tasks             = lazy(() => import('@/pages/tasks/Tasks').then(m => ({ default: m.Tasks })))
@@ -173,6 +181,10 @@ function AppRoutes() {
     <Routes>
       {/* Páginas públicas sem auth */}
       <Route path="/formulario/:token" element={<WeeklyFormPage />} />
+      {/* CRM: abertos pelo cliente da agência, sem login */}
+      <Route path="/proposta/:token" element={<PublicProposalPage />} />
+      <Route path="/contrato/:token" element={<PublicContractPage />} />
+      <Route path="/captura/:token"  element={<LeadCapturePage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms"   element={<TermsPage />} />
       {/* Exigida pela Meta (Data Deletion Instructions URL) — precisa abrir deslogado */}
@@ -206,6 +218,11 @@ function AppRoutes() {
       <Route element={<AuthGuard><SubscriptionGuard><Layout /></SubscriptionGuard></AuthGuard>}>
         <Route path="/dashboard"     element={<Dashboard />} />
         <Route path="/crm"           element={<CrmBoard />} />
+        <Route path="/crm/propostas"     element={<CrmProposals />} />
+        <Route path="/crm/contratos"     element={<CrmContracts />} />
+        <Route path="/crm/automacoes"    element={<CrmAutomations />} />
+        <Route path="/crm/relatorios"    element={<CrmReports />} />
+        <Route path="/crm/configuracoes" element={<CrmSettingsPage />} />
         <Route path="/clients"       element={<ClientList />} />
         <Route path="/clients/new"   element={<ClientForm />} />
         <Route path="/clients/:id"   element={<ClientProfile />} />

@@ -66,6 +66,7 @@ export function Header({ title, subtitle, action, dark = true }: HeaderProps) {
         onView={(notification) => {
           setShowNotifications(false)
           if (notification.type === 'NOTE_REQUEST') navigate(notification.link || '/notes')
+          else if (notification.type.startsWith('CRM_')) navigate(notification.link || '/crm')
           else if (notification.link) navigate(`/planner?item=${notification.link}`)
           else navigate('/planner')
         }}

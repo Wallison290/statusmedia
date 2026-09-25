@@ -33,7 +33,9 @@ function groupDisplayName(name: string): string {
 }
 
 const DEFAULT_CATS: WhatsappPrefs = {
-  aprovacoes: true, tarefas: true, instagram: true, solicitacoes: true,
+  // CRM desligado por padrão nos grupos: um grupo pode ter cliente dentro, e
+  // o aviso do CRM traz nome de lead e valor de proposta.
+  aprovacoes: true, tarefas: true, instagram: true, solicitacoes: true, crm: false,
 }
 
 // ── Category toggles (reutilizável) ──────────────────────────────────────────

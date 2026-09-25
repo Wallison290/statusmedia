@@ -18,6 +18,13 @@ export type NotificationType =
   | 'NOTE_REQUEST'
   | 'NEW_REPORT'
   | 'IG_TOKEN_EXPIRING'
+  | 'CRM_FOLLOWUP'
+  | 'CRM_LEAD_NEW'
+  | 'CRM_PROPOSAL_VIEWED'
+  | 'CRM_PROPOSAL_ACCEPTED'
+  | 'CRM_PROPOSAL_REJECTED'
+  | 'CRM_CONTRACT_SIGNED'
+  | 'CRM_AUTOMATION'
 
 export interface Notification {
   id: string

@@ -125,4 +125,5 @@ export const WHATSAPP_CATEGORIES: { key: WhatsappCategory; label: string; hint: 
   { key: 'tarefas',      label: 'Tarefas e equipe',  hint: 'Colaborador concluiu ou atualizou tarefa' },
   { key: 'instagram',    label: 'Instagram',         hint: 'Post publicado ou com falha' },
   { key: 'solicitacoes', label: 'Solicitações',      hint: 'Ideia, solicitação ou formulário do cliente' },
+  { key: 'crm',          label: 'CRM',               hint: 'Retornos do dia, lead novo, proposta aceita e contrato assinado' },
 ]

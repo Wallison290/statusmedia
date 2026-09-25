@@ -4,7 +4,7 @@
 // mesmo trabalho — arrastar em tela de toque é ruim demais para ser a única via.
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDroppable, useDraggable,
@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Search, MoreVertical, Pencil, Trash2, Check, ChevronLeft, ChevronRight,
   LayoutTemplate, MessageCircle, Building2, CalendarClock, Flame, Loader2, Target,
-  GripVertical,
+  GripVertical, Archive, ArchiveRestore, Sparkles, Hourglass,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,16 +24,18 @@ import {
   useCrmColumns, useCrmLeads, useCreateCrmColumn, useUpdateCrmColumn,
   useDeleteCrmColumn, useReorderCrmColumns, useMoveCrmLead,
 } from '@/hooks/useCrm'
+import { useArchiveCrmLead } from '@/hooks/useCrmActivities'
 import { CrmLeadModal } from '@/components/crm/CrmLeadModal'
 import { CrmTemplatePicker } from '@/components/crm/CrmTemplatePicker'
+import { CrmHeader } from '@/components/crm/CrmHeader'
+import { CrmLostReasonDialog } from '@/components/crm/CrmLostReason'
+import { CrmAssistant } from '@/components/crm/CrmAssistant'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { fmtBRL, todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
 import { CRM_COLUMN_COLORS } from '@/data/crmTemplates'
 import type { CrmColumn, CrmLead, CrmStageType } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtBRL(n: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n)
-}
 
 const TEMP_COLOR: Record<string, string> = {
   frio:   '#4F8EF7',
@@ -47,19 +49,11 @@ const STAGE_LABEL: Record<CrmStageType, string> = {
   perdido: 'Etapa de perda',
 }
 
-/** Só a data, sem fuso: 'yyyy-mm-dd' comparado como texto evita o off-by-one do UTC. */
-function todayISO() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+// A partir de quantos dias na mesma etapa o card ganha o selo de "parado"
+const STALE_DAYS = 7
 
-function fmtShortDate(iso: string) {
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y.slice(2)}`
-}
-
-function onlyDigits(s: string) {
-  return s.replace(/\D/g, '')
+function daysSince(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
 }
 
 // ── Card do lead ──────────────────────────────────────────────────────────────
@@ -70,13 +64,17 @@ interface LeadCardProps {
   memberName:  string | null
   onOpen:      () => void
   onMoveTo:    (columnId: string) => void
+  onArchive:   () => void
 }
 
-function LeadCard({ lead, columns, memberName, onOpen, onMoveTo }: LeadCardProps) {
+function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: LeadCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: lead.id })
   const [menuOpen, setMenuOpen] = useState(false)
 
   const late = lead.next_contact_at != null && lead.next_contact_at < todayISO()
+  // Parado só conta no meio do funil: ganho e perdido já terminaram
+  const stage = columns.find(c => c.id === lead.column_id)?.stage_type
+  const idle  = stage === 'normal' && lead.stage_entered_at ? daysSince(lead.stage_entered_at) : 0
 
   return (
     <div
@@ -122,8 +120,16 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo }: LeadCardProps
         )}
 
         {/* Rodapé: valor, próximo contato, responsável */}
-        {(lead.estimated_value != null || lead.next_contact_at || memberName || lead.source) && (
+        {(lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {idle >= STALE_DAYS && (
+              <span className="flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-md leading-none"
+                    style={{ color: '#F5A623', background: 'rgba(245,166,35,0.12)' }}
+                    title={`Na mesma etapa há ${idle} dias`}>
+                <Hourglass className="w-2.5 h-2.5" />
+                {idle}d
+              </span>
+            )}
             {lead.estimated_value != null && (
               <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md leading-none"
                     style={{ color: '#22C55E', background: 'rgba(34,197,94,0.12)' }}>
@@ -191,7 +197,14 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo }: LeadCardProps
               className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] hover:bg-white/5"
               style={{ color: 'var(--sm-text-2)' }}
             >
-              <Pencil className="w-3 h-3" /> Editar
+              <Pencil className="w-3 h-3" /> Abrir ficha
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); onArchive() }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] hover:bg-white/5"
+              style={{ color: 'var(--sm-text-2)' }}
+            >
+              <Archive className="w-3 h-3" /> Arquivar
             </button>
 
             <div className="px-3 pt-1.5 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-4)' }}>
@@ -225,6 +238,7 @@ interface ColumnProps {
   onAddLead:   () => void
   onOpenLead:  (lead: CrmLead) => void
   onMoveLead:  (lead: CrmLead, columnId: string) => void
+  onArchiveLead: (lead: CrmLead) => void
   onRename:    (name: string) => void
   onRecolor:   (color: string) => void
   onStageType: (t: CrmStageType) => void
@@ -235,7 +249,7 @@ interface ColumnProps {
 }
 
 function Column({
-  column, leads, columns, memberOf, onAddLead, onOpenLead, onMoveLead,
+  column, leads, columns, memberOf, onAddLead, onOpenLead, onMoveLead, onArchiveLead,
   onRename, onRecolor, onStageType, onDelete, onShift, isFirst, isLast,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${column.id}` })
@@ -442,6 +456,7 @@ function Column({
                   memberName={memberOf(lead.responsible_user_id)}
                   onOpen={() => onOpenLead(lead)}
                   onMoveTo={colId => onMoveLead(lead, colId)}
+                  onArchive={() => onArchiveLead(lead)}
                 />
               </motion.div>
             ))}
@@ -473,6 +488,8 @@ export function CrmBoard() {
   const deleteColumn  = useDeleteCrmColumn()
   const reorderCols   = useReorderCrmColumns()
   const moveLead      = useMoveCrmLead()
+  const archiveLead   = useArchiveCrmLead()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [search, setSearch]           = useState('')
   const [filterMember, setFilterMember] = useState('')
@@ -484,6 +501,16 @@ export function CrmBoard() {
   const [pickerOpen, setPickerOpen]   = useState(false)
   const [deleting, setDeleting]       = useState<CrmColumn | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string>('')
+  const [quick, setQuick]             = useState<'todos' | 'retornos' | 'quentes'>('todos')
+  const [archivedOpen, setArchivedOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  // Movimento para etapa de perda fica em espera até a pessoa dizer o motivo
+  const [pendingLost, setPendingLost] = useState<{ lead: CrmLead; toColumnId: string } | null>(null)
+
+  // Arquivado some do board, mas continua na lista (relatório e restauração)
+  const activeLeads   = useMemo(() => leads.filter(l => !l.archived_at), [leads])
+  const archivedLeads = useMemo(() => leads.filter(l => l.archived_at), [leads])
+  const today = todayISO()
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -495,8 +522,10 @@ export function CrmBoard() {
   // Leads filtrados, já agrupados por coluna e ordenados por posição
   const leadsByColumn = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const filtered = leads.filter(l => {
+    const filtered = activeLeads.filter(l => {
       if (filterMember && l.responsible_user_id !== filterMember) return false
+      if (quick === 'retornos' && !(l.next_contact_at && l.next_contact_at <= today)) return false
+      if (quick === 'quentes' && l.temperature !== 'quente') return false
       if (!term) return true
       return (
         l.name.toLowerCase().includes(term) ||
@@ -514,15 +543,15 @@ export function CrmBoard() {
       list.sort((a, b) => a.position - b.position || b.created_at.localeCompare(a.created_at))
     }
     return map
-  }, [leads, columns, search, filterMember])
+  }, [activeLeads, columns, search, filterMember, quick, today])
 
   // Números do topo: valor em aberto e taxa de conversão
   const stats = useMemo(() => {
     const wonIds  = new Set(columns.filter(c => c.stage_type === 'ganho').map(c => c.id))
     const lostIds = new Set(columns.filter(c => c.stage_type === 'perdido').map(c => c.id))
-    const open = leads.filter(l => !wonIds.has(l.column_id) && !lostIds.has(l.column_id))
-    const won  = leads.filter(l =>  wonIds.has(l.column_id))
-    const lost = leads.filter(l =>  lostIds.has(l.column_id))
+    const open = activeLeads.filter(l => !wonIds.has(l.column_id) && !lostIds.has(l.column_id))
+    const won  = activeLeads.filter(l =>  wonIds.has(l.column_id))
+    const lost = activeLeads.filter(l =>  lostIds.has(l.column_id))
     const closed = won.length + lost.length
     return {
       openCount:  open.length,
@@ -530,8 +559,23 @@ export function CrmBoard() {
       wonCount:   won.length,
       wonValue:   won.reduce((s, l) => s + (l.estimated_value ?? 0), 0),
       conversion: closed > 0 ? Math.round((won.length / closed) * 100) : null,
+      followups:  open.filter(l => l.next_contact_at && l.next_contact_at <= today).length,
     }
-  }, [leads, columns])
+  }, [activeLeads, columns, today])
+
+  // Link da notificação ou do WhatsApp: /crm?lead=<id> abre a ficha direto
+  useEffect(() => {
+    const id = searchParams.get('lead')
+    if (!id || loadingLeads) return
+    const target = leads.find(l => l.id === id)
+    if (target) {
+      setModalLead(target)
+      setModalColumn(target.column_id)
+      setModalOpen(true)
+    }
+    searchParams.delete('lead')
+    setSearchParams(searchParams, { replace: true })
+  }, [searchParams, leads, loadingLeads, setSearchParams])
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
 
@@ -578,6 +622,15 @@ export function CrmBoard() {
   /** Move o card e reescreve a ordem da coluna de destino num só lugar,
    *  para o arrasto e o menu "mover para" se comportarem igual. */
   function applyMove(lead: CrmLead, toColumnId: string) {
+    const target = columns.find(c => c.id === toColumnId)
+    if (target?.stage_type === 'perdido') {
+      setPendingLost({ lead, toColumnId })
+      return
+    }
+    doMove(lead, toColumnId)
+  }
+
+  function doMove(lead: CrmLead, toColumnId: string, lostReason?: string | null) {
     // Usa `leads` cru, não a lista filtrada da tela: com busca ativa, reordenar
     // só o que está visível deixaria os leads escondidos com posição repetida.
     const destination = leads
@@ -586,7 +639,7 @@ export function CrmBoard() {
     const leadIds = [lead.id, ...destination.map(l => l.id)]   // entra no topo da coluna
 
     moveLead.mutate(
-      { leadId: lead.id, toColumnId, leadIds },
+      { leadId: lead.id, toColumnId, leadIds, lostReason },
       { onError: (err: any) => toast(err.message ?? 'Não consegui mover o lead', 'error') },
     )
   }
@@ -663,31 +716,24 @@ export function CrmBoard() {
 
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--sm-bg-page)' }}>
-      {/* Top bar — mesmo formato das outras telas do app */}
-      <div
-        className="flex items-center justify-between px-4 sm:px-6 py-4 border-b gap-4 flex-wrap"
-        style={{ borderColor: 'var(--sm-border)' }}
-      >
-        <div className="pl-9 md:pl-0">
-          <h1 className="text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>CRM</h1>
-          <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>
-            {columns.length === 0
-              ? 'Funil comercial da agência'
-              : `${leads.length} ${leads.length === 1 ? 'lead' : 'leads'} · ${columns.length} ${columns.length === 1 ? 'etapa' : 'etapas'}`}
-          </p>
-        </div>
-
-        {columns.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
+      <CrmHeader
+        subtitle={columns.length === 0
+          ? 'Funil comercial da agência'
+          : `${activeLeads.length} ${activeLeads.length === 1 ? 'lead' : 'leads'} · ${columns.length} ${columns.length === 1 ? 'etapa' : 'etapas'}`}
+        actions={columns.length > 0 && (
+          <>
+            <Button size="sm" variant="outline" onClick={() => setAssistantOpen(true)}>
+              <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} /> Perguntar à IA
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
               <LayoutTemplate className="w-3.5 h-3.5" /> Modelos
             </Button>
             <Button size="sm" onClick={() => openNewLead(columns[0].id)}>
               <Plus className="w-3.5 h-3.5" /> Novo lead
             </Button>
-          </div>
+          </>
         )}
-      </div>
+      />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -731,6 +777,36 @@ export function CrmBoard() {
                       style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
                   Conversão <strong style={{ color: 'var(--sm-text-1)' }}>{stats.conversion}%</strong>
                 </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 flex-wrap">
+              {([
+                ['todos',    'Todos'],
+                ['retornos', `Retornos de hoje${stats.followups ? ` (${stats.followups})` : ''}`],
+                ['quentes',  'Quentes'],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setQuick(id)}
+                  className="text-[11.5px] px-2 h-7 rounded-lg border transition-colors"
+                  style={{
+                    borderColor: quick === id ? '#2563EB' : 'var(--sm-border)',
+                    background:  quick === id ? 'rgba(37,99,235,0.12)' : 'transparent',
+                    color:       quick === id ? '#4F8EF7' : 'var(--sm-text-3)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              {archivedLeads.length > 0 && (
+                <button
+                  onClick={() => setArchivedOpen(true)}
+                  className="flex items-center gap-1 text-[11.5px] px-2 h-7 rounded-lg transition-colors hover:opacity-100 opacity-70"
+                  style={{ color: 'var(--sm-text-3)' }}
+                >
+                  <Archive className="w-3 h-3" /> Arquivados ({archivedLeads.length})
+                </button>
               )}
             </div>
 
@@ -778,6 +854,13 @@ export function CrmBoard() {
                     onAddLead={() => openNewLead(col.id)}
                     onOpenLead={openLead}
                     onMoveLead={applyMove}
+                    onArchiveLead={lead => archiveLead.mutate(
+                      { id: lead.id, archived: true },
+                      {
+                        onSuccess: () => toast('Lead arquivado. Ele continua nos relatórios.', 'success'),
+                        onError:   (err: any) => toast(err.message ?? 'Erro ao arquivar', 'error'),
+                      },
+                    )}
                     onRename={name => updateColumn.mutate({ id: col.id, name })}
                     onRecolor={color => updateColumn.mutate({ id: col.id, color })}
                     onStageType={stage_type => updateColumn.mutate({ id: col.id, stage_type })}
@@ -845,6 +928,54 @@ export function CrmBoard() {
         onConvert={handleConvert}
       />
 
+      {/* Motivo de perda */}
+      <CrmLostReasonDialog
+        open={!!pendingLost}
+        leadName={pendingLost?.lead.name ?? ''}
+        onCancel={() => setPendingLost(null)}
+        onConfirm={reason => {
+          if (pendingLost) doMove(pendingLost.lead, pendingLost.toColumnId, reason)
+          setPendingLost(null)
+        }}
+      />
+
+      {/* Arquivados */}
+      <Dialog open={archivedOpen} onOpenChange={setArchivedOpen}>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Leads arquivados</DialogTitle>
+          </DialogHeader>
+          <p className="text-[12px] -mt-2" style={{ color: 'var(--sm-text-3)' }}>
+            Fora do funil, mas ainda contam nos relatórios. Restaure para voltar à etapa em que estavam.
+          </p>
+          <ul className="space-y-1.5">
+            {archivedLeads.map(l => (
+              <li key={l.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'var(--sm-bg-alt)' }}>
+                <button className="min-w-0 flex-1 text-left" onClick={() => { setArchivedOpen(false); openLead(l) }}>
+                  <p className="text-[12.5px] truncate" style={{ color: 'var(--sm-text-1)' }}>{l.name}</p>
+                  <p className="text-[10.5px]" style={{ color: 'var(--sm-text-4)' }}>
+                    {columns.find(c => c.id === l.column_id)?.name ?? 'sem etapa'}
+                    {l.company ? ` · ${l.company}` : ''}
+                  </p>
+                </button>
+                <Button size="sm" variant="outline" onClick={() => archiveLead.mutate({ id: l.id, archived: false })}>
+                  <ArchiveRestore className="w-3 h-3" /> Restaurar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assistente de IA */}
+      <CrmAssistant
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        leads={activeLeads}
+        columns={columns}
+        memberOf={memberOf}
+      />
+
       {/* Modelos de funil */}
       <CrmTemplatePicker
         open={pickerOpen}
@@ -866,10 +997,11 @@ export function CrmBoard() {
               Excluir "{deleting.name}"
             </h3>
 
-            {(leadsByColumn.get(deleting.id)?.length ?? 0) > 0 ? (
+            {/* Conta os arquivados também: eles moram na coluna e iriam junto */}
+            {leads.some(l => l.column_id === deleting.id) ? (
               <>
                 <p className="text-[12px] mb-3" style={{ color: 'var(--sm-text-3)' }}>
-                  Esta coluna tem {leadsByColumn.get(deleting.id)!.length} lead(s). Para onde eles vão?
+                  Esta coluna tem {leads.filter(l => l.column_id === deleting.id).length} lead(s), contando os arquivados. Para onde eles vão?
                 </p>
                 <select
                   value={deleteTarget}

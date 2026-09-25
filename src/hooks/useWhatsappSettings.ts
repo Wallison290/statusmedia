@@ -8,10 +8,11 @@ export const WHATSAPP_CATEGORIES: { key: WhatsappCategory; label: string; hint: 
   { key: 'tarefas',      label: 'Tarefas e equipe', hint: 'Colaborador concluiu ou atualizou tarefa' },
   { key: 'instagram',    label: 'Instagram',        hint: 'Post agendado publicado ou com falha' },
   { key: 'solicitacoes', label: 'Solicitações',     hint: 'Ideia/solicitação ou formulário do cliente' },
+  { key: 'crm',          label: 'CRM',              hint: 'Retornos do dia, lead novo, proposta aceita e contrato assinado' },
 ]
 
 export const DEFAULT_PREFS: WhatsappPrefs = {
-  aprovacoes: true, tarefas: true, instagram: true, solicitacoes: true,
+  aprovacoes: true, tarefas: true, instagram: true, solicitacoes: true, crm: true,
 }
 
 /**

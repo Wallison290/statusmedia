@@ -204,7 +204,11 @@ export function useUpdateCrmLead() {
       if (error) throw error
       return data as CrmLead
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm_leads'] }),
+    onSuccess: (lead) => {
+      qc.invalidateQueries({ queryKey: ['crm_leads'] })
+      qc.invalidateQueries({ queryKey: ['crm_activities', lead.id] })
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+    },
   })
 }
 
@@ -232,10 +236,15 @@ export function useMoveCrmLead() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: async ({ leadId, toColumnId, leadIds }: { leadId: string; toColumnId: string; leadIds: string[] }) => {
+    mutationFn: async ({ leadId, toColumnId, leadIds, lostReason }: {
+      leadId: string; toColumnId: string; leadIds: string[]
+      /** Só quando o destino é etapa de perda. Vai no mesmo UPDATE que move o
+       *  card para o histórico já registrar "Perdido: <motivo>". */
+      lostReason?: string | null
+    }) => {
       const { error } = await (supabase as any)
         .from('crm_leads')
-        .update({ column_id: toColumnId })
+        .update(lostReason !== undefined ? { column_id: toColumnId, lost_reason: lostReason } : { column_id: toColumnId })
         .eq('id', leadId)
       if (error) throw error
 
@@ -263,6 +272,11 @@ export function useMoveCrmLead() {
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous)
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['crm_leads'] }),
+    onSettled: (_d, _e, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm_leads'] })
+      // Mover dispara automações no banco (tarefa criada, temperatura...)
+      qc.invalidateQueries({ queryKey: ['crm_activities', vars.leadId] })
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+    },
   })
 }

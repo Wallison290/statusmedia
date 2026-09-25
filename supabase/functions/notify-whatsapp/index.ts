@@ -53,11 +53,16 @@ const CATEGORY_OF: Record<string, string> = {
   POST_PUBLISHED: 'instagram', POST_FAILED: 'instagram',
   TASK_DONE: 'tarefas', TASK_STATUS_UPDATE: 'tarefas',
   FORM_SUBMITTED: 'solicitacoes', NOTE_REQUEST: 'solicitacoes',
+  CRM_FOLLOWUP: 'crm', CRM_LEAD_NEW: 'crm', CRM_PROPOSAL_VIEWED: 'crm',
+  CRM_PROPOSAL_ACCEPTED: 'crm', CRM_PROPOSAL_REJECTED: 'crm',
+  CRM_CONTRACT_SIGNED: 'crm', CRM_AUTOMATION: 'crm',
 }
 
 // Link de destino por tipo (mesma lógica do Header.tsx onView).
 function buildLink(n: NotificationRow): string | null {
   if (n.type === 'NOTE_REQUEST') return `${APP_URL}${n.link || '/notes'}`
+  // O CRM grava o caminho completo no link ('/crm?lead=<id>')
+  if (n.type.startsWith('CRM_')) return `${APP_URL}${n.link || '/crm'}`
   if (!n.link) {
     if (['APPROVAL_REQUEST', 'ADJUSTMENT_DONE', 'NEW_CONTENT'].includes(n.type)) {
       return `${APP_URL}/planner`
@@ -80,6 +85,13 @@ const AGENCY_TITLE: Record<string, string> = {
   NOTE_REQUEST:       '💡 Nova solicitação/ideia',
   TASK_DONE:          '✔️ Tarefa concluída',
   TASK_STATUS_UPDATE: '🔄 Atualização de tarefa',
+  // CRM_FOLLOWUP e CRM_AUTOMATION usam o título gravado ("Você tem 3 retornos
+  // hoje", nome da automação), mais informativo que um título fixo.
+  CRM_LEAD_NEW:          '🧲 Novo lead',
+  CRM_PROPOSAL_VIEWED:   '👀 Proposta aberta agora',
+  CRM_PROPOSAL_ACCEPTED: '🎉 Proposta aceita!',
+  CRM_PROPOSAL_REJECTED: '📉 Proposta recusada',
+  CRM_CONTRACT_SIGNED:   '✍️ Contrato assinado!',
 }
 
 function buildMessage(n: NotificationRow): string {
@@ -246,7 +258,9 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
 
   for (const g of groups ?? []) {
     const cats = g.categories ?? {}
-    if (cats[category] === false) continue
+    // CRM só vai para grupo que ligou a categoria de propósito: grupo pode ter
+    // cliente dentro, e o aviso traz nome de lead e valor de proposta.
+    if (category === 'crm' ? cats.crm !== true : cats[category] === false) continue
     await sendToJid(g.group_jid, text).catch(() => {})
   }
 

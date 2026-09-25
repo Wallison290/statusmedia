@@ -16,7 +16,7 @@ export interface Profile {
   whatsapp_prefs?: WhatsappPrefs | null
 }
 
-export type WhatsappCategory = 'aprovacoes' | 'tarefas' | 'instagram' | 'solicitacoes'
+export type WhatsappCategory = 'aprovacoes' | 'tarefas' | 'instagram' | 'solicitacoes' | 'crm'
 export type WhatsappPrefs = Record<WhatsappCategory, boolean>
 
 export type ClientStatus =
@@ -277,6 +277,7 @@ export interface Task {
   collaborator_note: string | null
   delivery_url: string | null
   task_links: TaskLink[] | null
+  crm_lead_id?: string | null
   created_at: string
   updated_at: string
   client?: Client
@@ -527,6 +528,141 @@ export interface CrmLead {
   next_contact_at:     string | null
   notes:               string | null
   converted_client_id: string | null
+  archived_at:         string | null
+  lost_reason:         string | null
+  stage_entered_at:    string
+  closed_at:           string | null
   created_at:          string
   updated_at:          string
+}
+
+/** Tipos que a agência registra à mão; os demais o banco grava sozinho. */
+export type CrmManualActivityKind = 'nota' | 'ligacao' | 'whatsapp' | 'reuniao' | 'email'
+
+export type CrmActivityKind =
+  | CrmManualActivityKind
+  | 'criado' | 'etapa' | 'ganho' | 'perdido' | 'reaberto'
+  | 'arquivado' | 'restaurado' | 'convertido'
+  | 'tarefa' | 'tarefa_concluida'
+  | 'proposta' | 'contrato' | 'captura' | 'automacao'
+
+export interface CrmActivity {
+  id:         string
+  user_id:    string
+  lead_id:    string
+  kind:       CrmActivityKind
+  content:    string | null
+  meta:       Record<string, any>
+  created_at: string
+}
+
+export interface CrmProposalItem {
+  description: string
+  details?:    string
+  quantity:    number
+  unit_price:  number
+  recurring?:  boolean   // mensal: aparece como "/mês" para o cliente
+}
+
+export type CrmProposalStatus = 'rascunho' | 'enviada' | 'visualizada' | 'aceita' | 'recusada'
+
+export interface CrmProposal {
+  id:             string
+  user_id:        string
+  lead_id:        string | null
+  title:          string
+  intro:          string | null
+  items:          CrmProposalItem[]
+  discount:       number
+  total:          number
+  valid_until:    string | null
+  payment_terms:  string | null
+  internal_notes: string | null
+  status:         CrmProposalStatus
+  public_token:   string
+  sent_at:        string | null
+  viewed_at:      string | null
+  view_count:     number
+  responded_at:   string | null
+  responder_name: string | null
+  reject_reason:  string | null
+  content_hash:   string | null
+  response_meta:  Record<string, any> | null
+  created_at:     string
+  updated_at:     string
+}
+
+export type CrmContractStatus = 'rascunho' | 'enviado' | 'assinado' | 'cancelado'
+
+export interface CrmContract {
+  id:                 string
+  user_id:            string
+  lead_id:            string | null
+  proposal_id:        string | null
+  title:              string
+  content:            string
+  status:             CrmContractStatus
+  public_token:       string
+  agency_signer_name: string | null
+  agency_signature:   string | null
+  agency_signed_at:   string | null
+  sent_at:            string | null
+  viewed_at:          string | null
+  signer_name:        string | null
+  signer_document:    string | null
+  signer_email:       string | null
+  signature:          string | null
+  signed_at:          string | null
+  content_hash:       string | null
+  sign_meta:          Record<string, any> | null
+  created_at:         string
+  updated_at:         string
+}
+
+export interface CrmMessageTemplate {
+  title: string
+  text:  string
+}
+
+export interface CrmSettings {
+  user_id:             string
+  daily_digest:        boolean
+  goal_monthly_value:  number | null
+  goal_monthly_deals:  number | null
+  message_templates:   CrmMessageTemplate[] | null
+  contract_template:   string | null
+  proposal_defaults:   { valid_days?: number; payment_terms?: string; intro?: string }
+  capture_enabled:     boolean
+  capture_token:       string
+  capture_column_id:   string | null
+  capture_title:       string | null
+  capture_description: string | null
+  capture_thanks:      string | null
+  created_at:          string
+  updated_at:          string
+}
+
+export type CrmAutomationTrigger =
+  | 'lead_criado' | 'lead_formulario' | 'lead_entrou_etapa' | 'lead_parado'
+  | 'proposta_visualizada' | 'proposta_aceita' | 'proposta_recusada' | 'contrato_assinado'
+
+export type CrmAutomationAction =
+  | 'criar_tarefa' | 'notificar' | 'lembrete_whatsapp'
+  | 'mover_etapa' | 'agendar_contato' | 'definir_temperatura'
+
+export interface CrmAutomation {
+  id:                string
+  user_id:           string
+  name:              string
+  is_active:         boolean
+  trigger_type:      CrmAutomationTrigger
+  trigger_column_id: string | null
+  trigger_days:      number | null
+  action_type:       CrmAutomationAction
+  action_params:     Record<string, any>
+  run_count:         number
+  last_run_at:       string | null
+  last_error:        string | null
+  created_at:        string
+  updated_at:        string
 }
