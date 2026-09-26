@@ -57,6 +57,8 @@ export function ClientForm() {
   const updateClient = useUpdateClient()
   const [form, setForm] = useState(emptyForm)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const [onboard, setOnboard] = useState<{ clientId: string; category: string | null } | null>(null)
   const logoRef = useRef<HTMLInputElement>(null)
 
@@ -108,6 +110,22 @@ export function ClientForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+    // Trava o salvar do começo ao fim, convite incluso. O botão só olhava a
+    // gravação do cliente e destravava durante o envio do convite (~2s): um
+    // segundo clique ali criava um cadastro repetido.
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSubmitting(true)
+    try {
+      await doSubmit()
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
+  }
+
+  const doSubmit = async () => {
+    if (!user) return
 
     // ── Gate: limite de clientes por plano ──────────────────────────────────
     if (!isEdit) {
@@ -155,7 +173,8 @@ export function ClientForm() {
             if (inviteError) throw inviteError
             toast('Cliente cadastrado! Convite enviado para o e-mail.', 'success')
           } catch {
-            toast('Cliente cadastrado! (falha ao enviar convite — tente reenviar depois)', 'success')
+            // Vermelho: em verde, igual ao sucesso, a falha passava despercebida
+            toast('Cliente cadastrado, mas o convite do portal NÃO foi enviado. Reenvie pelo perfil do cliente.', 'error')
           }
         } else if (form.email && !hasPortal) {
           toast('Cliente cadastrado! (Portal do cliente disponível nos planos Pro e Agency)', 'success')
@@ -374,8 +393,8 @@ export function ClientForm() {
           </Card>
 
           <div className="flex gap-3">
-            <Button type="submit" variant="premium" disabled={createClient.isPending || updateClient.isPending || isUploadingLogo}>
-              <Save className="w-4 h-4" /> {createClient.isPending || updateClient.isPending ? 'Salvando...' : 'Salvar cliente'}
+            <Button type="submit" variant="premium" disabled={submitting || isUploadingLogo}>
+              <Save className="w-4 h-4" /> {submitting ? 'Salvando...' : 'Salvar cliente'}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
           </div>

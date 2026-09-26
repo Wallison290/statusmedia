@@ -78,6 +78,12 @@ export function useUpdateClient() {
   })
 }
 
+/** Antes de excluir: o cliente tem acesso ao portal? Há outro cadastro com o mesmo e-mail? */
+export async function checkClientDeletion(id: string): Promise<{ hasPortal: boolean; duplicates: number }> {
+  const { data } = await supabase.functions.invoke('delete-client', { body: { clientId: id, check: true } })
+  return { hasPortal: !!data?.hasPortal, duplicates: Number(data?.duplicates ?? 0) }
+}
+
 export function useDeleteClient() {
   const qc = useQueryClient()
   return useMutation({

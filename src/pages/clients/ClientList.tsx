@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Search, Users, Instagram, Trash2, ChevronDown, Palette, Clock, CheckCircle, FileEdit, XCircle, Upload, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useClients, useDeleteClient } from '@/hooks/useClients'
+import { useClients, useDeleteClient, checkClientDeletion } from '@/hooks/useClients'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/integrations/supabase/client'
@@ -228,7 +228,17 @@ export function ClientList() {
 
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation()
-    if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return
+    // Avisa o que se perde junto: o acesso do cliente ao portal. Se a consulta
+    // falhar, cai na confirmação simples em vez de travar a exclusão.
+    const info = await checkClientDeletion(id).catch(() => ({ hasPortal: false, duplicates: 0 }))
+    const lines = [`Excluir "${name}"? Esta ação não pode ser desfeita.`]
+    if (info.hasPortal) {
+      lines.push('', 'ATENÇÃO: este cadastro tem acesso ao portal ativo. O cliente perde o login e vai precisar de um convite novo.')
+    }
+    if (info.duplicates > 0) {
+      lines.push('', `Existe ${info.duplicates === 1 ? 'outro cadastro' : `mais ${info.duplicates} cadastros`} com o mesmo e-mail. Confira qual deles tem o acesso ao portal antes de excluir.`)
+    }
+    if (!confirm(lines.join('\n'))) return
     try {
       await deleteClient.mutateAsync(id)
       toast('Cliente excluído.', 'success')

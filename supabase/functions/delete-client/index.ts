@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     const { data: { user: caller } } = await sb.auth.getUser(authHeader.replace('Bearer ', ''))
     if (!caller) throw new Error('Não autorizado')
 
-    const { clientId } = await req.json()
+    const { clientId, check } = await req.json()
     if (!clientId) throw new Error('clientId é obrigatório')
 
     // 1. Verifica se o cliente pertence ao usuário logado
@@ -44,6 +44,24 @@ Deno.serve(async (req) => {
       .select('id')
       .eq('linked_client_id', clientId)
       .maybeSingle()
+
+    // Consulta prévia (check: true): a tela pergunta antes de excluir se este
+    // cadastro tem acesso ao portal, e se existe outro cadastro com o mesmo
+    // e-mail. Foi o caso real: dois cadastros iguais, e a agência apagou
+    // justamente o que tinha o acesso do cliente.
+    if (check) {
+      const { data: full } = await sb.from('clients').select('email').eq('id', clientId).single()
+      let duplicates = 0
+      if (full?.email) {
+        const { count } = await sb.from('clients').select('id', { count: 'exact', head: true })
+          .eq('user_id', caller.id).ilike('email', full.email).neq('id', clientId)
+        duplicates = count ?? 0
+      }
+      return new Response(
+        JSON.stringify({ success: true, hasPortal: !!linkedProfile?.id, duplicates }),
+        { status: 200, headers: { ...CORS, 'Content-Type': 'application/json' } },
+      )
+    }
 
     // 3. Remove contas Instagram vinculadas ao cliente antes de deletar
     // (evita violação de unique constraint ao fazer SET NULL em registros duplicados)
