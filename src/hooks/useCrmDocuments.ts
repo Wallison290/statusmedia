@@ -121,7 +121,7 @@ export function useDeleteCrmContract() {
 
 // ── Páginas públicas (sem login) ──────────────────────────────────────────────
 
-export interface PublicAgency { name: string; logo: string | null }
+export interface PublicAgency { name: string; logo: string | null; color?: string | null }
 
 export interface PublicProposal {
   title:          string

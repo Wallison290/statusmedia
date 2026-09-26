@@ -2,14 +2,15 @@
 // O cliente lê e assina: nome completo, CPF/CNPJ, e-mail, rubrica desenhada e
 // o aceite. Depois de assinado, a mesma página vira o comprovante (com as duas
 // assinaturas, data, IP e o código do texto), pronto para salvar em PDF.
+// Mesmo padrão editorial da proposta, na cor da agência.
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { CheckCircle2, Printer, Loader2, ShieldCheck } from 'lucide-react'
 import { fetchPublicContract, signPublicContract, type PublicContract } from '@/hooks/useCrmDocuments'
 import { SignaturePad } from '@/components/crm/SignaturePad'
-import { fmtDateTime, isValidCpfCnpj, fmtCpfCnpj } from '@/utils/crm'
-import { PublicShell, PublicLoading, PublicNotFound, INK, MUTED, LINE, BRAND, inputClass } from './PublicShell'
+import { fmtDateTime, fmtLongDate, isValidCpfCnpj, fmtCpfCnpj } from '@/utils/crm'
+import { PublicShell, PublicLoading, PublicNotFound, SectionLabel, INK, MUTED, LINE, inputClass } from './PublicShell'
 
 export function PublicContractPage() {
   const { token = '' } = useParams()
@@ -51,86 +52,94 @@ export function PublicContractPage() {
     }
   }
 
+  const SignBlock = ({ img, who, role, when }: { img: string | null; who: string; role: string; when: string | null }) => (
+    <div>
+      <div className="h-24 flex items-end">{img && <img src={img} alt={`Assinatura de ${who}`} className="max-h-24" />}</div>
+      <div className="border-t pt-2" style={{ borderColor: INK }}>
+        <p className="font-semibold text-[14.5px]">{who}</p>
+        <p className="text-[12.5px] mt-0.5" style={{ color: MUTED }}>{role}</p>
+        {when && <p className="text-[12.5px]" style={{ color: MUTED }}>{fmtDateTime(when)}</p>}
+      </div>
+    </div>
+  )
+
   return (
     <PublicShell agency={data.agency} wide>
-      <p className="text-[12px] uppercase tracking-widest font-semibold" style={{ color: BRAND }}>Contrato</p>
-      <h1 className="text-[22px] sm:text-[26px] font-bold leading-tight mt-1" style={{ color: INK }}>{data.title}</h1>
-
-      <article className="mt-6 text-[14px] leading-relaxed whitespace-pre-line" style={{ color: '#1e293b' }}>
-        {data.content}
-      </article>
-
-      {/* Assinaturas */}
-      <div className="mt-10 grid gap-6 sm:grid-cols-2">
-        <div>
-          <div className="h-20 flex items-end">
-            {data.agency_signature && <img src={data.agency_signature} alt="Assinatura da contratada" className="max-h-20" />}
-          </div>
-          <div className="border-t pt-1.5 text-[12px]" style={{ borderColor: INK, color: MUTED }}>
-            <p className="font-semibold" style={{ color: INK }}>{data.agency.name}</p>
-            <p>CONTRATADA{data.agency_signer_name && ` · ${data.agency_signer_name}`}</p>
-            {data.agency_signed_at && <p>{fmtDateTime(data.agency_signed_at)}</p>}
-          </div>
-        </div>
-        <div>
-          <div className="h-20 flex items-end">
-            {data.signature && <img src={data.signature} alt="Assinatura do contratante" className="max-h-20" />}
-          </div>
-          <div className="border-t pt-1.5 text-[12px]" style={{ borderColor: INK, color: MUTED }}>
-            <p className="font-semibold" style={{ color: INK }}>{data.signer_name ?? 'Contratante'}</p>
-            <p>CONTRATANTE{data.signer_document && ` · doc. ${data.signer_document}`}</p>
-            {data.signed_at && <p>{fmtDateTime(data.signed_at)}</p>}
-          </div>
-        </div>
-      </div>
-
-      {signed ? (
-        <>
-          <div className="mt-8 rounded-xl p-4 flex items-start gap-3 print:hidden" style={{ background: '#f0fdf4' }}>
-            <CheckCircle2 className="w-6 h-6 flex-shrink-0" style={{ color: '#16a34a' }} />
-            <div>
-              <p className="text-[15px] font-semibold" style={{ color: INK }}>Contrato assinado</p>
-              <p className="text-[13px]" style={{ color: MUTED }}>
-                Guarde uma cópia: use "Imprimir ou salvar PDF" abaixo.
-              </p>
-            </div>
-          </div>
-          <div className="mt-6 rounded-xl p-3 text-[11px] space-y-0.5" style={{ background: '#f8fafc', color: MUTED }}>
-            <p className="flex items-center gap-1 font-semibold" style={{ color: INK }}>
-              <ShieldCheck className="w-3.5 h-3.5" /> Registro da assinatura eletrônica
-            </p>
-            <p>Assinado por {data.signer_name} em {data.signed_at && fmtDateTime(data.signed_at)}{data.sign_ip && ` · IP ${data.sign_ip}`}</p>
-            {data.content_hash && <p className="break-all">Código do texto assinado (SHA-256): {data.content_hash}</p>}
-          </div>
-        </>
-      ) : (
-        <div className="mt-10 pt-6 border-t space-y-3 print:hidden" style={{ borderColor: LINE }}>
-          <p className="text-[16px] font-semibold" style={{ color: INK }}>Assinar contrato</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input className={`${inputClass} sm:col-span-2`} style={{ borderColor: LINE, color: INK }}
-                   placeholder="Nome completo" value={name} onChange={e => setName(e.target.value)} />
-            <input className={inputClass} style={{ borderColor: LINE, color: INK }} inputMode="numeric"
-                   placeholder="CPF ou CNPJ" value={doc} onChange={e => setDoc(fmtCpfCnpj(e.target.value))} />
-            <input className={inputClass} style={{ borderColor: LINE, color: INK }} type="email"
-                   placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <SignaturePad onChange={setSig} />
-          <label className="flex items-start gap-2 text-[13px] cursor-pointer" style={{ color: '#334155' }}>
-            <input type="checkbox" className="mt-0.5" checked={agree} onChange={e => setAgree(e.target.checked)} />
-            Li o contrato inteiro e concordo com os termos. Entendo que esta assinatura eletrônica tem validade jurídica e que serão registrados meu nome, documento, e-mail, data, hora e endereço de acesso.
-          </label>
-          {error && <p className="text-[13px]" style={{ color: '#dc2626' }}>{error}</p>}
-          <button onClick={sign} disabled={busy}
-                  className="w-full h-12 rounded-xl text-white text-[15px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: BRAND }}>
-            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            Assinar contrato
-          </button>
-        </div>
+      <p className="text-[11.5px] font-semibold uppercase tracking-[0.22em]" style={{ color: 'var(--brand)' }}>
+        {signed ? 'Contrato assinado' : 'Contrato para assinatura'}
+      </p>
+      <h1 className="font-display font-extrabold mt-4 text-[clamp(2.1rem,6.5vw,3.8rem)] leading-[0.97] tracking-[-0.03em]">
+        {data.title}
+      </h1>
+      {data.sent_at && (
+        <p className="mt-5 text-[14px]" style={{ color: MUTED }}>Enviado em {fmtLongDate(data.sent_at)}</p>
       )}
 
-      <div className="mt-6 flex justify-end text-[11px] print:hidden" style={{ color: MUTED }}>
-        <button onClick={() => window.print()} className="flex items-center gap-1">
+      <section className="mt-14">
+        <SectionLabel n="01">Termos</SectionLabel>
+        <article className="mt-6 text-[15.5px] leading-[1.8] whitespace-pre-line" style={{ color: '#2E2A25' }}>
+          {data.content}
+        </article>
+      </section>
+
+      <section className="mt-14">
+        <SectionLabel n="02">Assinaturas</SectionLabel>
+        <div className="mt-6 grid gap-10 sm:grid-cols-2">
+          <SignBlock img={data.agency_signature} who={data.agency.name}
+                     role={`Contratada${data.agency_signer_name ? ` · ${data.agency_signer_name}` : ''}`} when={data.agency_signed_at} />
+          <SignBlock img={data.signature} who={data.signer_name ?? 'Aguardando assinatura'}
+                     role={`Contratante${data.signer_document ? ` · doc. ${data.signer_document}` : ''}`} when={data.signed_at} />
+        </div>
+      </section>
+
+      {signed ? (
+        <section className="mt-14">
+          <SectionLabel n="03">Registro</SectionLabel>
+          <div className="mt-6 flex items-start gap-4 print:hidden">
+            <CheckCircle2 className="w-8 h-8 shrink-0" style={{ color: '#15803D' }} />
+            <div>
+              <p className="font-display text-[24px] font-bold leading-tight">Contrato assinado.</p>
+              <p className="text-[15px] mt-1" style={{ color: MUTED }}>Guarde uma cópia: use "Imprimir ou salvar PDF" abaixo.</p>
+            </div>
+          </div>
+          <div className="mt-6 text-[12.5px] leading-relaxed space-y-1" style={{ color: MUTED }}>
+            <p className="flex items-center gap-1.5 font-semibold" style={{ color: INK }}>
+              <ShieldCheck className="w-4 h-4" /> Registro da assinatura eletrônica
+            </p>
+            <p>Assinado por {data.signer_name}{data.signed_at && ` em ${fmtDateTime(data.signed_at)}`}{data.sign_ip && ` · IP ${data.sign_ip}`}</p>
+            {data.content_hash && <p className="break-all">Código do texto assinado (SHA-256): {data.content_hash}</p>}
+          </div>
+        </section>
+      ) : (
+        <section className="mt-14 print:hidden">
+          <SectionLabel n="03">Assinar</SectionLabel>
+          <div className="mt-6 space-y-3">
+            <input className={inputClass} style={{ borderColor: LINE, color: INK }}
+                   placeholder="Nome completo" value={name} onChange={e => setName(e.target.value)} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input className={inputClass} style={{ borderColor: LINE, color: INK }} inputMode="numeric"
+                     placeholder="CPF ou CNPJ" value={doc} onChange={e => setDoc(fmtCpfCnpj(e.target.value))} />
+              <input className={inputClass} style={{ borderColor: LINE, color: INK }} type="email"
+                     placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+            <SignaturePad onChange={setSig} border={LINE} />
+            <label className="flex items-start gap-3 text-[14px] leading-relaxed cursor-pointer" style={{ color: '#3F3A34' }}>
+              <input type="checkbox" className="mt-1 w-4 h-4 accent-[var(--brand)]" checked={agree} onChange={e => setAgree(e.target.checked)} />
+              Li o contrato inteiro e concordo com os termos. Entendo que esta assinatura eletrônica tem validade jurídica e que serão registrados meu nome, documento, e-mail, data, hora e endereço de acesso.
+            </label>
+            {error && <p className="text-[14px]" style={{ color: '#B91C1C' }}>{error}</p>}
+            <button onClick={sign} disabled={busy}
+                    className="w-full min-h-[52px] rounded-full text-[16px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity hover:opacity-90"
+                    style={{ background: 'var(--brand)', color: 'var(--on-brand)' }}>
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+              Assinar contrato
+            </button>
+          </div>
+        </section>
+      )}
+
+      <div className="mt-10 flex justify-end text-[12px] print:hidden" style={{ color: MUTED }}>
+        <button onClick={() => window.print()} className="flex items-center gap-1.5 hover:underline">
           <Printer className="w-3.5 h-3.5" /> Imprimir ou salvar PDF
         </button>
       </div>

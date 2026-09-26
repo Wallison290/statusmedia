@@ -638,6 +638,8 @@ export interface CrmSettings {
   capture_title:       string | null
   capture_description: string | null
   capture_thanks:      string | null
+  brand_color:         string | null   // #RRGGBB: cor da agência nas páginas do cliente
+  brand_logo_url:      string | null
   created_at:          string
   updated_at:          string
 }

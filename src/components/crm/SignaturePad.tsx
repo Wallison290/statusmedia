@@ -105,7 +105,7 @@ export function SignaturePad({ onChange, ink = '#0f172a', background = '#ffffff'
         />
         {empty && (
           <span className="absolute inset-0 flex items-center justify-center pointer-events-none text-[13px]"
-                style={{ color: border }}>
+                style={{ color: '#8B857C' }}>
             Assine aqui com o dedo ou o mouse
           </span>
         )}

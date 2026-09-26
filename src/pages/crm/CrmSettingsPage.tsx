@@ -12,6 +12,7 @@ import { useCrmColumns } from '@/hooks/useCrm'
 import { useCrmSettings, useUpdateCrmSettings, type CrmSettingsInput } from '@/hooks/useCrmSettings'
 import { CrmHeader } from '@/components/crm/CrmHeader'
 import { CrmWhatsappConnect } from '@/components/crm/CrmWhatsappConnect'
+import { CrmBrandSettings } from '@/components/crm/CrmBrandSettings'
 import { CRM_DEFAULT_MESSAGES, CRM_DEFAULT_CONTRACT, CRM_CONTRACT_VARIABLES } from '@/data/crmTemplates'
 import { captureLink, copyText } from '@/utils/crm'
 import type { CrmMessageTemplate } from '@/types'
@@ -91,6 +92,8 @@ export function CrmSettingsPage() {
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 max-w-4xl">
         <CrmWhatsappConnect />
+
+        <CrmBrandSettings />
 
         {/* Captura */}
         <Section icon={Magnet} title="Formulário de captura"
