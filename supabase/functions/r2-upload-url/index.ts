@@ -27,8 +27,11 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 
-// Tipos que aceitamos no R2. O resto continua no Supabase Storage.
-const TIPOS_PERMITIDOS = /^(video|image|audio)\//
+// Tipos que aceitamos no R2 (todo arquivo do sistema vai para lá: o Supabase
+// gratuito tem só 1 GB). Fora da lista, e SVG (pode carregar script), o arquivo
+// continua no Supabase Storage.
+const TIPOS_PERMITIDOS = /^(video|image|audio)\/|^application\/(pdf|zip|x-zip-compressed|msword|vnd\.openxmlformats-officedocument\.|vnd\.ms-|vnd\.oasis\.opendocument\.)|^text\/(plain|csv)$/
+const TIPOS_BLOQUEADOS = /^image\/svg/
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -62,7 +65,7 @@ Deno.serve(async (req) => {
     if (!fileName || !contentType) {
       return json({ error: 'fileName e contentType são obrigatórios.' }, 400)
     }
-    if (!TIPOS_PERMITIDOS.test(contentType)) {
+    if (!TIPOS_PERMITIDOS.test(contentType) || TIPOS_BLOQUEADOS.test(contentType)) {
       return json({ error: `Tipo não permitido no R2: ${contentType}` }, 400)
     }
     // Teto da Meta para Reels é 1 GB — não faz sentido aceitar acima disso.

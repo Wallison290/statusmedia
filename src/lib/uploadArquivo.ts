@@ -4,12 +4,12 @@ import { supabase } from '@/integrations/supabase/client'
  * Envia um arquivo e devolve a URL pública dele.
  *
  * Decide sozinho para onde vai:
- *   • vídeo, ou qualquer arquivo acima de 40 MB → Cloudflare R2
- *   • o resto → Supabase Storage, como sempre foi
+ *   • imagem, vídeo, áudio e documentos → Cloudflare R2
+ *   • o que o R2 não aceita (SVG, tipo desconhecido) → Supabase Storage
  *
- * Por que dividir: o plano gratuito do Supabase recusa arquivo acima de 50 MB
- * e dá só 1 GB no total. O R2 dá 10 GB, aceita arquivo grande e não cobra
- * tráfego de saída. As URLs do R2 são públicas, então o agendamento do
+ * Por que o R2 para quase tudo: o plano gratuito do Supabase dá só 1 GB de
+ * arquivos e 5 GB de tráfego por mês, e as imagens do planejamento sozinhas
+ * estouraram esse 1 GB. O R2 dá 10 GB e não cobra tráfego de saída. As URLs do R2 são públicas, então o agendamento do
  * Instagram continua funcionando — a Meta busca o arquivo pela URL.
  */
 
@@ -21,8 +21,12 @@ export type ResultadoUpload = {
   destino: 'r2' | 'supabase'
 }
 
+// Mesma lista da Edge Function r2-upload-url: as duas precisam bater
+const TIPOS_R2 = /^(video|image|audio)\/|^application\/(pdf|zip|x-zip-compressed|msword|vnd\.openxmlformats-officedocument\.|vnd\.ms-|vnd\.oasis\.opendocument\.)|^text\/(plain|csv)$/
+
 export function precisaDoR2(file: File): boolean {
-  return file.type.startsWith('video/') || file.size > LIMITE_SUPABASE
+  if (file.type.startsWith('image/svg')) return false
+  return TIPOS_R2.test(file.type) || file.size > LIMITE_SUPABASE
 }
 
 /**
