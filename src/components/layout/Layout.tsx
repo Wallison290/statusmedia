@@ -5,6 +5,8 @@ import { Sidebar } from './Sidebar'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { useTheme } from '@/contexts/ThemeContext'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 function TrialBanner() {
   const { data: sub } = useSubscription()
@@ -29,22 +31,60 @@ function TrialBanner() {
  * Todo WhatsApp sai pelo número conectado da própria agência (não existe mais
  * número da plataforma). Sem ele, nenhum aviso chega aos clientes nem ao dono
  * pelo WhatsApp, e isso só seria percebido quando alguém reclamasse.
+ *
+ * Aparece como pop-up uma vez por sessão do navegador. "Fechar" some até a
+ * próxima sessão; "Não mostrar mais" some de vez neste navegador.
  */
-function AgencyWhatsappBanner() {
+const WA_POPUP_SEEN_KEY  = 'sm_wa_disconnected_popup_seen'
+const WA_POPUP_NEVER_KEY = 'sm_wa_disconnected_popup_never'
+
+function readFlag(storage: () => Storage, key: string) {
+  try { return storage().getItem(key) === '1' } catch { return false }
+}
+function writeFlag(storage: () => Storage, key: string) {
+  try { storage().setItem(key, '1') } catch { /* navegador sem storage: só fecha */ }
+}
+
+function AgencyWhatsappPopup() {
   const { data } = useAgencyWhatsapp()
-  if (!data || data.status === 'connected' || (!data.available && !data.hasInstance)) return null
+  const [dismissed, setDismissed] = useState(
+    () => readFlag(() => localStorage, WA_POPUP_NEVER_KEY) || readFlag(() => sessionStorage, WA_POPUP_SEEN_KEY),
+  )
+
+  const disconnected = !!data && data.status !== 'connected' && (data.available || data.hasInstance)
+  if (!disconnected || dismissed) return null
+
+  const close = () => {
+    writeFlag(() => sessionStorage, WA_POPUP_SEEN_KEY)
+    setDismissed(true)
+  }
+  const never = () => {
+    writeFlag(() => localStorage, WA_POPUP_NEVER_KEY)
+    close()
+  }
 
   return (
-    <div className="w-full bg-red-600 text-white text-center py-2 px-4 text-[12.5px] font-medium flex items-center justify-center gap-2 flex-shrink-0 flex-wrap">
-      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-      <span>
-        {data.hasInstance ? 'O WhatsApp da agência está desconectado.' : 'O WhatsApp da agência ainda não foi conectado.'}
-        {' '}Os avisos para você e para os seus clientes não estão saindo pelo WhatsApp.
-      </span>
-      <Link to="/whatsapp" className="underline underline-offset-2 hover:no-underline font-semibold">
-        Conectar agora →
-      </Link>
-    </div>
+    <Dialog open onOpenChange={v => { if (!v) close() }}>
+      <DialogContent className="w-[95vw] max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            {data.hasInstance ? 'WhatsApp desconectado' : 'WhatsApp não conectado'}
+          </DialogTitle>
+          <DialogDescription>
+            {data.hasInstance ? 'O WhatsApp da agência está desconectado.' : 'O WhatsApp da agência ainda não foi conectado.'}
+            {' '}Os avisos para você e para os seus clientes não estão saindo pelo WhatsApp.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" onClick={never}>Não mostrar mais</Button>
+          <Button variant="outline" onClick={close}>Fechar</Button>
+          <Button asChild onClick={close}>
+            <Link to="/whatsapp">Conectar agora</Link>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -91,7 +131,7 @@ export function Layout() {
           <Menu className="w-4 h-4 text-white/80" />
         </button>
 
-        <AgencyWhatsappBanner />
+        <AgencyWhatsappPopup />
         <TrialBanner />
         <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           <Outlet />
