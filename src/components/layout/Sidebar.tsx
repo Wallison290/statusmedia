@@ -4,14 +4,13 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, Calendar, CheckSquare, BookOpen,
-  LogOut, ChevronLeft, ChevronRight, Wallet, NotebookPen, LayoutGrid, Sparkles, Zap, UserCheck, Instagram, HardDrive, Info, MessageCircle, BarChart3,
+  LogOut, ChevronLeft, ChevronRight, Wallet, NotebookPen, LayoutGrid, Zap, UserCheck, Instagram, HardDrive, Info, MessageCircle, BarChart3,
   ShieldCheck, Target,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/utils/formatters'
 import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
-import { useAIUsage } from '@/hooks/useAIUsage'
 import { useStorageUsage } from '@/hooks/useStorageUsage'
 
 interface NavItem {
@@ -83,12 +82,9 @@ const navGroups: NavGroup[] = [
       { href: '/admin',     icon: ShieldCheck, label: 'Admin', adminOnly: true },
     ],
   },
-  {
-    title: null,
-    items: [
-      { href: '/ai', icon: Sparkles, label: 'StatusIA' },
-    ],
-  },
+  // StatusIA fora do menu (set/2026): a StatusMedia deixou de vender IA por
+  // enquanto. As rotas /ai continuam existindo; para reativar, é só voltar:
+  // { title: null, items: [{ href: '/ai', icon: Sparkles, label: 'StatusIA' }] },
 ]
 
 // ── Initials avatar ───────────────────────────────────────────────────────────
@@ -260,14 +256,9 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed]  = useState(false)
   const [igTooltip, setIgTooltip] = useState<{ x: number; y: number } | null>(null)
   const { data: subData }          = useSubscription()
-  const { data: usage }            = useAIUsage(user?.id)
   const { data: storage }          = useStorageUsage()
 
   const planName  = subData?.plan.name ?? 'Free'
-  const aiUsed    = usage?.requests ?? 0
-  const aiLimit   = usage?.limit    ?? 50
-  const aiPct     = Math.min(100, Math.round((aiUsed / aiLimit) * 100))
-  const aiWarning = aiPct >= 80
 
   const stUsedGB  = storage?.usedGB  ?? 0
   const stLimitGB = storage?.limitGB ?? 10
@@ -334,28 +325,10 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
           >
             {!collapsed ? (
               <div className="space-y-2">
-                {/* IA */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Zap className={`w-3 h-3 ${aiWarning ? 'text-amber-400' : 'text-[#6366f1]'}`} />
-                      <span className={`text-[11px] font-semibold ${aiWarning ? 'text-amber-400' : ''}`} style={!aiWarning ? { color: 'var(--sm-text-1)' } : {}}>
-                        {planName}
-                      </span>
-                    </div>
-                    <span className={`text-[10px] ${aiWarning ? 'text-amber-400' : ''}`} style={!aiWarning ? { color: 'var(--sm-sidebar-text)' } : {}}>
-                      {aiUsed}/{aiLimit} IA
-                    </span>
-                  </div>
-                  <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--sm-sidebar-border)' }}>
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${aiPct > 0 ? Math.max(aiPct, 3) : 0}%`,
-                        background: aiPct >= 90 ? '#ef4444' : aiPct >= 70 ? '#F5A623' : 'linear-gradient(90deg, #29457a, #16284d)',
-                      }}
-                    />
-                  </div>
+                {/* Plano. O contador de créditos de IA saiu junto com o StatusIA do menu */}
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3 h-3 text-[#6366f1]" />
+                  <span className="text-[11px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{planName}</span>
                 </div>
                 {/* Storage */}
                 <div className="space-y-1">
@@ -381,7 +354,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1.5">
-                <Zap className={`w-[15px] h-[15px] ${aiWarning ? 'text-amber-400' : 'text-[#6366f1]'}`} />
+                <Zap className="w-[15px] h-[15px] text-[#6366f1]" />
                 <HardDrive className={`w-[15px] h-[15px] ${stWarning ? 'text-amber-400' : 'text-[#60a5fa]'}`} />
               </div>
             )}

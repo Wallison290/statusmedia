@@ -1434,37 +1434,55 @@ function getChipStyle(item: PlannerItem, isDark: boolean): { bg: string; border:
   return { bg: 'rgba(234,179,8,0.14)', border: 'rgba(234,179,8,0.32)', text: '#713f12' }
 }
 
+// Status do post numa chave só — a MESMA do filtro de status da tela, para o
+// contador, a cor e o filtro nunca discordarem.
+type PlanKey = 'rascunho' | 'pendente_aprovacao' | 'ajuste_solicitado' | 'ajuste_realizado' | 'aprovado' | 'reprovado'
+
+const PLAN_KEYS: { key: PlanKey; label: string; short: string; color: string }[] = [
+  { key: 'rascunho',           label: 'Não enviado',          short: 'não enviados',  color: '#94A3B8' },
+  { key: 'pendente_aprovacao', label: 'Aguardando aprovação', short: 'aguardando',    color: '#EAB308' },
+  { key: 'ajuste_solicitado',  label: 'Ajuste solicitado',    short: 'ajuste pedido', color: '#F97316' },
+  { key: 'ajuste_realizado',   label: 'Ajuste realizado',     short: 'ajuste feito',  color: '#3B82F6' },
+  { key: 'aprovado',           label: 'Aprovado',             short: 'aprovados',     color: '#22C55E' },
+  { key: 'reprovado',          label: 'Reprovado',            short: 'reprovados',    color: '#EF4444' },
+]
+
+function planKey(item: PlannerItem): PlanKey {
+  if (!item.sent_to_client) return 'rascunho'
+  return ((item.approval_status as PlanKey) || 'pendente_aprovacao')
+}
+
+/** Cor sólida do post: publicado conta como aprovado. */
+function planColor(item: PlannerItem) {
+  if (item.status === 'publicado') return '#22C55E'
+  return PLAN_KEYS.find(k => k.key === planKey(item))?.color ?? '#94A3B8'
+}
+
 function DayPreviewChip({
   item, disabled, onItemClick,
 }: { item: PlannerItem; disabled: boolean; onItemClick: () => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: item.id, disabled })
-  const { isDark } = useTheme()
-  const { bg, border, text } = getChipStyle(item, isDark)
   const typeLabel = contentTypeLabels[item.content_type as ContentType] ?? item.content_type ?? ''
+  const clientName = (item as any).client?.company_name as string | undefined
 
+  // Fundo neutro e uma barra lateral com a cor do status: o calendário fica
+  // calmo e a cor ainda diz o estado de cada post de relance.
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       onClick={e => { e.stopPropagation(); onItemClick() }}
-      style={{ touchAction: 'none', backgroundColor: bg, borderColor: border, color: text }}
-      className={`w-full rounded-md border px-1.5 py-0.5 min-w-0 transition-opacity select-none
-        ${isDragging ? 'opacity-0' : 'hover:brightness-95'}
+      style={{ touchAction: 'none', borderLeftColor: planColor(item) }}
+      className={`w-full rounded-md border-l-[3px] bg-[var(--sm-bg-alt)] pl-1.5 pr-1 py-1 min-w-0 transition-all select-none
+        ${isDragging ? 'opacity-0' : 'hover:bg-[var(--sm-bg-input)] hover:translate-x-0.5'}
         ${disabled ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
+      title={`${item.title}${clientName ? ' · ' + clientName : ''}`}
     >
-      <div className="flex items-center gap-1 min-w-0">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] sm:text-[9px] font-medium leading-tight truncate">{item.title}</p>
-          {typeLabel && (
-            <p className="text-[8px] leading-tight truncate opacity-70 hidden sm:block">{typeLabel}</p>
-          )}
-        </div>
-        <Instagram
-          className="w-2.5 h-2.5 flex-shrink-0 opacity-50"
-          strokeWidth={1.5}
-        />
-      </div>
+      <p className="text-[11.5px] font-medium leading-tight truncate text-[var(--sm-text-1)]">{item.title}</p>
+      <p className="text-[10px] leading-tight truncate text-[var(--sm-text-3)] mt-0.5">
+        {typeLabel}{clientName ? ` · ${clientName}` : ''}
+      </p>
     </div>
   )
 }
@@ -1494,14 +1512,14 @@ function DroppableDay({
       onMouseEnter={e => isCurrentMonth && !dragging && onMouseEnter(e)}
       onMouseLeave={() => !dragging && onMouseLeave()}
       className={`
-        min-h-0 sm:min-h-[90px] overflow-hidden p-1 sm:p-1.5 rounded-lg border transition-all
+        min-h-[64px] sm:min-h-[112px] overflow-hidden p-1 sm:p-2 rounded-lg border transition-colors
         ${isCurrentMonth
           ? `cursor-pointer ${isOver
-              ? 'border-[#2563EB]/60 bg-[#2563EB]/10 scale-[1.02]'
-              : 'border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.03]'}`
-          : 'border-transparent opacity-30 cursor-default'}
-        ${isCurrentDay && !isOver ? 'border-[#2563EB]/40 bg-[#2563EB]/[0.08]' : ''}
-        ${hasItems && isCurrentMonth && !isOver ? 'hover:border-white/[0.12]' : ''}
+              ? 'border-[#2563EB]/60 bg-[#2563EB]/10'
+              : 'border-[var(--sm-border)] bg-[var(--sm-bg-card)] hover:border-[var(--sm-text-4)]'}`
+          : 'border-transparent opacity-35 cursor-default'}
+        ${isCurrentDay && !isOver ? '!border-[#2563EB] ring-1 ring-[#2563EB]/40' : ''}
+        ${hasItems && isCurrentMonth && !isOver ? '' : ''}
       `}
     >
       {children}
@@ -1774,12 +1792,7 @@ export function Planner() {
   const filteredItems = (selectedClientFilter
     ? (items || []).filter(i => i.client_id === selectedClientFilter)
     : (items || [])
-  ).filter(i => {
-    if (selectedApprovalFilter === 'todos') return true
-    if (selectedApprovalFilter === 'rascunho') return !i.sent_to_client
-    const status = (i.approval_status || 'pendente_aprovacao') as ApprovalStatus
-    return status === selectedApprovalFilter
-  })
+  ).filter(i => selectedApprovalFilter === 'todos' || planKey(i) === selectedApprovalFilter)
 
   const getItemsForDay = (day: Date) =>
     filteredItems.filter(item => isSameDay(parseISO(item.scheduled_date), day))
@@ -2179,12 +2192,54 @@ export function Planner() {
 
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Números do mês: respeitam o cliente escolhido, mas não o filtro de status
+  // (senão, ao filtrar, os outros contadores zerariam).
+  const monthItems = (items || []).filter(i =>
+    (!selectedClientFilter || i.client_id === selectedClientFilter) &&
+    isSameMonth(parseISO(i.scheduled_date), currentMonth))
+  const monthCounts = PLAN_KEYS.map(k => ({ ...k, n: monthItems.filter(i => planKey(i) === k.key).length }))
+  const monthLabel = format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })
+  const monthTitle = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+  const waitingCount = monthCounts.filter(c => c.key === 'pendente_aprovacao' || c.key === 'ajuste_realizado').reduce((s, c) => s + c.n, 0)
+  const agendaItems = filteredItems
+    .filter(i => isSameMonth(parseISO(i.scheduled_date), currentMonth))
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
+
   return (
     <div className="min-h-full bg-[var(--sm-bg-page)]">
       <div className="p-4 md:p-6">
-        {/* ── Toggle de visualização + Novo post ──────────────────────────────── */}
-        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-1.5 p-1 bg-[var(--sm-bg-alt)] rounded-xl w-fit">
+        {/* ── Cabeçalho ─────────────────────────────────────────────────────────── */}
+        {/* pl-12 no celular: o botão do menu fica fixo no canto superior esquerdo */}
+        <div className="flex items-start justify-between gap-3 mb-5 pl-12 md:pl-0 min-h-[36px]">
+          <div className="min-w-0">
+            <h1 className="font-display text-[22px] sm:text-[26px] font-bold tracking-[-0.02em] leading-tight text-[var(--sm-text-1)]">
+              Planejamento
+            </h1>
+            <p className="text-[12.5px] text-[var(--sm-text-3)] mt-0.5">
+              {monthTitle} · {monthItems.length} {monthItems.length === 1 ? 'post' : 'posts'}
+              {waitingCount > 0 && <> · <span className="text-[#CA8A04] font-medium">{waitingCount} com o cliente</span></>}
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              resetForm()
+              setForm(prev => ({
+                ...prev,
+                scheduled_date: format(new Date(), 'yyyy-MM-dd'),
+                client_id: selectedClientFilter ?? null,
+              }))
+              setOpen(true)
+            }}
+            size="sm"
+            className="!bg-[#2563EB] hover:!bg-[#1D4ED8] !text-white !border-0 !shadow-none flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Novo post</span><span className="sm:hidden">Novo</span>
+          </Button>
+        </div>
+
+        {/* ── Barra de ferramentas: visão, filtros e aviso ao cliente ─────────── */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center gap-1 p-1 bg-[var(--sm-bg-alt)] rounded-xl w-fit">
           <button
             onClick={() => setViewMode('mensal')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
@@ -2208,26 +2263,6 @@ export function Planner() {
             Feed
           </button>
         </div>
-
-          <Button
-            onClick={() => {
-              resetForm()
-              setForm(prev => ({
-                ...prev,
-                scheduled_date: format(new Date(), 'yyyy-MM-dd'),
-                client_id: selectedClientFilter ?? null,
-              }))
-              setOpen(true)
-            }}
-            size="sm"
-            className="!bg-[#2563EB] hover:!bg-[#1D4ED8] !text-white !border-0 !shadow-none"
-          >
-            <Plus className="w-4 h-4" /> Novo post
-          </Button>
-        </div>
-
-        {/* ── Filtros compactos ────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 mb-5 flex-wrap">
 
           {/* Seletor de cliente */}
           {(() => {
@@ -2324,6 +2359,8 @@ export function Planner() {
             ] as const
             const current = STATUS_OPTIONS.find(s => s.key === selectedApprovalFilter) ?? STATUS_OPTIONS[0]
             const isFiltered = selectedApprovalFilter !== 'todos'
+            // No calendário, os contadores do mês já filtram por status
+            if (viewMode === 'mensal') return null
             return (
               <div className="relative">
                 <button
@@ -2374,7 +2411,7 @@ export function Planner() {
           {/* Notificador WhatsApp manual */}
           <button
             onClick={() => { openWaDrop(); setClientDropOpen(false); setStatusDropOpen(false) }}
-            className="flex items-center gap-2 h-9 pl-3 pr-3 rounded-xl text-[12px] font-medium border transition-all bg-[var(--sm-bg-card)] text-[#25D366] border-[var(--sm-border)] hover:border-[#25D366]/30 hover:bg-[var(--sm-bg-alt)]"
+            className="sm:ml-auto flex items-center gap-2 h-9 pl-3 pr-3 rounded-xl text-[12px] font-medium border transition-all bg-[var(--sm-bg-card)] text-[#25D366] border-[var(--sm-border)] hover:border-[#25D366]/30 hover:bg-[var(--sm-bg-alt)]"
           >
             <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" />
             <span>Notificar cliente</span>
@@ -2699,19 +2736,52 @@ export function Planner() {
           )
         })()}
 
-        {/* Navigation */}
-        {viewMode === 'mensal' && <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[var(--sm-text-1)] capitalize">
-            {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
-          </h2>
-          <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+        {/* ── Mês + contadores por status (legenda e filtro ao mesmo tempo) ────── */}
+        {viewMode === 'mensal' && <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-3">
+          <div className="flex items-center gap-1">
+            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} aria-label="Mês anterior"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--sm-text-2)] hover:bg-[var(--sm-bg-alt)] transition-colors">
               <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setCurrentMonth(new Date())}>Hoje</Button>
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+            </button>
+            <h2 className="font-display text-[17px] font-semibold text-[var(--sm-text-1)] min-w-[150px] text-center tabular-nums">
+              {monthTitle}
+            </h2>
+            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} aria-label="Próximo mês"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--sm-text-2)] hover:bg-[var(--sm-bg-alt)] transition-colors">
               <ChevronRight className="w-4 h-4" />
-            </Button>
+            </button>
+            {!isSameMonth(currentMonth, new Date()) && (
+              <button onClick={() => setCurrentMonth(new Date())}
+                      className="ml-1 h-7 px-2.5 rounded-lg text-[11.5px] font-medium border border-[var(--sm-border)] text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] hover:bg-[var(--sm-bg-alt)] transition-colors">
+                Hoje
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] -mx-4 px-4 lg:mx-0 lg:px-0 lg:ml-auto">
+            {monthCounts.map(c => {
+              const active = selectedApprovalFilter === c.key
+              return (
+                <button key={c.key}
+                        onClick={() => setSelectedApprovalFilter(active ? 'todos' : c.key)}
+                        title={active ? 'Mostrar todos' : `Mostrar só: ${c.label}`}
+                        className={`flex-shrink-0 flex items-center gap-1.5 h-7 pl-2 pr-2.5 rounded-full border text-[11.5px] transition-colors
+                          ${active
+                            ? 'border-[var(--sm-text-2)] bg-[var(--sm-bg-alt)] text-[var(--sm-text-1)]'
+                            : 'border-[var(--sm-border)] text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] hover:border-[var(--sm-text-4)]'}
+                          ${c.n === 0 && !active ? 'opacity-50' : ''}`}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                  <span className="font-semibold tabular-nums text-[var(--sm-text-1)]">{c.n}</span>
+                  {c.short}
+                </button>
+              )
+            })}
+            {selectedApprovalFilter !== 'todos' && (
+              <button onClick={() => setSelectedApprovalFilter('todos')}
+                      className="flex-shrink-0 h-7 px-2 text-[11.5px] text-[#60A5FA] hover:underline">
+                Limpar
+              </button>
+            )}
           </div>
         </div>}
 
@@ -2729,7 +2799,7 @@ export function Planner() {
                 <div key={d} className="text-center text-[11px] sm:text-xs font-semibold text-[var(--sm-text-2)] py-1.5 sm:py-2 truncate">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-0.5 sm:gap-1 auto-rows-fr h-[calc(100dvh-16rem)] sm:h-auto">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1 auto-rows-fr">
               {days.map(day => {
                 const dayItems = getItemsForDay(day)
                 const isCurrentMonth = isSameMonth(day, currentMonth)
@@ -2754,8 +2824,15 @@ export function Planner() {
                     `}>
                       {format(day, 'd')}
                     </div>
+                    {isMobile ? (
+                      <div className="flex flex-wrap gap-[3px] px-0.5">
+                        {dayItems.slice(0, 6).map(item => (
+                          <span key={item.id} className="w-1.5 h-1.5 rounded-full" style={{ background: planColor(item) }} />
+                        ))}
+                      </div>
+                    ) : (
                     <div className="space-y-0.5 sm:space-y-1">
-                      {dayItems.slice(0, isMobile ? 2 : 3).map(item => (
+                      {dayItems.slice(0, 3).map(item => (
                         <DayPreviewChip
                           key={item.id}
                           item={item}
@@ -2763,10 +2840,11 @@ export function Planner() {
                           onItemClick={() => openItemView(item)}
                         />
                       ))}
-                      {dayItems.length > (isMobile ? 2 : 3) && (
-                        <p className="text-[9px] text-[var(--sm-text-4)] font-medium pl-0.5">+{dayItems.length - (isMobile ? 2 : 3)} mais</p>
+                      {dayItems.length > 3 && (
+                        <p className="text-[10.5px] text-[var(--sm-text-3)] font-medium pl-1">+{dayItems.length - 3} mais</p>
                       )}
                     </div>
+                    )}
                   </DroppableDay>
                 )
               })}
@@ -2786,15 +2864,40 @@ export function Planner() {
         </DragOverlay>
         </DndContext>}
 
-        {/* Legend (apenas calendário) */}
-        {viewMode === 'mensal' && (
-          <div className="flex gap-3 mt-4 flex-wrap">
-            {(Object.entries(statusColors) as [PlannerStatus, string][]).map(([status, color]) => (
-              <div key={status} className="flex items-center gap-1.5 text-xs text-[var(--sm-text-3)]">
-                <div className={`w-2 h-2 rounded-full ${color}`} />
-                {statusLabels[status]}
+        {/* ── Lista do mês (celular): o calendário mostra só as bolinhas ────────── */}
+        {viewMode === 'mensal' && isMobile && (
+          <div className="mt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sm-text-3)] mb-2">
+              Posts do mês
+            </p>
+            {agendaItems.length === 0 ? (
+              <p className="text-[13px] text-[var(--sm-text-3)] py-6 text-center">Nenhum post neste mês.</p>
+            ) : (
+              <div className="rounded-xl border border-[var(--sm-border)] bg-[var(--sm-bg-card)] divide-y divide-[var(--sm-border)] overflow-hidden">
+                {agendaItems.map(item => {
+                  const d = parseISO(item.scheduled_date)
+                  const k = PLAN_KEYS.find(p => p.key === planKey(item))
+                  const clientName = (item as any).client?.company_name as string | undefined
+                  return (
+                    <button key={item.id} onClick={() => openItemView(item)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left active:bg-[var(--sm-bg-alt)]">
+                      <div className="w-9 flex-shrink-0 text-center">
+                        <p className="font-display text-[17px] font-bold leading-none text-[var(--sm-text-1)] tabular-nums">{format(d, 'd')}</p>
+                        <p className="text-[10px] uppercase text-[var(--sm-text-3)] mt-0.5">{format(d, 'EEE', { locale: ptBR }).slice(0, 3)}</p>
+                      </div>
+                      <span className="w-[3px] self-stretch rounded-full flex-shrink-0" style={{ background: planColor(item) }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] font-medium text-[var(--sm-text-1)] truncate">{item.title}</p>
+                        <p className="text-[11.5px] text-[var(--sm-text-3)] truncate">
+                          {[contentTypeLabels[item.content_type as ContentType] ?? item.content_type, clientName, item.status === 'publicado' ? 'Publicado' : k?.label].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[var(--sm-text-4)] flex-shrink-0" />
+                    </button>
+                  )
+                })}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
