@@ -6,7 +6,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
   useDroppable, useDraggable,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
@@ -79,7 +79,9 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
   return (
     <div
       ref={setNodeRef}
-      style={{ touchAction: 'none', background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
+      // Sem touch-action: none, o dedo deslizando rola a coluna. O card só é
+      // pego depois de segurar (ver sensores na página).
+      style={{ WebkitTouchCallout: 'none', background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
       className={`relative rounded-xl border p-3 select-none transition-opacity
         ${isDragging ? 'opacity-30' : 'hover:border-[#2563EB]/40'}`}
     >
@@ -414,11 +416,12 @@ function Column({
         </div>
       </div>
 
-      {/* Barra de cor + total */}
-      <div className="px-1 pb-2 flex items-center justify-between">
+      {/* Barra de cor + total. Altura fixa: com ou sem valor, todas as colunas
+          começam os cards na mesma linha */}
+      <div className="px-1 mb-2 h-4 flex items-center justify-between">
         <div className="h-[3px] rounded-full flex-1 mr-2" style={{ background: column.color, opacity: 0.5 }} />
         {total > 0 && (
-          <span className="text-[10.5px] font-medium" style={{ color: 'var(--sm-text-3)' }}>{fmtBRL(total)}</span>
+          <span className="text-[10.5px] font-medium leading-none" style={{ color: 'var(--sm-text-3)' }}>{fmtBRL(total)}</span>
         )}
       </div>
 
@@ -512,7 +515,12 @@ export function CrmBoard() {
   const archivedLeads = useMemo(() => leads.filter(l => l.archived_at), [leads])
   const today = todayISO()
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  // Mouse: pega ao arrastar 8px. Toque: pega só depois de segurar 250ms parado;
+  // antes disso, deslizar o dedo rola a coluna (e o board para os lados).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  )
 
   const memberOf = useMemo(() => {
     const map = new Map(members.map(m => [m.id, m.name]))
@@ -584,6 +592,8 @@ export function CrmBoard() {
   // que separa os dois no drop.
 
   function handleDragStart(e: DragStartEvent) {
+    // Vibração curta no celular: avisa que o card foi pego
+    try { navigator.vibrate?.(30) } catch { /* sem suporte */ }
     const activeId = String(e.active.id)
     if (activeId.startsWith('colh-')) {
       setDraggingCol(columns.find(c => c.id === activeId.slice(5)) ?? null)
