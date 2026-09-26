@@ -139,8 +139,23 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: 'Nenhum WhatsApp disponível para conectar agora. Fale com o suporte da StatusMedia.' }, 409)
       }
 
+      // Instância apagada no painel da UazAPI (token não vale mais): descarta o
+      // registro e, com o admin token, cria outra no lugar
+      let cur = await uaz('/instance/status', instance.instance_token)
+      if (cur.status === 401 && ADMIN_TOKEN) {
+        await sb.from('whatsapp_instances').delete().eq('id', instance.id)
+        const name = `agencia-${user.id.slice(0, 8)}`
+        const r = await uaz('/instance/init', ADMIN_TOKEN, { method: 'POST', admin: true, body: { name, systemName: 'statusmedia' } })
+        const token = r.data?.token ?? r.data?.instance?.token
+        if (!r.ok || !token) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
+        const { data: created } = await sb.from('whatsapp_instances')
+          .insert({ instance_name: name, instance_token: token, user_id: user.id, assigned_at: new Date().toISOString() })
+          .select().single()
+        instance = created
+        cur = await uaz('/instance/status', instance.instance_token)
+      }
+
       // Já conectado: não gera QR à toa
-      const cur = await uaz('/instance/status', instance.instance_token)
       if (cur.ok && readState(cur.data).status === 'connected') {
         const s = readState(cur.data)
         await saveState(s)
