@@ -1,0 +1,228 @@
+// ── Edge Function: agency-whatsapp ────────────────────────────────────────────
+// O WhatsApp PRÓPRIO da agência, conectado pela tela do CRM (QR code).
+// Não é o número da plataforma: esse continua no notify-whatsapp.
+//
+// Ações (body.action):
+//   status     → estado da conexão (e o QR code enquanto espera a leitura)
+//   connect    → reserva/cria a instância da agência e gera o QR code
+//   disconnect → desconecta o número (a instância continua reservada)
+//   send       → envia texto para um lead da agência, pelo número dela
+//
+// O token da instância é a senha do WhatsApp da agência: fica na tabela
+// whatsapp_instances (só service role) e nunca vai para o navegador.
+//
+// Secrets:
+//   AGENCY_UAZAPI_URL    servidor UazAPI das instâncias das agências
+//                        (cai no EVOLUTION_BASE_URL se não existir)
+//   UAZAPI_ADMIN_TOKEN   opcional: com ele a função CRIA uma instância nova por
+//                        agência; sem ele, usa as instâncias livres do estoque
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const BASE = (Deno.env.get('AGENCY_UAZAPI_URL') ?? Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
+const ADMIN_TOKEN = Deno.env.get('UAZAPI_ADMIN_TOKEN') ?? ''
+
+// Freio para proteger o número da agência de bloqueio por excesso de envio
+const MAX_PER_HOUR = 60
+const MAX_PER_DAY  = 300
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
+
+async function uaz(path: string, token: string, init: { method?: string; body?: unknown; admin?: boolean } = {}) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: init.method ?? 'GET',
+    headers: { 'Content-Type': 'application/json', ...(init.admin ? { admintoken: token } : { token }) },
+    body: init.body ? JSON.stringify(init.body) : undefined,
+  })
+  const text = await res.text()
+  let data: any = {}
+  try { data = JSON.parse(text) } catch { data = { raw: text } }
+  return { ok: res.ok, status: res.status, data }
+}
+
+/** Lê o estado de qualquer formato de resposta da UazAPI. */
+function readState(d: any) {
+  const inst = d?.instance ?? d
+  const raw = String(inst?.status ?? d?.status?.state ?? '').toLowerCase()
+  const connected = d?.status?.connected === true || raw === 'connected' || raw === 'open'
+  const connecting = !connected && (raw === 'connecting' || !!inst?.qrcode)
+  const jid: string = d?.status?.jid ?? inst?.owner ?? ''
+  const phone = String(jid).split('@')[0].split(':')[0].replace(/\D/g, '') || null
+  return {
+    status: connected ? 'connected' : connecting ? 'connecting' : 'disconnected',
+    qrcode: connected ? null : (inst?.qrcode || d?.qrcode || null),
+    paircode: connected ? null : (inst?.paircode || d?.paircode || null),
+    phone,
+    profile_name: inst?.profileName ?? inst?.profile_name ?? null,
+  }
+}
+
+function normalize(raw: string) {
+  let n = (raw || '').replace(/\D/g, '')
+  if (!n.startsWith('55') || n.length <= 11) n = '55' + n
+  return n
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  if (!BASE) return json({ ok: false, error: 'Servidor de WhatsApp não configurado.' }, 503)
+
+  const sb = createClient(SUPABASE_URL, SERVICE_KEY) as any
+  const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
+  const { data: { user } } = await sb.auth.getUser(jwt)
+  if (!user) return json({ ok: false, error: 'Não autenticado.' }, 401)
+
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle()
+  if (profile?.role !== 'agency') return json({ ok: false, error: 'Disponível só para agências.' }, 403)
+
+  const body = await req.json().catch(() => ({}))
+  const action = String(body?.action ?? 'status')
+
+  const { data: inst } = await sb.from('whatsapp_instances').select('*').eq('user_id', user.id).maybeSingle()
+
+  async function saveState(s: ReturnType<typeof readState>) {
+    const row: Record<string, unknown> = { user_id: user!.id, status: s.status, updated_at: new Date().toISOString() }
+    if (s.status === 'connected') {
+      row.phone = s.phone
+      row.profile_name = s.profile_name
+    }
+    const { data: prev } = await sb.from('agency_whatsapp').select('status').eq('user_id', user!.id).maybeSingle()
+    if (s.status === 'connected' && prev?.status !== 'connected') row.connected_at = new Date().toISOString()
+    await sb.from('agency_whatsapp').upsert(row, { onConflict: 'user_id' })
+  }
+
+  try {
+    // ── status ────────────────────────────────────────────────────────────────
+    if (action === 'status') {
+      if (!inst) {
+        // "Disponível" = dá para conectar agora: com admin token cria uma
+        // instância nova; sem ele, só se sobrou instância livre no estoque.
+        // A tela esconde o recurso de quem não tem como usar.
+        const { count } = await sb.from('whatsapp_instances').select('id', { count: 'exact', head: true }).is('user_id', null)
+        return json({ ok: true, status: 'disconnected', hasInstance: false, available: !!ADMIN_TOKEN || (count ?? 0) > 0 })
+      }
+      const r = await uaz('/instance/status', inst.instance_token)
+      if (!r.ok) return json({ ok: false, error: 'Não consegui falar com o servidor do WhatsApp.' }, 502)
+      const s = readState(r.data)
+      await saveState(s)
+      return json({ ok: true, hasInstance: true, available: true, ...s })
+    }
+
+    // ── connect ───────────────────────────────────────────────────────────────
+    if (action === 'connect') {
+      let instance = inst
+      if (!instance && ADMIN_TOKEN) {
+        const name = `agencia-${user.id.slice(0, 8)}`
+        const r = await uaz('/instance/init', ADMIN_TOKEN, { method: 'POST', admin: true, body: { name, systemName: 'statusmedia' } })
+        const token = r.data?.token ?? r.data?.instance?.token
+        if (!r.ok || !token) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
+        const { data: created } = await sb.from('whatsapp_instances')
+          .insert({ instance_name: name, instance_token: token, user_id: user.id, assigned_at: new Date().toISOString() })
+          .select().single()
+        instance = created
+      }
+      if (!instance) {
+        const { data: claimed } = await sb.rpc('claim_whatsapp_instance', { p_user: user.id })
+        instance = claimed?.id ? claimed : null
+      }
+      if (!instance) {
+        return json({ ok: false, error: 'Nenhum WhatsApp disponível para conectar agora. Fale com o suporte da StatusMedia.' }, 409)
+      }
+
+      // Já conectado: não gera QR à toa
+      const cur = await uaz('/instance/status', instance.instance_token)
+      if (cur.ok && readState(cur.data).status === 'connected') {
+        const s = readState(cur.data)
+        await saveState(s)
+        return json({ ok: true, ...s })
+      }
+
+      const r = await uaz('/instance/connect', instance.instance_token, { method: 'POST', body: {} })
+      if (!r.ok) {
+        // Plano da UazAPI no limite de números conectados ao mesmo tempo
+        const limit = /maximum number of instances/i.test(JSON.stringify(r.data))
+        return json({
+          ok: false,
+          error: limit
+            ? 'O servidor de WhatsApp da StatusMedia atingiu o limite de números conectados. Fale com o suporte.'
+            : 'Não consegui gerar o QR code. Tente de novo.',
+        }, 502)
+      }
+      const s = readState(r.data)
+      // A resposta do connect às vezes vem sem o QR; ele aparece no status logo depois
+      if (!s.qrcode) {
+        const again = await uaz('/instance/status', instance.instance_token)
+        if (again.ok) Object.assign(s, readState(again.data))
+      }
+      await saveState({ ...s, status: s.status === 'disconnected' ? 'connecting' : s.status })
+      return json({ ok: true, ...s, status: s.status === 'disconnected' ? 'connecting' : s.status })
+    }
+
+    // ── disconnect ────────────────────────────────────────────────────────────
+    if (action === 'disconnect') {
+      if (inst) await uaz('/instance/disconnect', inst.instance_token, { method: 'POST', body: {} })
+      await sb.from('agency_whatsapp').upsert(
+        { user_id: user.id, status: 'disconnected', phone: null, profile_name: null, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' },
+      )
+      return json({ ok: true, status: 'disconnected' })
+    }
+
+    // ── send ──────────────────────────────────────────────────────────────────
+    if (action === 'send') {
+      const leadId = String(body?.lead_id ?? '')
+      const text = String(body?.text ?? '').trim().slice(0, 4000)
+      const label = String(body?.label ?? 'Mensagem').slice(0, 80)
+      if (!leadId || !text) return json({ ok: false, error: 'Mensagem vazia.' }, 400)
+      if (!inst) return json({ ok: false, error: 'Conecte o seu WhatsApp em CRM → Configurações.' }, 409)
+
+      // O lead precisa ser DESTA agência: o id vem do navegador
+      const { data: lead } = await sb.from('crm_leads').select('id, name, whatsapp').eq('id', leadId).eq('user_id', user.id).maybeSingle()
+      if (!lead) return json({ ok: false, error: 'Lead não encontrado.' }, 404)
+      if (!lead.whatsapp) return json({ ok: false, error: 'Este lead está sem WhatsApp no cadastro.' }, 400)
+
+      const hourAgo = new Date(Date.now() - 3600e3).toISOString()
+      const dayAgo  = new Date(Date.now() - 86400e3).toISOString()
+      const count = async (since: string) => (await sb.from('crm_lead_activities').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('kind', 'whatsapp').eq('meta->>sent_via', 'agency_whatsapp').gte('created_at', since)).count ?? 0
+      if (await count(hourAgo) >= MAX_PER_HOUR || await count(dayAgo) >= MAX_PER_DAY) {
+        return json({ ok: false, error: 'Limite de envios pelo sistema atingido por agora, para proteger o seu número. Use o botão de abrir no WhatsApp.' }, 429)
+      }
+
+      const r = await uaz('/send/text', inst.instance_token, { method: 'POST', body: { number: normalize(lead.whatsapp), text } })
+      if (!r.ok) {
+        const st = await uaz('/instance/status', inst.instance_token)
+        if (st.ok) await saveState(readState(st.data))
+        const disconnected = st.ok && readState(st.data).status !== 'connected'
+        return json({
+          ok: false,
+          error: disconnected
+            ? 'O seu WhatsApp está desconectado. Conecte de novo em CRM → Configurações.'
+            : 'O WhatsApp não aceitou o envio. Confira se o número do lead está certo.',
+        }, 502)
+      }
+
+      await sb.from('crm_lead_activities').insert({
+        user_id: user.id, lead_id: lead.id, kind: 'whatsapp',
+        content: `${label} (enviada pelo sistema): "${text}"`,
+        meta: { sent_via: 'agency_whatsapp' },
+      })
+      return json({ ok: true })
+    }
+
+    return json({ ok: false, error: 'Ação desconhecida.' }, 400)
+  } catch (err) {
+    console.error('agency-whatsapp:', err)
+    return json({ ok: false, error: 'Falha ao falar com o WhatsApp. Tente de novo.' }, 500)
+  }
+})

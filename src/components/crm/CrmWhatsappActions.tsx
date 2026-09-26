@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useCrmActivities, useAddCrmActivity } from '@/hooks/useCrmActivities'
+import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { streamChat } from '@/lib/aiProxy'
 import { CRM_DEFAULT_MESSAGES } from '@/data/crmTemplates'
 import { fillVars, waLink, copyText, fmtBRL } from '@/utils/crm'
@@ -27,6 +28,9 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
   const { data: settings } = useCrmSettings()
   const { data: activities = [] } = useCrmActivities(lead.id)
   const addActivity = useAddCrmActivity()
+  const { data: wa } = useAgencyWhatsapp()
+  const sendDirect = useSendAgencyWhatsapp()
+  const connected = wa?.status === 'connected'
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [aiText, setAiText]     = useState<string | null>(null)
@@ -37,6 +41,16 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
 
   function send(text: string, label: string) {
     if (!lead.whatsapp) return
+    setMenuOpen(false)
+    // WhatsApp da agência conectado: sai direto pelo número dela, sem abrir nada
+    if (connected) {
+      if (!window.confirm(`Enviar agora para ${lead.name} pelo seu WhatsApp?\n\n"${text}"`)) return
+      sendDirect.mutate({ lead_id: lead.id, text, label }, {
+        onSuccess: () => toast('Mensagem enviada pelo seu WhatsApp', 'success'),
+        onError:   (e: any) => toast(e.message, 'error'),
+      })
+      return
+    }
     window.open(waLink(lead.whatsapp, text), '_blank', 'noopener')
     addActivity.mutate({ lead_id: lead.id, kind: 'whatsapp', content: `${label}: "${text}"` })
     setMenuOpen(false)

@@ -161,6 +161,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
             link={link}
             lead={lead}
             message={contractMessage(lead, agency, link)}
+            label="Contrato enviado"
             hint={shareOpen
               ? 'Contrato pronto! Agora envie para o cliente. Você recebe um aviso assim que ele assinar.'
               : current.viewed_at

@@ -184,6 +184,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
             link={link}
             lead={lead}
             message={proposalMessage(lead, agency, link)}
+            label="Proposta enviada"
             hint={shareOpen
               ? 'Proposta pronta! Agora envie para o cliente. Você recebe um aviso quando ele abrir e quando responder.'
               : current.status === 'visualizada'
