@@ -239,12 +239,12 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px]" style={{ color: 'var(--sm-text-3)' }}>Qtd</span>
-                      <Input type="number" min={1} value={it.quantity} onChange={e => setItem(i, { quantity: Number(e.target.value) })}
+                      <Input type="number" min={1} value={it.quantity || ''} placeholder="1" onChange={e => setItem(i, { quantity: Number(e.target.value) })}
                              className="h-8 w-[70px] text-[12.5px]" />
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px]" style={{ color: 'var(--sm-text-3)' }}>Valor unit.</span>
-                      <Input type="number" min={0} step="0.01" value={it.unit_price} onChange={e => setItem(i, { unit_price: Number(e.target.value) })}
+                      <Input type="number" min={0} step="0.01" value={it.unit_price || ''} placeholder="0,00" onChange={e => setItem(i, { unit_price: Number(e.target.value) })}
                              className="h-8 w-[120px] text-[12.5px]" />
                     </div>
                     <label className="flex items-center gap-1.5 text-[12px] cursor-pointer" style={{ color: 'var(--sm-text-2)' }}>
@@ -266,7 +266,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>Desconto (R$)</Label>
-              <Input type="number" min={0} step="0.01" value={discount} onChange={e => setDiscount(Number(e.target.value))} />
+              <Input type="number" min={0} step="0.01" value={discount || ''} placeholder="0,00" onChange={e => setDiscount(Number(e.target.value))} />
             </div>
             <div>
               <Label>Válida até</Label>
