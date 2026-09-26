@@ -53,6 +53,21 @@ const QUICK_DATES: { label: string; days: number }[] = [
 
 type Panel = 'historico' | 'tarefas' | 'documentos'
 
+/** "Sexta-feira, daqui a 3 dias" / "Atrasado há 2 dias": a data dita em palavras. */
+function nextContactHint(iso: string): { text: string; late: boolean } {
+  const [y, m, d] = iso.split('-').map(Number)
+  const target = new Date(y, m - 1, d)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000)
+  const weekday = target.toLocaleDateString('pt-BR', { weekday: 'long' })
+  const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1)
+  if (diff === 0) return { text: `Hoje, ${weekday}`, late: false }
+  if (diff === 1) return { text: `Amanhã, ${weekday}`, late: false }
+  if (diff < 0)   return { text: `Atrasado há ${-diff} dia${diff === -1 ? '' : 's'}`, late: true }
+  return { text: `${cap}, daqui a ${diff} dias`, late: false }
+}
+
 // Campo com rótulo em caixa alta, o mesmo padrão dos outros modais do sistema
 function Field({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -252,39 +267,48 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
 
       {/* Próximo contato: é o que entra no lembrete diário */}
       <Field label="Próximo contato" icon={<CalendarClock className="w-3 h-3" />}>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Celular: data na largura toda e atalhos numa grade de 4 embaixo.
+            Computador: tudo numa linha só. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Input
             type="date"
             value={form.next_contact_at ?? ''}
             onChange={e => set('next_contact_at', e.target.value || null)}
-            className="w-[160px]"
+            className="w-full sm:w-[160px] text-left [&::-webkit-date-and-time-value]:text-left"
           />
-          {QUICK_DATES.map(q => {
-            const v = todayISO(q.days)
-            const active = form.next_contact_at === v
-            return (
-              <button
-                key={q.label}
-                type="button"
-                onClick={() => set('next_contact_at', v)}
-                className="px-2 h-7 rounded-md border text-[11.5px] transition-colors"
-                style={{
-                  borderColor: active ? '#2563EB' : 'var(--sm-border)',
-                  background:  active ? 'rgba(37,99,235,0.12)' : 'var(--sm-bg-input)',
-                  color:       active ? '#4F8EF7' : 'var(--sm-text-3)',
-                }}
-              >
-                {q.label}
-              </button>
-            )
-          })}
-          {form.next_contact_at && (
+          <div className="grid grid-cols-4 gap-2 sm:flex">
+            {QUICK_DATES.map(q => {
+              const v = todayISO(q.days)
+              const active = form.next_contact_at === v
+              return (
+                <button
+                  key={q.label}
+                  type="button"
+                  onClick={() => set('next_contact_at', v)}
+                  className="h-10 sm:h-7 px-2 rounded-lg sm:rounded-md border text-[13px] sm:text-[11.5px] font-medium sm:font-normal transition-colors"
+                  style={{
+                    borderColor: active ? '#2563EB' : 'var(--sm-border)',
+                    background:  active ? 'rgba(37,99,235,0.12)' : 'var(--sm-bg-input)',
+                    color:       active ? '#4F8EF7' : 'var(--sm-text-3)',
+                  }}
+                >
+                  {q.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {form.next_contact_at && (
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[11.5px]" style={{ color: nextContactHint(form.next_contact_at).late ? '#f87171' : 'var(--sm-text-4)' }}>
+              {nextContactHint(form.next_contact_at).text}
+            </span>
             <button type="button" onClick={() => set('next_contact_at', null)}
-                    className="text-[11px] underline" style={{ color: 'var(--sm-text-4)' }}>
+                    className="text-[11.5px] underline" style={{ color: 'var(--sm-text-4)' }}>
               limpar
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </Field>
 
       {/* Temperatura */}
