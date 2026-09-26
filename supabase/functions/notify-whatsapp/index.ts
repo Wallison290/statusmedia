@@ -204,9 +204,21 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
   // ── Notificação da agência ────────────────────────────────────────────────────
   if (!p)                        return finish('skipped', { error: 'perfil não encontrado' })
   if (p.role !== 'agency')       return finish('skipped', { error: 'destinatário não é agência' })
-  if (!p.whatsapp)               return finish('skipped', { error: 'sem número de WhatsApp' })
-  if (!p.whatsapp_opt_in)        return finish('skipped', { error: 'opt-in desligado' })
-  if (!p.whatsapp_verified)      return finish('skipped', { error: 'número não verificado' })
+
+  // Para onde vai o aviso do dono:
+  //   • número pessoal verificado (página WhatsApp), se ele cadastrou um e não
+  //     desligou os avisos;
+  //   • senão, o próprio número conectado da agência: cai na conversa "Você"
+  //     do WhatsApp dela. É o padrão enquanto o dono não cadastra outro número.
+  let target: string | null = null
+  if (p.whatsapp && p.whatsapp_verified) {
+    if (!p.whatsapp_opt_in) return finish('skipped', { error: 'opt-in desligado' })
+    target = p.whatsapp
+  } else {
+    const { data: own } = await supabase.from('agency_whatsapp').select('status, phone').eq('user_id', n.user_id).maybeSingle()
+    if ((own as any)?.status === 'connected' && (own as any)?.phone) target = (own as any).phone
+  }
+  if (!target) return finish('skipped', { error: 'agência sem WhatsApp conectado' })
 
   const category = CATEGORY_OF[n.type]
   if (!category)                 return finish('skipped', { error: `tipo sem categoria: ${n.type}` })
@@ -215,7 +227,7 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
 
   // Envia para a agência.
   const text = buildMessage(n)
-  const sent = await sendForAgency(supabase, n.user_id, p.whatsapp, text)
+  const sent = await sendForAgency(supabase, n.user_id, target, text)
 
   // Incrementa tentativas sempre.
   await supabase.rpc('increment_delivery_attempts', { p_notification_id: n.id }).catch(() => {})
@@ -237,7 +249,7 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
 
   if (sent.ok) {
     return finish('sent', {
-      provider_msg_id: sent.id ?? null, to_number: normalizeNumber(p.whatsapp), error: null,
+      provider_msg_id: sent.id ?? null, to_number: normalizeNumber(target), error: null,
       provider: 'agency_whatsapp',
     })
   }

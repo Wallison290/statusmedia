@@ -395,7 +395,7 @@ export function WhatsAppPage() {
         {/* ── Bloco 1: Conexão ───────────────────────────────────────────────── */}
         <Section
           title="Conexão"
-          description="Seu número pessoal, onde você recebe os avisos da agência. Quem envia é o WhatsApp da agência conectado acima. Use um número diferente dele: mensagem enviada para o próprio número não toca notificação."
+          description="Onde você recebe os avisos da agência (post publicado, aprovações...). Sem um número aqui, eles chegam no próprio WhatsApp conectado da agência, na conversa “Você”. Se preferir receber com notificação, cadastre um número pessoal diferente."
         >
           <div
             className="rounded-2xl overflow-hidden"

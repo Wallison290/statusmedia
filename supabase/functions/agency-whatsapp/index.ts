@@ -136,17 +136,35 @@ Deno.serve(async (req) => {
     }
 
     // ── connect ───────────────────────────────────────────────────────────────
+    // Cria a instância da agência na UazAPI: nome em sequência (agencia-001,
+    // agencia-002...) e nome/e-mail da agência nos campos de admin, para o
+    // painel da UazAPI dizer de quem é cada número (migration 078).
+    const createInstance = async () => {
+      const { data: name } = await sb.rpc('next_whatsapp_instance_name')
+      if (!name) return null
+      const r = await uaz('/instance/init', ADMIN_TOKEN, { method: 'POST', admin: true, body: { name, systemName: 'statusmedia' } })
+      const token = r.data?.token ?? r.data?.instance?.token
+      const uazId = r.data?.instance?.id ?? r.data?.id
+      if (!r.ok || !token) return null
+
+      const { data: prof } = await sb.from('profiles').select('agency_name, full_name, email').eq('id', user.id).maybeSingle()
+      if (uazId) {
+        await uaz('/instance/updateAdminFields', ADMIN_TOKEN, {
+          method: 'POST', admin: true,
+          body: { id: uazId, adminField01: prof?.agency_name || prof?.full_name || '', adminField02: prof?.email || '' },
+        })
+      }
+      const { data: created } = await sb.from('whatsapp_instances')
+        .insert({ instance_name: name, instance_token: token, user_id: user.id, assigned_at: new Date().toISOString() })
+        .select().single()
+      return created
+    }
+
     if (action === 'connect') {
       let instance = inst
       if (!instance && ADMIN_TOKEN) {
-        const name = `agencia-${user.id.slice(0, 8)}`
-        const r = await uaz('/instance/init', ADMIN_TOKEN, { method: 'POST', admin: true, body: { name, systemName: 'statusmedia' } })
-        const token = r.data?.token ?? r.data?.instance?.token
-        if (!r.ok || !token) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
-        const { data: created } = await sb.from('whatsapp_instances')
-          .insert({ instance_name: name, instance_token: token, user_id: user.id, assigned_at: new Date().toISOString() })
-          .select().single()
-        instance = created
+        instance = await createInstance()
+        if (!instance) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
       }
       if (!instance) {
         const { data: claimed } = await sb.rpc('claim_whatsapp_instance', { p_user: user.id })
@@ -161,14 +179,8 @@ Deno.serve(async (req) => {
       let cur = await uaz('/instance/status', instance.instance_token)
       if (cur.status === 401 && ADMIN_TOKEN) {
         await sb.from('whatsapp_instances').delete().eq('id', instance.id)
-        const name = `agencia-${user.id.slice(0, 8)}`
-        const r = await uaz('/instance/init', ADMIN_TOKEN, { method: 'POST', admin: true, body: { name, systemName: 'statusmedia' } })
-        const token = r.data?.token ?? r.data?.instance?.token
-        if (!r.ok || !token) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
-        const { data: created } = await sb.from('whatsapp_instances')
-          .insert({ instance_name: name, instance_token: token, user_id: user.id, assigned_at: new Date().toISOString() })
-          .select().single()
-        instance = created
+        instance = await createInstance()
+        if (!instance) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
         cur = await uaz('/instance/status', instance.instance_token)
       }
 
