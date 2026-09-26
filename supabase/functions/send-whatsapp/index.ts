@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendForAgency, platformSender } from '../_shared/whatsapp.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -42,24 +43,19 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authErr } = await anonClient.auth.getUser()
     if (authErr || !user) throw new Error('Token inválido.')
 
-    if (!UAZAPI_URL || !UAZAPI_TOKEN || !UAZAPI_INSTANCE) {
-      throw new Error('uazapi não configurado.')
-    }
-
     const normalizedNumber = normalizeNumber(number)
     if (!normalizedNumber) throw new Error('Número de telefone inválido.')
 
-    const res = await fetch(`${UAZAPI_URL}/send/text`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'token': UAZAPI_TOKEN,
-      },
-      body: JSON.stringify({ instanceName: UAZAPI_INSTANCE, number: normalizedNumber, text }),
-    })
+    const service = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+    // Só agência envia por aqui (a tela é a da equipe da agência)
+    const { data: profile } = await service.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if ((profile as any)?.role !== 'agency') throw new Error('Não autorizado.')
+
+    // Sai pelo WhatsApp da agência; sem ele conectado, pelo da plataforma
+    const sent = await sendForAgency(service, user.id, normalizedNumber, text,
+      UAZAPI_INSTANCE ? platformSender(UAZAPI_URL, UAZAPI_TOKEN) : null)
+    if (!sent.ok) throw new Error(sent.error ?? 'Falha no envio.')
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...cors, 'Content-Type': 'application/json' },

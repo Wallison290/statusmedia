@@ -10,6 +10,9 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { agencySender } from '../_shared/whatsapp.ts'
+
 const BASE_URL = (Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
 const TOKEN    = Deno.env.get('EVOLUTION_API_KEY') ?? ''
 
@@ -20,10 +23,14 @@ function json(body: unknown) {
   })
 }
 
+// Número usado nesta chamada: o da agência, se conectado; senão o da plataforma
+let callBase = BASE_URL
+let callToken = TOKEN
+
 async function uazPost(path: string, body: unknown) {
-  const res  = await fetch(`${BASE_URL}${path}`, {
+  const res  = await fetch(`${callBase}${path}`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', token: TOKEN },
+    headers: { 'Content-Type': 'application/json', token: callToken },
     body:    JSON.stringify(body),
   })
   const text = await res.text()
@@ -49,6 +56,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    callBase = BASE_URL
+    callToken = TOKEN
+    // Com o WhatsApp da agência conectado, é o número dela que identifica (e,
+    // se preciso, entra) no grupo: é ele que vai mandar as mensagens depois
+    const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
+    if (jwt) {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+      const { data: { user } } = await sb.auth.getUser(jwt)
+      const agency = user ? await agencySender(sb, user.id) : null
+      if (agency) { callBase = agency.base; callToken = agency.token }
+    }
+
     const body   = await req.json().catch(() => ({}))
     const invite = ((body as any).invite_code ?? '').trim()
     if (!invite) return json({ ok: false, error: 'invite_code é obrigatório' })

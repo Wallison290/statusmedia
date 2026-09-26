@@ -1,5 +1,8 @@
-// ── Conectar o WhatsApp da agência (CRM › Configurações) ─────────────────────
-// A agência escaneia o QR code com o próprio celular, como no WhatsApp Web.
+// ── Conectar o WhatsApp da agência ───────────────────────────────────────────
+// Aparece na página WhatsApp e em CRM › Configurações. A agência escaneia o QR
+// code com o próprio celular, como no WhatsApp Web. Esse número passa a enviar
+// tudo em nome da agência: avisos de conteúdo para os clientes, avisos de post
+// publicado e o CRM (ver supabase/functions/_shared/whatsapp.ts).
 // Some da tela quando o recurso não está disponível para a conta.
 
 import { Loader2, Smartphone, CheckCircle2, Unplug } from 'lucide-react'
@@ -32,7 +35,7 @@ export function CrmWhatsappConnect() {
           <Smartphone className="w-4 h-4" style={{ color: '#22C55E' }} /> Meu WhatsApp
         </h2>
         <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-          Conecte o WhatsApp da agência para enviar propostas, contratos e mensagens direto do CRM, pelo seu número.
+          Conecte o WhatsApp da agência. Por ele saem os avisos de conteúdo para os seus clientes, os avisos de post publicado e as mensagens, propostas e contratos do CRM. Enquanto não conectar, tudo continua saindo pelo número da StatusMedia.
         </p>
       </div>
 

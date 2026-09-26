@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendForAgency, platformSender } from '../_shared/whatsapp.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -112,17 +113,22 @@ Deno.serve(async (req) => {
 
     // Busca o cliente com os dados necessários
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE)
+    // .eq('user_id'): sem isto qualquer agência logada cobrava o cliente de
+    // outra, só sabendo o id
     const { data: client, error: clientErr } = await supabase
       .from('clients')
       .select('company_name, responsible_name, whatsapp, dia_vencimento, valor_mensal')
       .eq('id', client_id)
+      .eq('user_id', user.id)
       .single()
 
     if (clientErr || !client) throw new Error('Cliente não encontrado.')
     if (!client.whatsapp) throw new Error('Cliente sem WhatsApp cadastrado.')
 
     const message = buildChargeMessage({ ...client, contact_name: client.responsible_name })
-    const result = await sendText(client.whatsapp, message)
+    // Sai pelo WhatsApp da agência; sem ele conectado, pelo da plataforma
+    const result = await sendForAgency(supabase, user.id, client.whatsapp, message,
+      platformSender(UAZAPI_URL, UAZAPI_TOKEN))
     if (!result.ok) throw new Error(result.error)
 
     return new Response(JSON.stringify({ ok: true }), {

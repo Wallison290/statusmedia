@@ -8,6 +8,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { CrmWhatsappConnect } from '@/components/crm/CrmWhatsappConnect'
 import { useWhatsappSettings, WHATSAPP_CATEGORIES } from '@/hooks/useWhatsappSettings'
 import {
   useWhatsappGroups,
@@ -388,10 +389,13 @@ export function WhatsAppPage() {
           </div>
         </div>
 
+        {/* ── Bloco 0: WhatsApp da agência (o número que ENVIA) ───────────────── */}
+        <CrmWhatsappConnect />
+
         {/* ── Bloco 1: Conexão ───────────────────────────────────────────────── */}
         <Section
           title="Conexão"
-          description="Seu número pessoal para receber as notificações. O número que envia as mensagens é o número da integração configurado no sistema."
+          description="Seu número pessoal, onde você recebe os avisos da agência. Quem envia é o WhatsApp da agência conectado acima; sem ele, o número da StatusMedia."
         >
           <div
             className="rounded-2xl overflow-hidden"

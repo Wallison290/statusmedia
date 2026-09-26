@@ -12,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendForAgency, platformSender } from '../_shared/whatsapp.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +25,11 @@ const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const EVOLUTION_BASE_URL = (Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
 const EVOLUTION_API_KEY  = Deno.env.get('EVOLUTION_API_KEY') ?? ''
 const EVOLUTION_INSTANCE = Deno.env.get('EVOLUTION_INSTANCE') ?? ''
+
+// Número da plataforma: reserva para agência que ainda não conectou o próprio
+// WhatsApp (ver _shared/whatsapp.ts). Com o número da agência conectado, os
+// avisos saem por ele.
+const PLATFORM = platformSender(EVOLUTION_BASE_URL, EVOLUTION_API_KEY)
 
 // Domínio público do app, para montar o link clicável na mensagem.
 const APP_URL = (Deno.env.get('APP_PUBLIC_URL') ?? 'https://statusmedia.com.br').replace(/\/$/, '')
@@ -180,7 +186,7 @@ async function sendClientNotification(
 
   const agencyName = (agencyProfile as any).agency_name || (agencyProfile as any).full_name || 'Sua agência'
   const msg = buildClientMessage(n, agencyName)
-  return sendText(whatsapp, msg)
+  return sendForAgency(supabase, n.user_id, whatsapp, msg, PLATFORM)
 }
 
 // ─── Processa uma notificação ─────────────────────────────────────────────────
@@ -244,7 +250,7 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
 
   // Envia para a agência.
   const text = buildMessage(n)
-  const sent = await sendText(p.whatsapp, text)
+  const sent = await sendForAgency(supabase, n.user_id, p.whatsapp, text, PLATFORM, { toOwner: true })
 
   // Incrementa tentativas sempre.
   await supabase.rpc('increment_delivery_attempts', { p_notification_id: n.id }).catch(() => {})
@@ -261,11 +267,14 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
     // CRM só vai para grupo que ligou a categoria de propósito: grupo pode ter
     // cliente dentro, e o aviso traz nome de lead e valor de proposta.
     if (category === 'crm' ? cats.crm !== true : cats[category] === false) continue
-    await sendToJid(g.group_jid, text).catch(() => {})
+    await sendForAgency(supabase, n.user_id, g.group_jid, text, PLATFORM).catch(() => {})
   }
 
   if (sent.ok) {
-    return finish('sent', { provider_msg_id: sent.id ?? null, to_number: normalizeNumber(p.whatsapp), error: null })
+    return finish('sent', {
+      provider_msg_id: sent.id ?? null, to_number: normalizeNumber(p.whatsapp), error: null,
+      provider: sent.via === 'agency' ? 'agency_whatsapp' : 'evolution',
+    })
   }
   // Falha fica como 'failed' → o sweep tenta de novo na próxima passada.
   return finish('failed', { error: sent.error ?? 'erro desconhecido' })
@@ -333,7 +342,7 @@ Deno.serve(async (req) => {
         const groupMsg = buildClientMessage(fakeNotif, agencyName) +
           (clientName ? `\n\n_Cliente: ${clientName}_` : '')
         for (const jid of group_jids) {
-          await sendToJid(jid, groupMsg).catch(() => {})
+          await sendForAgency(supabase, user.id, jid, groupMsg, PLATFORM).catch(() => {})
         }
       }
 
@@ -365,7 +374,7 @@ Deno.serve(async (req) => {
         type, title: '', message: '', link: null, created_at: new Date().toISOString(),
       }
       const msg = buildClientMessage(fakeNotif, agencyName)
-      for (const jid of group_jids) { await sendToJid(jid, msg).catch(() => {}) }
+      for (const jid of group_jids) { await sendForAgency(supabase, user.id, jid, msg, PLATFORM).catch(() => {}) }
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
