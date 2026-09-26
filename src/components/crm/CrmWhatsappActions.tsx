@@ -92,7 +92,7 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-              <div className="absolute left-0 top-8 z-40 w-72 rounded-xl border py-1 shadow-2xl"
+              <div className="absolute left-0 top-8 z-40 w-72 max-w-[calc(100vw-3rem)] rounded-xl border py-1 shadow-2xl"
                    style={{ background: 'var(--sm-bg-card2)', borderColor: 'var(--sm-border)' }}>
                 <button
                   onClick={() => { window.open(waLink(lead.whatsapp!), '_blank', 'noopener'); setMenuOpen(false) }}

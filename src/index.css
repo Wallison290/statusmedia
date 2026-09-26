@@ -52,6 +52,17 @@
   ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.24); }
 
   ::selection { background: rgba(0,0,0,0.10); }
+
+  /* No celular, campo com letra menor que 16px faz o iPhone dar zoom sozinho
+     ao tocar, e a tela fica solta para arrastar para os lados. Só no mobile:
+     no computador os campos mantêm o tamanho compacto do design. */
+  @media (max-width: 640px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 /* ── Utility classes (always) ───────────────────────────────────────────────── */

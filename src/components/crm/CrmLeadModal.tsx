@@ -66,7 +66,7 @@ function Field({ label, icon, children }: { label: string; icon?: React.ReactNod
 }
 
 const selectClass =
-  'flex h-9 w-full rounded-md border border-[#1e293b] bg-[#182233] px-3 text-[13px] text-[#E2E8F0] ' +
+  'flex h-9 w-full min-w-0 max-w-full rounded-md border border-[#1e293b] bg-[#182233] px-3 text-[13px] text-[#E2E8F0] ' +
   'focus:outline-none focus:ring-1 focus:ring-[#2563EB]/30 focus:border-[#2563EB]/50 [color-scheme:dark]'
 
 export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert }: Props) {
@@ -380,6 +380,9 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent
+        // Lead existente: não põe o cursor em campo nenhum. No celular isso abre o
+        // teclado sozinho e cobre a tela antes de a pessoa decidir o que fazer.
+        onOpenAutoFocus={e => { if (lead) e.preventDefault() }}
         className={`w-[95vw] max-w-[95vw] max-h-[92vh] overflow-y-auto ${lead ? 'lg:max-w-6xl' : 'sm:max-w-2xl'}`}
       >
         <DialogHeader>
@@ -399,7 +402,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-6">
             {formBody}
 
-            <div className="flex flex-col gap-3 min-w-0 lg:border-l lg:pl-6" style={{ borderColor: 'var(--sm-border)' }}>
+            <div className="flex flex-col gap-3 min-w-0 order-first lg:order-none lg:border-l lg:pl-6" style={{ borderColor: 'var(--sm-border)' }}>
               <CrmWhatsappActions lead={lead} columns={columns} />
 
               <div className="flex gap-1 border-b" style={{ borderColor: 'var(--sm-border)' }}>

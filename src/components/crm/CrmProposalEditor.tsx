@@ -5,9 +5,7 @@
 // aceito (o banco também bloqueia a edição).
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Plus, Trash2, Loader2, Send, Copy, MessageCircle, ExternalLink, FileText, ShieldCheck, Undo2,
-} from 'lucide-react'
+import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,9 +15,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useSaveCrmProposal } from '@/hooks/useCrmDocuments'
 import { PROPOSAL_STATUS } from './crmStatus'
-import {
-  fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, waLink, copyText, fmtDateTime,
-} from '@/utils/crm'
+import { CrmShareBox, proposalMessage } from './CrmShareBox'
+import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime } from '@/utils/crm'
 import type { CrmLead, CrmProposal, CrmProposalItem } from '@/types'
 
 interface Props {
@@ -41,7 +38,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 const selectClass =
-  'flex h-9 w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
+  'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
 
 export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadId }: Props) {
   const { toast } = useToast()
@@ -141,9 +138,6 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   }
 
   const link = current ? proposalLink(current) : ''
-  const waText = lead
-    ? `Olá, ${lead.name.split(' ')[0]}! Segue a proposta da ${agency}: ${link}\n\nPor ela você consegue ver os detalhes e aprovar direto pelo link. Qualquer dúvida, estou por aqui!`
-    : ''
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
@@ -183,27 +177,19 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           </div>
         )}
 
-        {/* Compartilhar */}
-        {shareOpen && current && current.status !== 'rascunho' && (
-          <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgba(37,99,235,0.35)', background: 'rgba(37,99,235,0.06)' }}>
-            <p className="text-[12.5px] font-medium" style={{ color: 'var(--sm-text-1)' }}>
-              Envie o link para o cliente. Você recebe um aviso quando ele abrir e quando responder.
-            </p>
-            <div className="flex gap-2 flex-wrap">
-              <Input readOnly value={link} className="h-8 text-[12px] flex-1 min-w-[220px]" onFocus={e => e.target.select()} />
-              <Button size="sm" variant="outline" onClick={async () => toast((await copyText(link)) ? 'Link copiado' : 'Não consegui copiar', 'success')}>
-                <Copy className="w-3 h-3" /> Copiar
-              </Button>
-              {lead?.whatsapp && (
-                <Button size="sm" variant="success" onClick={() => window.open(waLink(lead.whatsapp!, waText), '_blank', 'noopener')}>
-                  <MessageCircle className="w-3 h-3" /> Enviar no WhatsApp
-                </Button>
-              )}
-              <Button size="sm" variant="ghost" onClick={() => window.open(link, '_blank', 'noopener')}>
-                <ExternalLink className="w-3 h-3" /> Ver como o cliente
-              </Button>
-            </div>
-          </div>
+        {/* Compartilhar: sempre à mão enquanto a proposta espera resposta,
+            não só logo depois de enviar */}
+        {current && (current.status === 'enviada' || current.status === 'visualizada') && (
+          <CrmShareBox
+            link={link}
+            lead={lead}
+            message={proposalMessage(lead, agency, link)}
+            hint={shareOpen
+              ? 'Proposta pronta! Agora envie para o cliente. Você recebe um aviso quando ele abrir e quando responder.'
+              : current.status === 'visualizada'
+                ? `O cliente já abriu a proposta ${current.view_count}x. Precisa mandar de novo?`
+                : 'Proposta enviada, aguardando o cliente abrir.'}
+          />
         )}
 
         <fieldset disabled={locked} className="space-y-4 disabled:opacity-80">

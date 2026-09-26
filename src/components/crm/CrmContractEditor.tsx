@@ -5,9 +5,7 @@
 // Assinado, fica travado: o banco guarda o hash do texto como prova.
 
 import { useEffect, useState } from 'react'
-import {
-  Loader2, Send, Copy, MessageCircle, ExternalLink, PenLine, ShieldCheck, Undo2, Wand2, Ban,
-} from 'lucide-react'
+import { Loader2, Send, ExternalLink, PenLine, ShieldCheck, Undo2, Wand2, Ban } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +17,8 @@ import { useSaveCrmContract } from '@/hooks/useCrmDocuments'
 import { CRM_DEFAULT_CONTRACT } from '@/data/crmTemplates'
 import { CONTRACT_STATUS } from './crmStatus'
 import { SignaturePad } from './SignaturePad'
-import { fillContract, contractLink, waLink, copyText, fmtDateTime, fmtBRL } from '@/utils/crm'
+import { CrmShareBox, contractMessage } from './CrmShareBox'
+import { fillContract, contractLink, fmtDateTime, fmtBRL } from '@/utils/crm'
 import type { CrmContract, CrmLead, CrmProposal } from '@/types'
 
 interface Props {
@@ -41,7 +40,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 const selectClass =
-  'flex h-9 w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
+  'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
 
 export function CrmContractEditor({ open, onClose, contract, leads, proposals, defaultLeadId, defaultProposalId }: Props) {
   const { toast } = useToast()
@@ -121,9 +120,6 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
   }
 
   const link = current ? contractLink(current.public_token) : ''
-  const waText = lead
-    ? `Olá, ${lead.name.split(' ')[0]}! Segue o contrato da ${agency} para assinatura: ${link}\n\nÉ só abrir, conferir e assinar pelo celular mesmo.`
-    : ''
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
@@ -152,32 +148,25 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
               Registro do texto assinado: {current.content_hash?.slice(0, 16)}…
               {current.sign_meta?.ip ? ` · IP ${current.sign_meta.ip}` : ''}
             </p>
-            <Button size="sm" variant="outline" className="mt-1" onClick={() => window.open(link, '_blank', 'noopener')}>
-              <ExternalLink className="w-3 h-3" /> Ver documento assinado (dá para salvar em PDF)
+            <Button size="sm" variant="outline" className="mt-1" asChild>
+              <a href={link} target="_blank" rel="noreferrer">
+                <ExternalLink className="w-3 h-3" /> Ver documento assinado (dá para salvar em PDF)
+              </a>
             </Button>
           </div>
         )}
 
-        {shareOpen && current && status === 'enviado' && (
-          <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgba(37,99,235,0.35)', background: 'rgba(37,99,235,0.06)' }}>
-            <p className="text-[12.5px] font-medium" style={{ color: 'var(--sm-text-1)' }}>
-              Envie o link. Você recebe um aviso assim que o cliente assinar.
-            </p>
-            <div className="flex gap-2 flex-wrap">
-              <Input readOnly value={link} className="h-8 text-[12px] flex-1 min-w-[220px]" onFocus={e => e.target.select()} />
-              <Button size="sm" variant="outline" onClick={async () => toast((await copyText(link)) ? 'Link copiado' : 'Não consegui copiar', 'success')}>
-                <Copy className="w-3 h-3" /> Copiar
-              </Button>
-              {lead?.whatsapp && (
-                <Button size="sm" variant="success" onClick={() => window.open(waLink(lead.whatsapp!, waText), '_blank', 'noopener')}>
-                  <MessageCircle className="w-3 h-3" /> Enviar no WhatsApp
-                </Button>
-              )}
-              <Button size="sm" variant="ghost" onClick={() => window.open(link, '_blank', 'noopener')}>
-                <ExternalLink className="w-3 h-3" /> Ver como o cliente
-              </Button>
-            </div>
-          </div>
+        {current && status === 'enviado' && (
+          <CrmShareBox
+            link={link}
+            lead={lead}
+            message={contractMessage(lead, agency, link)}
+            hint={shareOpen
+              ? 'Contrato pronto! Agora envie para o cliente. Você recebe um aviso assim que ele assinar.'
+              : current.viewed_at
+                ? 'O cliente já abriu o contrato, mas ainda não assinou. Precisa mandar de novo?'
+                : 'Contrato enviado, aguardando o cliente abrir.'}
+          />
         )}
 
         <fieldset disabled={signed || status === 'cancelado'} className="space-y-4">

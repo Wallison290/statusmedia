@@ -14,7 +14,7 @@ import { useCrmLeadTasks, useCreateLeadTask } from '@/hooks/useCrmActivities'
 import { todayISO, fmtShortDate } from '@/utils/crm'
 
 const selectClass =
-  'h-8 rounded-md border px-2 text-[12px] [color-scheme:dark] focus:outline-none'
+  'h-8 min-w-0 max-w-full rounded-md border px-2 text-[12px] [color-scheme:dark] focus:outline-none'
 
 export function CrmLeadTasks({ leadId, defaultAssignee }: { leadId: string; defaultAssignee: string | null }) {
   const { toast } = useToast()

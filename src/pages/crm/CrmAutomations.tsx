@@ -22,7 +22,7 @@ import { ptBR } from 'date-fns/locale'
 import type { CrmAutomation, CrmColumn } from '@/types'
 
 const selectClass =
-  'flex h-9 w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
+  'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
 const selectStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }
 
 const VARS_HINT = 'Use {nome}, {primeiro_nome}, {empresa} e {agencia}.'

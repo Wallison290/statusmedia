@@ -6,16 +6,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Plus, FileText, Copy, Loader2, MoreVertical, CopyPlus, PenLine, Trash2, Eye, ExternalLink,
+  Plus, FileText, Copy, Loader2, MoreVertical, CopyPlus, PenLine, Trash2, Eye, ExternalLink, MessageCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { useCrmLeads } from '@/hooks/useCrm'
+import { useAuth } from '@/hooks/useAuth'
+import { proposalMessage } from '@/components/crm/CrmShareBox'
 import { useCrmProposals, useSaveCrmProposal, useDeleteCrmProposal } from '@/hooks/useCrmDocuments'
 import { CrmHeader } from '@/components/crm/CrmHeader'
 import { CrmProposalEditor } from '@/components/crm/CrmProposalEditor'
 import { PROPOSAL_STATUS } from '@/components/crm/crmStatus'
-import { fmtBRL, fmtShortDate, proposalLink, copyText, todayISO } from '@/utils/crm'
+import { fmtBRL, fmtShortDate, proposalLink, copyText, todayISO, waLink } from '@/utils/crm'
 import type { CrmProposal, CrmProposalStatus } from '@/types'
 
 type Filter = 'todas' | 'abertas' | CrmProposalStatus
@@ -26,6 +28,8 @@ export function CrmProposals() {
   const [params, setParams] = useSearchParams()
   const { data: proposals = [], isLoading } = useCrmProposals()
   const { data: leads = [] } = useCrmLeads()
+  const { profile } = useAuth()
+  const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
   const save = useSaveCrmProposal()
   const del  = useDeleteCrmProposal()
 
@@ -197,6 +201,16 @@ export function CrmProposals() {
                   </span>
 
                   <div className="flex items-center gap-1">
+                    {isOpen(p) && (() => {
+                      const lead = leads.find(l => l.id === p.lead_id)
+                      return lead?.whatsapp ? (
+                        <Button size="icon-sm" variant="ghost" title="Enviar no WhatsApp" asChild>
+                          <a href={waLink(lead.whatsapp, proposalMessage(lead, agency, proposalLink(p)))} target="_blank" rel="noreferrer">
+                            <MessageCircle className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
+                          </a>
+                        </Button>
+                      ) : null
+                    })()}
                     {p.status !== 'rascunho' && (
                       <Button size="icon-sm" variant="ghost" title="Copiar link"
                               onClick={async () => toast((await copyText(proposalLink(p))) ? 'Link copiado' : 'Não consegui copiar', 'success')}>

@@ -3,16 +3,23 @@
 // o botão leva para lá com o lead já escolhido.
 
 import { useNavigate } from 'react-router-dom'
-import { FileText, PenLine, Plus, ExternalLink } from 'lucide-react'
+import { FileText, PenLine, Plus, ExternalLink, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useCrmProposals, useCrmContracts } from '@/hooks/useCrmDocuments'
+import { useCrmLeads } from '@/hooks/useCrm'
+import { useAuth } from '@/hooks/useAuth'
+import { proposalMessage, contractMessage } from './CrmShareBox'
 import { PROPOSAL_STATUS, CONTRACT_STATUS } from './crmStatus'
-import { fmtBRL, proposalLink, contractLink } from '@/utils/crm'
+import { fmtBRL, proposalLink, contractLink, waLink } from '@/utils/crm'
 
 export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate: () => void }) {
   const navigate = useNavigate()
   const { data: proposals = [] } = useCrmProposals()
   const { data: contracts = [] } = useCrmContracts()
+  const { data: leads = [] } = useCrmLeads()
+  const { profile } = useAuth()
+  const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
+  const lead = leads.find(l => l.id === leadId) ?? null
 
   const props = proposals.filter(p => p.lead_id === leadId)
   const conts = contracts.filter(c => c.lead_id === leadId)
@@ -47,6 +54,12 @@ export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate
                       {p.view_count > 0 && ` · aberta ${p.view_count}x`}
                     </p>
                   </button>
+                  {lead?.whatsapp && (p.status === 'enviada' || p.status === 'visualizada') && (
+                    <a href={waLink(lead.whatsapp, proposalMessage(lead, agency, proposalLink(p)))} target="_blank" rel="noreferrer"
+                       aria-label="Enviar no WhatsApp" title="Enviar no WhatsApp">
+                      <MessageCircle className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
+                    </a>
+                  )}
                   {p.status !== 'rascunho' && (
                     <a href={proposalLink(p)} target="_blank" rel="noreferrer" aria-label="Abrir link da proposta">
                       <ExternalLink className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
@@ -79,6 +92,12 @@ export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate
                     <p className="text-[12.5px] truncate" style={{ color: 'var(--sm-text-1)' }}>{c.title}</p>
                     <p className="text-[10.5px]" style={{ color: S.color }}>{S.label}</p>
                   </button>
+                  {lead?.whatsapp && c.status === 'enviado' && (
+                    <a href={waLink(lead.whatsapp, contractMessage(lead, agency, contractLink(c.public_token)))} target="_blank" rel="noreferrer"
+                       aria-label="Enviar no WhatsApp" title="Enviar no WhatsApp">
+                      <MessageCircle className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
+                    </a>
+                  )}
                   {c.status !== 'rascunho' && c.status !== 'cancelado' && (
                     <a href={contractLink(c.public_token)} target="_blank" rel="noreferrer" aria-label="Abrir link do contrato">
                       <ExternalLink className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />

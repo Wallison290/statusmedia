@@ -4,15 +4,17 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, PenLine, Copy, Loader2, Trash2 } from 'lucide-react'
+import { Plus, PenLine, Copy, Loader2, Trash2, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { useCrmLeads } from '@/hooks/useCrm'
+import { useAuth } from '@/hooks/useAuth'
+import { contractMessage } from '@/components/crm/CrmShareBox'
 import { useCrmContracts, useCrmProposals, useDeleteCrmContract } from '@/hooks/useCrmDocuments'
 import { CrmHeader } from '@/components/crm/CrmHeader'
 import { CrmContractEditor } from '@/components/crm/CrmContractEditor'
 import { CONTRACT_STATUS } from '@/components/crm/crmStatus'
-import { fmtShortDate, contractLink, copyText } from '@/utils/crm'
+import { fmtShortDate, contractLink, copyText, waLink } from '@/utils/crm'
 import type { CrmContract } from '@/types'
 
 export function CrmContracts() {
@@ -21,6 +23,8 @@ export function CrmContracts() {
   const { data: contracts = [], isLoading } = useCrmContracts()
   const { data: proposals = [] } = useCrmProposals()
   const { data: leads = [] } = useCrmLeads()
+  const { profile } = useAuth()
+  const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
   const del = useDeleteCrmContract()
 
   const [editing, setEditing] = useState<CrmContract | null>(null)
@@ -100,6 +104,16 @@ export function CrmContracts() {
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ color: S.color, background: `${S.color}1f` }}>
                     {S.label}
                   </span>
+                  {c.status === 'enviado' && (() => {
+                    const lead = leads.find(l => l.id === c.lead_id)
+                    return lead?.whatsapp ? (
+                      <Button size="icon-sm" variant="ghost" title="Enviar no WhatsApp" asChild>
+                        <a href={waLink(lead.whatsapp, contractMessage(lead, agency, contractLink(c.public_token)))} target="_blank" rel="noreferrer">
+                          <MessageCircle className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
+                        </a>
+                      </Button>
+                    ) : null
+                  })()}
                   {(c.status === 'enviado' || c.status === 'assinado') && (
                     <Button size="icon-sm" variant="ghost" title="Copiar link"
                             onClick={async () => toast((await copyText(contractLink(c.public_token))) ? 'Link copiado' : 'Não consegui copiar', 'success')}>

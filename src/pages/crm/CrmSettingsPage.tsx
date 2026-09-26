@@ -16,7 +16,7 @@ import { captureLink, copyText } from '@/utils/crm'
 import type { CrmMessageTemplate } from '@/types'
 
 const selectClass =
-  'flex h-9 w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
+  'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
 
 function Section({ icon: Icon, title, hint, children }: { icon: React.ElementType; title: string; hint: string; children: React.ReactNode }) {
   return (
