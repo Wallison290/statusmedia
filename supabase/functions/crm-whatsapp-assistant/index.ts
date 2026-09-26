@@ -3,18 +3,22 @@
 // dados reais do CRM. Ideia trazida do assistente de WhatsApp do Sistema
 // (api-app/services/whatsapp/assistente.js), em versão só de leitura.
 //
-// Como chega aqui: webhook de mensagens recebidas da instância UazAPI (a mesma
-// que envia as notificações). Configure no painel da UazAPI:
-//   URL:    https://<ref>.supabase.co/functions/v1/crm-whatsapp-assistant?secret=<CRM_ASSISTANT_SECRET>
-//   Evento: messages
+// Como chega aqui: webhook de mensagens recebidas do WhatsApp CONECTADO DE CADA
+// AGÊNCIA. A função agency-whatsapp configura esse webhook sozinha quando a
+// agência conecta, com a URL:
+//   .../crm-whatsapp-assistant?secret=<CRM_ASSISTANT_SECRET>&inst=<id da instância>
+// O dono da agência manda "CRM ..." do número pessoal dele (o verificado na
+// página WhatsApp) para o número da agência, e a resposta sai pelo número da
+// agência.
 // Deploy sem JWT (a UazAPI não manda token do Supabase):
 //   supabase functions deploy crm-whatsapp-assistant --no-verify-jwt
 //   supabase secrets set CRM_ASSISTANT_SECRET=<um texto aleatório longo>
 //
 // Regras de segurança:
-//   • só responde a número VERIFICADO de uma agência (whatsapp_verified);
-//   • os dados consultados são sempre os da agência dona daquele número; a
-//     pergunta não escolhe de quem ler (não há como pedir dados de outra conta);
+//   • a agência é a dona da instância que recebeu a mensagem (`inst` na URL);
+//   • só responde ao número pessoal VERIFICADO do dono dessa agência: cliente
+//     ou lead que escrever "CRM" para a agência não recebe dados do funil;
+//   • a pergunta não escolhe de quem ler (não há como pedir dados de outra conta);
 //   • só lê, nunca grava no CRM;
 //   • só reage a mensagem que começa com "CRM", para não responder a qualquer
 //     "ok" ou "obrigado" que a agência mande para o número dos avisos;
@@ -30,8 +34,7 @@ const OPENAI_API_KEY       = Deno.env.get('OPENAI_API_KEY') ?? ''
 const WEBHOOK_SECRET       = Deno.env.get('CRM_ASSISTANT_SECRET') ?? ''
 
 const APP_URL   = (Deno.env.get('APP_PUBLIC_URL') ?? 'https://statusmedia.com.br').replace(/\/$/, '')
-const UAZ_URL   = (Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
-const UAZ_TOKEN = Deno.env.get('EVOLUTION_API_KEY') ?? ''
+const UAZ_URL   = (Deno.env.get('AGENCY_UAZAPI_URL') ?? '').replace(/\/$/, '')
 
 // Mesmos limites do ai-proxy / ai-chat
 const AI_LIMITS: Record<string, number> = { starter: 150, pro: 600, agency: 2000 }
@@ -70,11 +73,11 @@ function phoneKey(raw: string | null | undefined): string | null {
   return d.slice(0, 2) + d.slice(-8)
 }
 
-async function reply(number: string, text: string) {
-  if (!UAZ_URL || !UAZ_TOKEN) return
+async function reply(token: string, number: string, text: string) {
+  if (!UAZ_URL || !token) return
   await fetch(`${UAZ_URL}/send/text`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', token: UAZ_TOKEN },
+    headers: { 'Content-Type': 'application/json', token },
     body: JSON.stringify({ number, text }),
   }).catch(() => {})
 }
@@ -155,7 +158,9 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return ok({ ok: false })
 
   // Sem segredo configurado a função não atende ninguém: melhor parada do que aberta
-  const secret = new URL(req.url).searchParams.get('secret') ?? ''
+  const params = new URL(req.url).searchParams
+  const secret = params.get('secret') ?? ''
+  const instId = params.get('inst') ?? ''
   if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
     return new Response('unauthorized', { status: 401 })
   }
@@ -169,28 +174,33 @@ Deno.serve(async (req) => {
   const question = msg.text.replace(/^crm[\s:,.-]*/i, '').trim()
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY) as any
 
-  const key = phoneKey(msg.number)
-  const { data: agencies } = await sb
-    .from('profiles')
-    .select('id, whatsapp, agency_name, full_name')
-    .eq('role', 'agency')
-    .eq('whatsapp_verified', true)
-    .not('whatsapp', 'is', null)
-  const matches = (agencies ?? []).filter((p: any) => key && phoneKey(p.whatsapp) === key)
+  // A instância que recebeu diz de qual agência é o número
+  if (!/^[0-9a-f-]{36}$/i.test(instId)) return ok({ ignored: true })
+  const { data: inst } = await sb.from('whatsapp_instances').select('user_id, instance_token').eq('id', instId).maybeSingle()
+  if (!inst?.user_id) return ok({ ignored: true })
 
-  // Número desconhecido: silêncio. Responder confirmaria para qualquer um que o
-  // número existe e atende comandos.
-  if (matches.length !== 1) return ok({ ignored: true })
-  const agency = matches[0]
+  const { data: agency } = await sb
+    .from('profiles')
+    .select('id, whatsapp, whatsapp_verified, agency_name, full_name, role')
+    .eq('id', inst.user_id)
+    .maybeSingle()
+
+  // Só o dono, pelo número pessoal verificado. Qualquer outro remetente (cliente,
+  // lead) recebe silêncio: responder confirmaria que o número atende comandos.
+  const key = phoneKey(msg.number)
+  if (!agency || agency.role !== 'agency' || !agency.whatsapp_verified || !key || phoneKey(agency.whatsapp) !== key) {
+    return ok({ ignored: true })
+  }
+  const token = inst.instance_token
 
   if (!question) {
-    await reply(msg.number, 'Oi! Me pergunte sobre o seu funil começando com CRM. Ex: *CRM quem eu preciso chamar hoje?*')
+    await reply(token, msg.number, 'Oi! Me pergunte sobre o seu funil começando com CRM. Ex: *CRM quem eu preciso chamar hoje?*')
     return ok()
   }
 
   const blocked = await consumeCredit(sb, agency.id)
   if (blocked) {
-    await reply(msg.number, blocked)
+    await reply(token, msg.number, blocked)
     return ok()
   }
 
@@ -215,10 +225,10 @@ Deno.serve(async (req) => {
       ],
     })
     const answer = res.choices[0]?.message?.content?.trim() || 'Não consegui montar a resposta agora.'
-    await reply(msg.number, `${answer}\n\n_Detalhes no CRM: ${APP_URL}/crm_`)
+    await reply(token, msg.number, `${answer}\n\n_Detalhes no CRM: ${APP_URL}/crm_`)
   } catch (err) {
     console.error('crm-whatsapp-assistant:', err)
-    await reply(msg.number, 'Tive um problema para consultar o CRM agora. Tente de novo em instantes.')
+    await reply(token, msg.number, 'Tive um problema para consultar o CRM agora. Tente de novo em instantes.')
   }
 
   return ok()

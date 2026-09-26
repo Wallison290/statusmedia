@@ -35,7 +35,7 @@ export function CrmWhatsappConnect() {
           <Smartphone className="w-4 h-4" style={{ color: '#22C55E' }} /> Meu WhatsApp
         </h2>
         <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-          Conecte o WhatsApp da agência. Por ele saem os avisos de conteúdo para os seus clientes, os avisos de post publicado e as mensagens, propostas e contratos do CRM. Enquanto não conectar, tudo continua saindo pelo número da StatusMedia.
+          Conecte o WhatsApp da agência. Por ele saem os avisos de conteúdo para os seus clientes, os avisos de post publicado e as mensagens, propostas e contratos do CRM. Sem ele conectado, nenhuma mensagem de WhatsApp é enviada: os avisos ficam só no sininho do app.
         </p>
       </div>
 

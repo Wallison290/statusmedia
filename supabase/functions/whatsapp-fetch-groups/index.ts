@@ -11,10 +11,8 @@ const CORS = {
 }
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { agencySender } from '../_shared/whatsapp.ts'
+import { agencySender, NOT_CONNECTED } from '../_shared/whatsapp.ts'
 
-const BASE_URL = (Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
-const TOKEN    = Deno.env.get('EVOLUTION_API_KEY') ?? ''
 
 function json(body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -23,9 +21,9 @@ function json(body: unknown) {
   })
 }
 
-// Número usado nesta chamada: o da agência, se conectado; senão o da plataforma
-let callBase = BASE_URL
-let callToken = TOKEN
+// Número usado nesta chamada: sempre o WhatsApp conectado da agência
+let callBase = ''
+let callToken = ''
 
 async function uazPost(path: string, body: unknown) {
   const res  = await fetch(`${callBase}${path}`, {
@@ -51,22 +49,17 @@ function extractGroup(data: any): { jid: string; name: string } | null {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  if (!BASE_URL || !TOKEN) {
-    return json({ ok: false, error: 'UazAPI não configurada (faltam secrets)' })
-  }
-
   try {
-    callBase = BASE_URL
-    callToken = TOKEN
-    // Com o WhatsApp da agência conectado, é o número dela que identifica (e,
-    // se preciso, entra) no grupo: é ele que vai mandar as mensagens depois
+    // O número da agência identifica (e, se preciso, entra) no grupo: é ele
+    // que vai mandar as mensagens depois
     const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
-    if (jwt) {
-      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-      const { data: { user } } = await sb.auth.getUser(jwt)
-      const agency = user ? await agencySender(sb, user.id) : null
-      if (agency) { callBase = agency.base; callToken = agency.token }
-    }
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: { user } } = await sb.auth.getUser(jwt)
+    if (!user) return json({ ok: false, error: 'Não autenticado.' })
+    const agency = await agencySender(sb, user.id)
+    if (!agency) return json({ ok: false, error: NOT_CONNECTED })
+    callBase = agency.base
+    callToken = agency.token
 
     const body   = await req.json().catch(() => ({}))
     const invite = ((body as any).invite_code ?? '').trim()

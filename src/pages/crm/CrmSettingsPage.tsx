@@ -263,14 +263,14 @@ export function CrmSettingsPage() {
 
         {/* Assistente no WhatsApp */}
         <Section icon={Smartphone} title="Perguntar pelo WhatsApp"
-                 hint="Mande uma mensagem para o número da StatusMedia (o mesmo que te envia os avisos) começando com CRM, e a IA responde com os dados do seu funil.">
+                 hint="Do seu número pessoal (o verificado na página WhatsApp), mande para o WhatsApp da agência uma mensagem começando com CRM, e a IA responde com os dados do seu funil.">
           <ul className="text-[12.5px] space-y-1" style={{ color: 'var(--sm-text-2)' }}>
             <li>• <em>CRM quem eu preciso chamar hoje?</em></li>
             <li>• <em>CRM quanto tenho em proposta aberta?</em></li>
             <li>• <em>CRM como está a Clínica Vida?</em></li>
           </ul>
           <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
-            Só responde para o número verificado em Meu Perfil. Cada pergunta usa 1 crédito de IA do plano.
+            Só responde ao seu número pessoal verificado; clientes e leads que escreverem "CRM" não recebem nada. Precisa do WhatsApp da agência conectado. Cada pergunta usa 1 crédito de IA do plano.
           </p>
         </Section>
       </div>

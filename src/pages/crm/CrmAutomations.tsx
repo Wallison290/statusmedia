@@ -179,8 +179,8 @@ export function CrmAutomations() {
             </section>
 
             <p className="text-[11.5px] max-w-2xl" style={{ color: 'var(--sm-text-4)' }}>
-              Por segurança, o sistema nunca manda mensagem automática para o lead pelo WhatsApp da plataforma.
-              A ação "Me lembrar de mandar um WhatsApp" te entrega a mensagem pronta no seu WhatsApp, e você envia do seu número com um toque.
+              As automações não mandam mensagem sozinhas para o lead, para proteger o número da agência de bloqueio.
+              A ação "Me lembrar de mandar um WhatsApp" te entrega a mensagem pronta, e você envia com um toque.
             </p>
           </>
         )}

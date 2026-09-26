@@ -1,7 +1,9 @@
 // ── Edge Function: whatsapp-verify ────────────────────────────────────────────
-// Verificação do número de WhatsApp da agência em duas etapas:
+// Verificação do número PESSOAL do dono da agência (onde ele recebe os avisos),
+// em duas etapas:
 //   action = 'send'    → gera um código de 6 dígitos, salva no profile (com
-//                        expiração de 10 min) e envia pelo Evolution.
+//                        expiração de 10 min) e envia pelo WhatsApp conectado
+//                        da agência (não existe mais número da plataforma).
 //   action = 'confirm' → compara o código informado; se bater, marca
 //                        whatsapp_verified = true e liga o opt-in.
 //
@@ -10,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendForAgency } from '../_shared/whatsapp.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -20,9 +23,6 @@ const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON     = Deno.env.get('SUPABASE_ANON_KEY')!
 const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-const EVOLUTION_BASE_URL = (Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
-const EVOLUTION_API_KEY  = Deno.env.get('EVOLUTION_API_KEY') ?? ''
-const EVOLUTION_INSTANCE = Deno.env.get('EVOLUTION_INSTANCE') ?? ''
 
 const MAX_ATTEMPTS = 5
 
@@ -31,26 +31,6 @@ function normalizeNumber(raw: string): string {
   if (!n) return n
   if (!n.startsWith('55') && n.length <= 11) n = '55' + n
   return n
-}
-
-async function sendText(to: string, text: string): Promise<{ ok: boolean; error?: string }> {
-  if (!EVOLUTION_BASE_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE) {
-    return { ok: false, error: 'Evolution não configurado (faltam secrets)' }
-  }
-  try {
-    const res = await fetch(`${EVOLUTION_BASE_URL}/send/text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', token: EVOLUTION_API_KEY },
-      body: JSON.stringify({ number: normalizeNumber(to), text }),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      return { ok: false, error: `HTTP ${res.status}: ${JSON.stringify(data)}` }
-    }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: String(err) }
-  }
 }
 
 function json(body: unknown, status = 200) {
@@ -95,11 +75,15 @@ Deno.serve(async (req) => {
         .eq('id', user.id)
       if (upErr) throw upErr
 
-      const sent = await sendText(
-        phone,
+      const sent = await sendForAgency(
+        admin, user.id, phone,
         `*StatusMedia* 🔐\nSeu código de verificação é *${verifyCode}*.\nEle expira em 10 minutos.`,
       )
-      if (!sent.ok) return json({ error: `Não foi possível enviar: ${sent.error}` }, 502)
+      if (!sent.ok) {
+        return json({ error: sent.notConnected
+          ? 'Conecte primeiro o WhatsApp da agência (acima nesta página). É por ele que o código é enviado.'
+          : `Não foi possível enviar: ${sent.error}` }, sent.notConnected ? 409 : 502)
+      }
 
       return json({ ok: true, message: 'Código enviado pelo WhatsApp' })
     }

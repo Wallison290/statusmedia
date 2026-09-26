@@ -3,7 +3,7 @@ import { Outlet, Link } from 'react-router-dom'
 import { Menu, Clock, AlertTriangle } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { useSubscription } from '@/hooks/useSubscription'
-import { useWhatsappHealth } from '@/hooks/useWhatsappHealth'
+import { useAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { useTheme } from '@/contexts/ThemeContext'
 
 function TrialBanner() {
@@ -24,30 +24,26 @@ function TrialBanner() {
 }
 
 /**
- * Aviso de instância do WhatsApp fora do ar.
+ * Aviso de WhatsApp da agência desconectado.
  *
- * Enquanto ela está caída, nenhuma notificação sai — nem para a agência, nem
- * para os clientes no planejamento — e sem este banner isso só apareceria na
- * forma de um envio falhando. O hook só consulta quando o usuário é admin, que
- * é quem reconecta a instância na UazAPI.
+ * Todo WhatsApp sai pelo número conectado da própria agência (não existe mais
+ * número da plataforma). Sem ele, nenhum aviso chega aos clientes nem ao dono
+ * pelo WhatsApp, e isso só seria percebido quando alguém reclamasse.
  */
-function WhatsappHealthBanner() {
-  const { data: health } = useWhatsappHealth()
-  if (health?.status !== 'disconnected') return null
-
-  const since = health.changed_at
-    ? new Date(health.changed_at).toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-      })
-    : null
+function AgencyWhatsappBanner() {
+  const { data } = useAgencyWhatsapp()
+  if (!data || data.status === 'connected' || (!data.available && !data.hasInstance)) return null
 
   return (
-    <div className="w-full bg-red-600 text-white text-center py-2 px-4 text-[12.5px] font-medium flex items-center justify-center gap-2 flex-shrink-0">
+    <div className="w-full bg-red-600 text-white text-center py-2 px-4 text-[12.5px] font-medium flex items-center justify-center gap-2 flex-shrink-0 flex-wrap">
       <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
       <span>
-        WhatsApp desconectado{since ? ` desde ${since}` : ''} — as notificações não
-        estão saindo. Reconecte a instância na UazAPI.
+        {data.hasInstance ? 'O WhatsApp da agência está desconectado.' : 'O WhatsApp da agência ainda não foi conectado.'}
+        {' '}Os avisos para você e para os seus clientes não estão saindo pelo WhatsApp.
       </span>
+      <Link to="/whatsapp" className="underline underline-offset-2 hover:no-underline font-semibold">
+        Conectar agora →
+      </Link>
     </div>
   )
 }
@@ -95,7 +91,7 @@ export function Layout() {
           <Menu className="w-4 h-4 text-white/80" />
         </button>
 
-        <WhatsappHealthBanner />
+        <AgencyWhatsappBanner />
         <TrialBanner />
         <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           <Outlet />

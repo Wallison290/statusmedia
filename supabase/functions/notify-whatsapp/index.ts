@@ -1,5 +1,7 @@
 // ── Edge Function: notify-whatsapp ────────────────────────────────────────────
-// Fan-out de uma notificação para o WhatsApp da AGÊNCIA via Evolution API.
+// Fan-out de uma notificação para o WhatsApp, sempre pelo número conectado da
+// própria agência (_shared/whatsapp.ts). Agência sem WhatsApp conectado fica
+// só com o aviso no sininho.
 //
 // Dois modos de invocação:
 //   1) Webhook (tempo real): chamado pelo trigger AFTER INSERT on notifications,
@@ -12,7 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { sendForAgency, platformSender } from '../_shared/whatsapp.ts'
+import { sendForAgency } from '../_shared/whatsapp.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -21,15 +23,6 @@ const cors = {
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-const EVOLUTION_BASE_URL = (Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
-const EVOLUTION_API_KEY  = Deno.env.get('EVOLUTION_API_KEY') ?? ''
-const EVOLUTION_INSTANCE = Deno.env.get('EVOLUTION_INSTANCE') ?? ''
-
-// Número da plataforma: reserva para agência que ainda não conectou o próprio
-// WhatsApp (ver _shared/whatsapp.ts). Com o número da agência conectado, os
-// avisos saem por ele.
-const PLATFORM = platformSender(EVOLUTION_BASE_URL, EVOLUTION_API_KEY)
 
 // Domínio público do app, para montar o link clicável na mensagem.
 const APP_URL = (Deno.env.get('APP_PUBLIC_URL') ?? 'https://statusmedia.com.br').replace(/\/$/, '')
@@ -108,40 +101,12 @@ function buildMessage(n: NotificationRow): string {
   return `${head}${body}${tail}`
 }
 
-// ─── UazAPI ──────────────────────────────────────────────────────────────────
-// Endpoint: POST /send/text
-// Auth:     header "token" com o token da instância
-// Body:     { number, text }
-
 // Normaliza número: só dígitos, com DDI 55 (Brasil).
 function normalizeNumber(raw: string): string {
   let n = (raw || '').replace(/\D/g, '')
   if (!n) return n
   if (!n.startsWith('55') && n.length <= 11) n = '55' + n
   return n
-}
-
-async function sendToJid(jid: string, text: string): Promise<{ ok: boolean; id?: string; error?: string }> {
-  if (!EVOLUTION_BASE_URL || !EVOLUTION_API_KEY) {
-    return { ok: false, error: 'UazAPI não configurada (faltam secrets)' }
-  }
-  try {
-    const res = await fetch(`${EVOLUTION_BASE_URL}/send/text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', token: EVOLUTION_API_KEY },
-      body: JSON.stringify({ number: jid, text }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${JSON.stringify(data)}` }
-    const id = data?.key?.id ?? data?.id ?? null
-    return { ok: true, id }
-  } catch (err) {
-    return { ok: false, error: String(err) }
-  }
-}
-
-async function sendText(to: string, text: string): Promise<{ ok: boolean; id?: string; error?: string }> {
-  return sendToJid(normalizeNumber(to), text)
 }
 
 // ─── Tipos de notificação que vão para o cliente (envio manual) ──────────────
@@ -186,7 +151,7 @@ async function sendClientNotification(
 
   const agencyName = (agencyProfile as any).agency_name || (agencyProfile as any).full_name || 'Sua agência'
   const msg = buildClientMessage(n, agencyName)
-  return sendForAgency(supabase, n.user_id, whatsapp, msg, PLATFORM)
+  return sendForAgency(supabase, n.user_id, whatsapp, msg)
 }
 
 // ─── Processa uma notificação ─────────────────────────────────────────────────
@@ -250,7 +215,7 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
 
   // Envia para a agência.
   const text = buildMessage(n)
-  const sent = await sendForAgency(supabase, n.user_id, p.whatsapp, text, PLATFORM, { toOwner: true })
+  const sent = await sendForAgency(supabase, n.user_id, p.whatsapp, text)
 
   // Incrementa tentativas sempre.
   await supabase.rpc('increment_delivery_attempts', { p_notification_id: n.id }).catch(() => {})
@@ -267,16 +232,18 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
     // CRM só vai para grupo que ligou a categoria de propósito: grupo pode ter
     // cliente dentro, e o aviso traz nome de lead e valor de proposta.
     if (category === 'crm' ? cats.crm !== true : cats[category] === false) continue
-    await sendForAgency(supabase, n.user_id, g.group_jid, text, PLATFORM).catch(() => {})
+    await sendForAgency(supabase, n.user_id, g.group_jid, text).catch(() => {})
   }
 
   if (sent.ok) {
     return finish('sent', {
       provider_msg_id: sent.id ?? null, to_number: normalizeNumber(p.whatsapp), error: null,
-      provider: sent.via === 'agency' ? 'agency_whatsapp' : 'evolution',
+      provider: 'agency_whatsapp',
     })
   }
   // Falha fica como 'failed' → o sweep tenta de novo na próxima passada.
+  // Agência sem WhatsApp conectado: não é falha para repetir, é envio que não existe
+  if (sent.notConnected) return finish('skipped', { error: 'agência sem WhatsApp conectado' })
   return finish('failed', { error: sent.error ?? 'erro desconhecido' })
 }
 
@@ -342,7 +309,7 @@ Deno.serve(async (req) => {
         const groupMsg = buildClientMessage(fakeNotif, agencyName) +
           (clientName ? `\n\n_Cliente: ${clientName}_` : '')
         for (const jid of group_jids) {
-          await sendForAgency(supabase, user.id, jid, groupMsg, PLATFORM).catch(() => {})
+          await sendForAgency(supabase, user.id, jid, groupMsg).catch(() => {})
         }
       }
 
@@ -374,7 +341,7 @@ Deno.serve(async (req) => {
         type, title: '', message: '', link: null, created_at: new Date().toISOString(),
       }
       const msg = buildClientMessage(fakeNotif, agencyName)
-      for (const jid of group_jids) { await sendForAgency(supabase, user.id, jid, msg, PLATFORM).catch(() => {}) }
+      for (const jid of group_jids) { await sendForAgency(supabase, user.id, jid, msg).catch(() => {}) }
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })

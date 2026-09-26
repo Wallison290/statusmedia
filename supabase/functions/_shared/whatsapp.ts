@@ -1,31 +1,25 @@
 // ── Qual WhatsApp envia a mensagem ────────────────────────────────────────────
-// Regra: cada agência fala pelo PRÓPRIO número, conectado pela StatusMedia
-// (instância UazAPI dela, ver migration 076 e a função agency-whatsapp).
-// Enquanto a agência não conecta, ou se o número dela falhar, a mensagem sai
-// pelo número da plataforma, como era antes. Assim nenhuma agência fica sem
-// aviso durante a troca.
+// Regra única: cada agência fala pelo PRÓPRIO número, conectado pela
+// StatusMedia (instância UazAPI dela, ver migration 076 e a função
+// agency-whatsapp). Não existe mais número da plataforma: agência sem WhatsApp
+// conectado não envia nada por WhatsApp (os avisos seguem no sininho do app).
 //
-// Exceção: aviso para o próprio dono da agência quando o número dele é o mesmo
-// que está conectado. WhatsApp enviado de um número para ele mesmo cai na
-// conversa "Você" sem tocar notificação, e o aviso passaria despercebido.
-// Nesse caso o aviso sai pelo número da plataforma.
+// Aviso para o próprio dono quando o número dele é o mesmo conectado: a
+// mensagem cai na conversa "Você" e não toca notificação. Continua sendo
+// enviada (fica registrada), e a tela de WhatsApp recomenda cadastrar um
+// número pessoal diferente para receber os avisos.
 
 type Supa = any
 
 export interface Sender {
   base:  string
   token: string
-  kind:  'agency' | 'platform'
-  phone: string | null   // número conectado (só no da agência)
+  phone: string | null   // número conectado
 }
 
-const AGENCY_BASE = (Deno.env.get('AGENCY_UAZAPI_URL') ?? Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
+export const NOT_CONNECTED = 'Conecte o WhatsApp da agência na página WhatsApp da StatusMedia para enviar mensagens.'
 
-/** Número da plataforma, com a configuração que cada função já usava. */
-export function platformSender(base: string, token: string): Sender | null {
-  const b = (base ?? '').replace(/\/$/, '')
-  return b && token ? { base: b, token, kind: 'platform', phone: null } : null
-}
+const AGENCY_BASE = (Deno.env.get('AGENCY_UAZAPI_URL') ?? '').replace(/\/$/, '')
 
 /** WhatsApp da agência, se ela conectou um. */
 export async function agencySender(sb: Supa, userId: string): Promise<Sender | null> {
@@ -35,7 +29,7 @@ export async function agencySender(sb: Supa, userId: string): Promise<Sender | n
     sb.from('agency_whatsapp').select('status, phone').eq('user_id', userId).maybeSingle(),
   ])
   if (!inst?.instance_token || state?.status !== 'connected') return null
-  return { base: AGENCY_BASE, token: inst.instance_token, kind: 'agency', phone: state.phone ?? null }
+  return { base: AGENCY_BASE, token: inst.instance_token, phone: state.phone ?? null }
 }
 
 export function normalizeNumber(raw: string): string {
@@ -71,24 +65,11 @@ export async function sendVia(s: Sender, to: string, text: string): Promise<{ ok
   }
 }
 
-/**
- * Envia em nome da agência: número dela primeiro, plataforma se não houver ou
- * se falhar. `toOwner` liga a exceção do aviso para o próprio dono.
- */
+/** Envia pelo WhatsApp da agência. `notConnected` diferencia "não conectou" de falha. */
 export async function sendForAgency(
   sb: Supa, userId: string, to: string, text: string,
-  platform: Sender | null, opts: { toOwner?: boolean } = {},
-): Promise<{ ok: boolean; via?: Sender['kind']; id?: string; error?: string }> {
+): Promise<{ ok: boolean; id?: string; error?: string; notConnected?: boolean }> {
   const agency = await agencySender(sb, userId)
-  const selfChat = opts.toOwner && agency && phoneKey(agency.phone) !== null && phoneKey(agency.phone) === phoneKey(to)
-
-  if (agency && !selfChat) {
-    const r = await sendVia(agency, to, text)
-    if (r.ok) return { ...r, via: 'agency' }
-    if (!platform) return { ...r, via: 'agency' }
-    console.warn('[whatsapp] número da agência falhou, usando o da plataforma:', r.error)
-  }
-  if (!platform) return { ok: false, error: 'Nenhum WhatsApp configurado para enviar.' }
-  const r = await sendVia(platform, to, text)
-  return { ...r, via: 'platform' }
+  if (!agency) return { ok: false, error: NOT_CONNECTED, notConnected: true }
+  return sendVia(agency, to, text)
 }

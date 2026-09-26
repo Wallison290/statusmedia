@@ -1,10 +1,10 @@
 // ── Edge Function: charge-client-whatsapp ──────────────────────────────────────
-// Envia mensagem de cobrança diretamente no WhatsApp do cliente via uazapi.
+// Envia mensagem de cobrança no WhatsApp do cliente, pelo WhatsApp conectado da agência.
 // Chamado pelo botão "Cobrar" na página Financeiro.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { sendForAgency, platformSender } from '../_shared/whatsapp.ts'
+import { sendForAgency } from '../_shared/whatsapp.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -14,10 +14,6 @@ const cors = {
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
-
-const UAZAPI_URL      = (Deno.env.get('UAZAPI_URL') ?? '').replace(/\/$/, '')
-const UAZAPI_TOKEN    = Deno.env.get('UAZAPI_TOKEN') ?? ''
-const UAZAPI_INSTANCE = Deno.env.get('UAZAPI_INSTANCE') ?? ''
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,32 +36,6 @@ function normalizeNumber(raw: string): string {
   if (!n) return ''
   if (!n.startsWith('55') && n.length <= 11) n = '55' + n
   return n
-}
-
-// ─── uazapi sendText ──────────────────────────────────────────────────────────
-
-async function sendText(to: string, text: string): Promise<{ ok: boolean; error?: string }> {
-  if (!UAZAPI_URL || !UAZAPI_TOKEN || !UAZAPI_INSTANCE) {
-    return { ok: false, error: 'uazapi não configurado — defina UAZAPI_URL, UAZAPI_TOKEN e UAZAPI_INSTANCE nos secrets do Supabase.' }
-  }
-  const number = normalizeNumber(to)
-  if (!number) return { ok: false, error: 'Número de telefone inválido.' }
-
-  try {
-    const res = await fetch(`${UAZAPI_URL}/send/text`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'token': UAZAPI_TOKEN,
-      },
-      body: JSON.stringify({ instanceName: UAZAPI_INSTANCE, number, text }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) return { ok: false, error: data.error ?? `HTTP ${res.status}: ${JSON.stringify(data)}` }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: String(err) }
-  }
 }
 
 // ─── Mensagem de cobrança ─────────────────────────────────────────────────────
@@ -126,9 +96,8 @@ Deno.serve(async (req) => {
     if (!client.whatsapp) throw new Error('Cliente sem WhatsApp cadastrado.')
 
     const message = buildChargeMessage({ ...client, contact_name: client.responsible_name })
-    // Sai pelo WhatsApp da agência; sem ele conectado, pelo da plataforma
-    const result = await sendForAgency(supabase, user.id, client.whatsapp, message,
-      platformSender(UAZAPI_URL, UAZAPI_TOKEN))
+    // Sai pelo WhatsApp conectado da agência
+    const result = await sendForAgency(supabase, user.id, client.whatsapp, message)
     if (!result.ok) throw new Error(result.error)
 
     return new Response(JSON.stringify({ ok: true }), {

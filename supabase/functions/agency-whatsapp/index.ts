@@ -13,7 +13,7 @@
 //
 // Secrets:
 //   AGENCY_UAZAPI_URL    servidor UazAPI das instâncias das agências
-//                        (cai no EVOLUTION_BASE_URL se não existir)
+
 //   UAZAPI_ADMIN_TOKEN   opcional: com ele a função CRIA uma instância nova por
 //                        agência; sem ele, usa as instâncias livres do estoque
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,8 +22,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const BASE = (Deno.env.get('AGENCY_UAZAPI_URL') ?? Deno.env.get('EVOLUTION_BASE_URL') ?? '').replace(/\/$/, '')
+const BASE = (Deno.env.get('AGENCY_UAZAPI_URL') ?? '').replace(/\/$/, '')
 const ADMIN_TOKEN = Deno.env.get('UAZAPI_ADMIN_TOKEN') ?? ''
+
+// Assistente "CRM ..." e (no futuro) conversas no CRM: mensagens recebidas pelo
+// número da agência chegam por este webhook, configurado aqui na conexão
+const ASSISTANT_SECRET = Deno.env.get('CRM_ASSISTANT_SECRET') ?? ''
 
 // Freio para proteger o número da agência de bloqueio por excesso de envio
 const MAX_PER_HOUR = 60
@@ -90,6 +94,18 @@ Deno.serve(async (req) => {
 
   const { data: inst } = await sb.from('whatsapp_instances').select('*').eq('user_id', user.id).maybeSingle()
 
+  /** Liga o webhook de mensagens recebidas da instância, uma vez só. */
+  async function ensureWebhook(row: any) {
+    if (!row?.id || row.webhook_set || !ASSISTANT_SECRET) return
+    const url = `${SUPABASE_URL}/functions/v1/crm-whatsapp-assistant?secret=${ASSISTANT_SECRET}&inst=${row.id}`
+    const r = await uaz('/webhook', row.instance_token, {
+      method: 'POST',
+      body: { enabled: true, url, events: ['messages'], excludeMessages: ['wasSentByApi', 'isGroupYes'] },
+    })
+    if (r.ok) await sb.from('whatsapp_instances').update({ webhook_set: true }).eq('id', row.id)
+    else console.warn('agency-whatsapp: webhook não configurado', r.status, JSON.stringify(r.data).slice(0, 200))
+  }
+
   async function saveState(s: ReturnType<typeof readState>) {
     const row: Record<string, unknown> = { user_id: user!.id, status: s.status, updated_at: new Date().toISOString() }
     if (s.status === 'connected') {
@@ -115,6 +131,7 @@ Deno.serve(async (req) => {
       if (!r.ok) return json({ ok: false, error: 'Não consegui falar com o servidor do WhatsApp.' }, 502)
       const s = readState(r.data)
       await saveState(s)
+      if (s.status === 'connected') await ensureWebhook(inst)
       return json({ ok: true, hasInstance: true, available: true, ...s })
     }
 
@@ -159,6 +176,7 @@ Deno.serve(async (req) => {
       if (cur.ok && readState(cur.data).status === 'connected') {
         const s = readState(cur.data)
         await saveState(s)
+        await ensureWebhook(instance)
         return json({ ok: true, ...s })
       }
 
