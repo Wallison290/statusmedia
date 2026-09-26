@@ -4,8 +4,8 @@
 // lead anda sozinho. Respondida, vira somente leitura: é a prova do que foi
 // aceito (o banco também bloqueia a edição).
 
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +14,10 @@ import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useSaveCrmProposal } from '@/hooks/useCrmDocuments'
+import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { PROPOSAL_STATUS } from './crmStatus'
 import { CrmShareBox, proposalMessage } from './CrmShareBox'
-import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime } from '@/utils/crm'
+import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime, waLink } from '@/utils/crm'
 import type { CrmLead, CrmProposal, CrmProposalItem } from '@/types'
 
 interface Props {
@@ -45,6 +46,9 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const { profile } = useAuth()
   const { data: settings } = useCrmSettings()
   const save = useSaveCrmProposal()
+  const { data: wa } = useAgencyWhatsapp()
+  const sendWa = useSendAgencyWhatsapp()
+  const topRef = useRef<HTMLDivElement>(null)
 
   const [current, setCurrent] = useState<CrmProposal | null>(proposal)
   const [leadId, setLeadId]   = useState<string>('')
@@ -122,13 +126,33 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     if (saved) toast('Proposta salva', 'success')
   }
 
+  // O botão de baixo envia de verdade: com o WhatsApp da agência conectado,
+  // sai direto para o cliente e fecha. Sem conexão, abre a conversa com a
+  // mensagem pronta. Sem WhatsApp no lead, sobe até as opções de envio.
+  const canSendDirect = wa?.status === 'connected' && !!lead?.whatsapp
+
   async function handleSend() {
     const nextStatus = !current || current.status === 'rascunho' ? 'enviada' : undefined
     const saved = await persist(nextStatus)
-    if (saved) {
-      setShareOpen(true)
-      toast('Proposta pronta para enviar', 'success')
+    if (!saved) return
+    const text = proposalMessage(lead, agency, proposalLink(saved))
+
+    if (canSendDirect && lead) {
+      try {
+        await sendWa.mutateAsync({ lead_id: lead.id, text, label: 'Proposta enviada' })
+        toast(`Proposta enviada para ${lead.name.split(' ')[0]} no WhatsApp`, 'success')
+        onClose()
+        return
+      } catch (err: any) {
+        toast(err.message ?? 'Não consegui enviar pelo WhatsApp', 'error')
+      }
+    } else if (lead?.whatsapp) {
+      window.open(waLink(lead.whatsapp, text), '_blank', 'noopener')
+    } else {
+      toast('Proposta salva. O lead está sem WhatsApp: copie o link no topo.', 'warning')
     }
+    setShareOpen(true)
+    setTimeout(() => topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   async function handleBackToDraft() {
@@ -154,6 +178,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
             )}
           </DialogTitle>
         </DialogHeader>
+        <div ref={topRef} className="-mt-4" />
 
         {/* Resposta do cliente */}
         {locked && current && (
@@ -308,9 +333,11 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                   {save.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Salvar
                 </Button>
-                <Button onClick={handleSend} disabled={save.isPending}>
-                  <Send className="w-3.5 h-3.5" />
-                  {current && current.status !== 'rascunho' ? 'Salvar e compartilhar' : 'Enviar ao cliente'}
+                <Button onClick={handleSend} disabled={save.isPending || sendWa.isPending} variant={lead?.whatsapp ? 'success' : 'default'}>
+                  {sendWa.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : lead?.whatsapp ? <MessageCircle className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                  {lead?.whatsapp
+                    ? (current && current.status !== 'rascunho' ? 'Reenviar no WhatsApp' : 'Enviar no WhatsApp do cliente')
+                    : (current && current.status !== 'rascunho' ? 'Salvar e compartilhar' : 'Enviar ao cliente')}
                 </Button>
               </>
             )}

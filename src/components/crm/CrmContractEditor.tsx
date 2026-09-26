@@ -4,8 +4,8 @@
 // (/contrato/<token>) com nome, CPF/CNPJ, e-mail e rubrica desenhada.
 // Assinado, fica travado: o banco guarda o hash do texto como prova.
 
-import { useEffect, useState } from 'react'
-import { Loader2, Send, ExternalLink, PenLine, ShieldCheck, Undo2, Wand2, Ban } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2, Send, ExternalLink, PenLine, ShieldCheck, Undo2, Wand2, Ban, MessageCircle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,11 +14,12 @@ import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useSaveCrmContract } from '@/hooks/useCrmDocuments'
+import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { CRM_DEFAULT_CONTRACT } from '@/data/crmTemplates'
 import { CONTRACT_STATUS } from './crmStatus'
 import { SignaturePad } from './SignaturePad'
 import { CrmShareBox, contractMessage } from './CrmShareBox'
-import { fillContract, contractLink, fmtDateTime, fmtBRL } from '@/utils/crm'
+import { fillContract, contractLink, fmtDateTime, fmtBRL, waLink } from '@/utils/crm'
 import type { CrmContract, CrmLead, CrmProposal } from '@/types'
 
 interface Props {
@@ -47,6 +48,9 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
   const { profile } = useAuth()
   const { data: settings } = useCrmSettings()
   const save = useSaveCrmContract()
+  const { data: wa } = useAgencyWhatsapp()
+  const sendWa = useSendAgencyWhatsapp()
+  const topRef = useRef<HTMLDivElement>(null)
 
   const agency = profile?.agency_name || profile?.full_name || 'Agência'
 
@@ -113,10 +117,29 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
     }
   }
 
+  // Mesmo comportamento da proposta: o botão de baixo envia de verdade.
   async function handleSend() {
     if (!signature && !window.confirm('Enviar sem a assinatura da agência? O cliente vai assinar sozinho.')) return
     const saved = await persist(status === 'rascunho' ? 'enviado' : undefined)
-    if (saved) { setShareOpen(true); toast('Contrato pronto para assinatura', 'success') }
+    if (!saved) return
+    const text = contractMessage(lead, agency, contractLink(saved.public_token))
+
+    if (wa?.status === 'connected' && lead?.whatsapp) {
+      try {
+        await sendWa.mutateAsync({ lead_id: lead.id, text, label: 'Contrato enviado' })
+        toast(`Contrato enviado para ${lead.name.split(' ')[0]} no WhatsApp`, 'success')
+        onClose()
+        return
+      } catch (err: any) {
+        toast(err.message ?? 'Não consegui enviar pelo WhatsApp', 'error')
+      }
+    } else if (lead?.whatsapp) {
+      window.open(waLink(lead.whatsapp, text), '_blank', 'noopener')
+    } else {
+      toast('Contrato salvo. O lead está sem WhatsApp: copie o link no topo.', 'warning')
+    }
+    setShareOpen(true)
+    setTimeout(() => topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   const link = current ? contractLink(current.public_token) : ''
@@ -136,6 +159,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
             )}
           </DialogTitle>
         </DialogHeader>
+        <div ref={topRef} className="-mt-4" />
 
         {signed && current && (
           <div className="rounded-xl border p-3 text-[12.5px] space-y-1" style={{ borderColor: 'rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.06)' }}>
@@ -286,9 +310,11 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
                   {save.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Salvar
                 </Button>
-                <Button onClick={handleSend} disabled={save.isPending}>
-                  <Send className="w-3.5 h-3.5" />
-                  {status === 'enviado' ? 'Salvar e compartilhar' : 'Enviar para assinatura'}
+                <Button onClick={handleSend} disabled={save.isPending || sendWa.isPending} variant={lead?.whatsapp ? 'success' : 'default'}>
+                  {sendWa.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : lead?.whatsapp ? <MessageCircle className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                  {lead?.whatsapp
+                    ? (status === 'enviado' ? 'Reenviar no WhatsApp' : 'Enviar no WhatsApp do cliente')
+                    : (status === 'enviado' ? 'Salvar e compartilhar' : 'Enviar para assinatura')}
                 </Button>
               </>
             )}
