@@ -2041,19 +2041,22 @@ export function TeamPage() {
         {/* Tabs + Novo membro */}
         <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1 bg-[#182233] p-1 rounded-xl w-fit border border-[#1e293b]">
+          {/* short: rótulo do celular, para as três abas caberem na largura */}
           {([
-            ['membros', Users,         'Membros'],
-            ['board',   ClipboardList, 'Board de tarefas'],
-            ['carga',   AlertCircle,   'Carga de trabalho'],
-          ] as const).map(([t, Icon, label]) => (
+            ['membros', Users,         'Membros',           'Membros'],
+            ['board',   ClipboardList, 'Board de tarefas',  'Board'],
+            ['carga',   AlertCircle,   'Carga de trabalho', 'Carga'],
+          ] as const).map(([t, Icon, label, short]) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-[12px] font-medium whitespace-nowrap transition-all ${
                 tab === t ? 'bg-[#1e293b] text-white border border-[#334155]' : 'text-[#94a3b8] hover:text-white border border-transparent'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${tab === t ? 'text-[#60A5FA]' : ''}`} /> {label}
+              <Icon className={`w-3.5 h-3.5 ${tab === t ? 'text-[#60A5FA]' : ''}`} />
+              <span className="sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
         </div>

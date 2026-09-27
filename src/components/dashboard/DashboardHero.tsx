@@ -188,7 +188,7 @@ export function DashboardHero({
       </div>
 
       {/* ── Conteúdo principal ── */}
-      <div className="relative flex items-center justify-between px-8 py-8 md:px-12 md:py-9 gap-6 min-h-[240px]">
+      <div className="relative flex items-center justify-between px-8 pt-16 pb-8 md:px-12 md:py-9 gap-6 min-h-[240px]">
 
         {/* Coluna esquerda */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">

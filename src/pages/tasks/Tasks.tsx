@@ -753,8 +753,58 @@ function ListView({ tasks, onView, onEdit, onDelete, onStatusChange, onNewTask }
         <span className="ml-auto text-[12px] text-[#64748b]">{sorted.length} tarefa{sorted.length !== 1 ? 's' : ''}</span>
       </div>
 
+      {/* Celular: cartões — a tabela de 7 colunas não cabe e obrigava a rolar de lado */}
+      <div className="md:hidden flex-1 overflow-auto space-y-2 pb-4">
+        {sorted.map(task => {
+          const priCfg     = PRIORITY_CFG[task.priority]
+          const overdue    = isOverdue(task.due_date) && task.status !== 'concluido'
+          const clientName = (task.client as any)?.company_name
+          return (
+            <div key={task.id} onClick={() => onView(task)}
+              className="cursor-pointer rounded-xl border border-[#1e293b] bg-[#0d1424] p-3 active:bg-white/[0.02]">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[#F8FAFC] line-clamp-2">{task.title}</p>
+                  {task.description && <p className="text-[11px] text-[#64748b] truncate mt-0.5">{task.description}</p>}
+                </div>
+                <div onClick={e => e.stopPropagation()} className="flex-shrink-0">
+                  <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mt-2.5">
+                <span onClick={e => e.stopPropagation()}>
+                  <StatusPill status={task.status} onChange={st => onStatusChange(task.id, st)} />
+                </span>
+                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${priCfg.pillBg} ${priCfg.pillText}`}>
+                  {priCfg.label}
+                </span>
+                {task.due_date && (
+                  <span className={`text-[11px] font-medium ${overdue ? 'text-[#f87171]' : 'text-[#CBD5E1]'}`}>
+                    {format(new Date(task.due_date + 'T00:00:00'), "d MMM", { locale: ptBR })}
+                    {task.due_time && ` · ${task.due_time.slice(0, 5)}`}
+                    {overdue && ' · Atrasada'}
+                  </span>
+                )}
+              </div>
+              {(clientName || task.assignee) && (
+                <div className="flex items-center gap-2 mt-2 text-[11px] text-[#94a3b8] min-w-0">
+                  {clientName && <span className="truncate">{clientName}</span>}
+                  {clientName && task.assignee && <span className="text-[#475569]">·</span>}
+                  {task.assignee && <span className="truncate flex-shrink-0 max-w-[45%]">{task.assignee}</span>}
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {sorted.length === 0 && (
+          <p className="text-center py-16 text-[#64748b] text-[13px]">
+            {tasks.length === 0 ? 'Nenhuma tarefa criada ainda.' : 'Nenhuma tarefa com esse filtro.'}
+          </p>
+        )}
+      </div>
+
       {/* Table */}
-      <div className="flex-1 overflow-auto rounded-xl border border-[#1e293b]">
+      <div className="hidden md:block flex-1 overflow-auto rounded-xl border border-[#1e293b]">
         <table className="w-full">
           <thead className="bg-[#182233] sticky top-0 z-10">
             <tr>
@@ -1194,11 +1244,12 @@ export function Tasks() {
     } catch (err: any) { toast(err.message, 'error'); throw err }
   }
 
-  const TABS: { id: ViewTab; label: string; Icon: React.ElementType }[] = [
-    { id: 'semanal',    label: 'Visão semanal',  Icon: LayoutGrid },
-    { id: 'timeline',   label: 'Linha do tempo', Icon: AlignLeft  },
-    { id: 'calendario', label: 'Calendário',     Icon: Calendar   },
-    { id: 'lista',      label: 'Lista',          Icon: List       },
+  // short: rótulo do celular, para as quatro abas caberem sem rolar de lado
+  const TABS: { id: ViewTab; label: string; short: string; Icon: React.ElementType }[] = [
+    { id: 'semanal',    label: 'Visão semanal',  short: 'Semana', Icon: LayoutGrid },
+    { id: 'timeline',   label: 'Linha do tempo', short: 'Linha',  Icon: AlignLeft  },
+    { id: 'calendario', label: 'Calendário',     short: 'Mês',    Icon: Calendar   },
+    { id: 'lista',      label: 'Lista',          short: 'Lista',  Icon: List       },
   ]
 
   const showNoDate = (activeTab === 'semanal' || activeTab === 'timeline') && tasksWithoutDate.length > 0
@@ -1207,25 +1258,25 @@ export function Tasks() {
     <div className="flex flex-col h-full bg-[#0B1020] overflow-x-hidden">
 
       {/* ── Local header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 md:px-6 pt-5 pb-3 flex-shrink-0 border-b border-[#1e293b] bg-[#0B1020]">
+      <div className="flex items-center justify-between flex-wrap gap-3 px-4 md:px-6 pt-5 pb-3 flex-shrink-0 border-b border-[#1e293b] bg-[#0B1020]">
         <div>
           <h1 className="text-[20px] font-bold text-[#F8FAFC]">Tarefas</h1>
           <p className="text-[12px] text-[#64748b] mt-0.5">Gerencie e acompanhe todas as tarefas</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setTemplatesOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-medium border border-[#1e293b] bg-[#111827] text-[#CBD5E1] hover:border-[#334155] transition-all">
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-medium border border-[#1e293b] bg-[#111827] text-[#CBD5E1] hover:border-[#334155] transition-all whitespace-nowrap">
             <ClipboardList className="w-4 h-4" /> Modelos
           </button>
           <button onClick={handleNewTask}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-95 transition-all shadow-lg shadow-[#2563EB]/20">
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-95 transition-all shadow-lg shadow-[#2563EB]/20 whitespace-nowrap">
             <Plus className="w-4 h-4" /> Nova tarefa
           </button>
         </div>
       </div>
 
       {/* ── Stats + date nav ─────────────────────────────────────────────── */}
-      <div className="px-5 md:px-6 pt-3 pb-3 flex-shrink-0 bg-[#0B1020] border-b border-[#1e293b]">
+      <div className="px-4 md:px-6 pt-3 pb-3 flex-shrink-0 bg-[#0B1020] border-b border-[#1e293b]">
         <div className="flex items-center gap-3 flex-wrap">
 
           {/* Week navigator */}
@@ -1250,8 +1301,8 @@ export function Tasks() {
           </button>
 
           {/* Metric cards */}
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl">
+          <div className="w-full sm:w-auto sm:ml-auto grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap">
+            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#2563EB' }}>
                 <ClipboardList className="w-4 h-4 text-white" />
               </div>
@@ -1260,7 +1311,7 @@ export function Tasks() {
                 <p className="text-[10px] text-[#64748b] mt-0.5">Total de tarefas</p>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl">
+            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#059669' }}>
                 <CheckCircle2 className="w-4 h-4 text-white" />
               </div>
@@ -1269,7 +1320,7 @@ export function Tasks() {
                 <p className="text-[10px] text-[#64748b] mt-0.5">Concluídas</p>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl">
+            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#b45309' }}>
                 <Clock className="w-4 h-4 text-white" />
               </div>
@@ -1278,7 +1329,7 @@ export function Tasks() {
                 <p className="text-[10px] text-[#64748b] mt-0.5">Atrasada{overdueCount !== 1 ? 's' : ''}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl">
+            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
               <DonutProgress percent={progressPct} />
               <div>
                 <p className="text-[18px] font-bold text-[#F8FAFC] leading-none">{progressPct}%</p>
@@ -1290,15 +1341,16 @@ export function Tasks() {
       </div>
 
       {/* ── View tabs ───────────────────────────────────────────────────── */}
-      <div className="px-5 md:px-6 mt-0 border-b border-[#1e293b] flex-shrink-0 bg-[#0B1020]">
+      <div className="px-2 sm:px-5 md:px-6 mt-0 border-b border-[#1e293b] flex-shrink-0 bg-[#0B1020]">
         <div className="flex items-center justify-between gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center flex-shrink-0">
-            {TABS.map(({ id, label, Icon }) => (
+            {TABS.map(({ id, label, short, Icon }) => (
               <button key={id} onClick={() => setActiveTab(id)}
-                className={['flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 px-4 py-2.5 text-[13px] font-medium transition-all border-b-2',
+                className={['flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 px-3 sm:px-4 py-2.5 text-[13px] font-medium transition-all border-b-2',
                   activeTab === id ? 'text-[#60A5FA] border-[#2563EB]' : 'text-[#64748b] border-transparent hover:text-[#CBD5E1]'].join(' ')}>
-                <Icon className="w-3.5 h-3.5" />
-                {label}
+                <Icon className="hidden sm:block w-3.5 h-3.5" />
+                <span className="sm:hidden">{short}</span>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>

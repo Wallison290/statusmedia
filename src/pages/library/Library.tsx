@@ -889,14 +889,14 @@ function ConteudosTab() {
     <>
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap min-w-0 max-w-full">
           {/* Client filter */}
-          <div className="relative">
+          <div className="relative max-w-full">
             <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8] pointer-events-none" />
             <select
               value={clientFilter}
               onChange={e => setClientFilter(e.target.value)}
-              className="h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
+              className="max-w-full h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
             >
               <option value="all">Todos os clientes</option>
               <option value="__none__">Sem cliente</option>
@@ -905,12 +905,12 @@ function ConteudosTab() {
           </div>
 
           {/* Type filter */}
-          <div className="relative">
+          <div className="relative max-w-full">
             <LayoutGrid className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8] pointer-events-none" />
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              className="h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
+              className="max-w-full h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
             >
               <option value="all">Todos os tipos</option>
               {types.map(t => (
@@ -1472,25 +1472,25 @@ function MateriaisTab({ addOpen, onAddClose }: { addOpen: boolean; onAddClose: (
     <>
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center justify-between">
-        <div className="flex gap-2 flex-wrap">
-          <div className="relative">
+        <div className="flex gap-2 flex-wrap min-w-0 max-w-full">
+          <div className="relative max-w-full">
             <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8] pointer-events-none" />
             <select
               value={clientFilter}
               onChange={e => setClientFilter(e.target.value)}
-              className="h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
+              className="max-w-full h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
             >
               <option value="all">Todos os clientes</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
             </select>
           </div>
 
-          <div className="relative">
+          <div className="relative max-w-full">
             <LayoutGrid className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8] pointer-events-none" />
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              className="h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
+              className="max-w-full h-10 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] pl-9 pr-3 focus:outline-none focus:border-[#2563EB]/50 cursor-pointer [&>option]:bg-[#182233]"
             >
               <option value="all">Todos os tipos</option>
               {MATERIAL_TYPE_OPTIONS.map(t => (

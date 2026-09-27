@@ -858,7 +858,7 @@ export function Dashboard() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-full" style={{ background: t.pageBg }}>
+    <div className="sm-menu-gap-inside min-h-full" style={{ background: t.pageBg }}>
 
       {/* ── Hero Banner inteligente ── */}
       <DashboardHero

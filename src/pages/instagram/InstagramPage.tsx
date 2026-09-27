@@ -277,12 +277,12 @@ function PostCard({ post, onCancel, onRetry, onReschedule }: { post: ScheduledPo
 
       {/* Rodapé */}
       <div className="flex items-center justify-between pt-0.5 flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9CA3AF]">
-          <Calendar className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1.5 text-[12px] text-[#9CA3AF] whitespace-nowrap">
+          <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
           {format(parseISO(post.scheduled_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {post.status === 'failed' && (
             <button
               onClick={() => onRetry(post.id)}
@@ -350,7 +350,7 @@ function PostCard({ post, onCancel, onRetry, onReschedule }: { post: ScheduledPo
       {post.error_message && (
         <div className="flex items-start gap-2 text-[11px] text-[#F87171] bg-[#EF4444]/10 rounded-xl px-3 py-2 border border-[#EF4444]/30">
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-          <span className="break-all">{post.error_message}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">{post.error_message}</span>
         </div>
       )}
     </div>
@@ -404,8 +404,8 @@ function AccountDetailView({
       transition={{ duration: 0.2 }}
       className="space-y-5"
     >
-      {/* Header da conta */}
-      <div className="flex items-center gap-3">
+      {/* Header da conta — a confirmação de desconectar desce para a linha de baixo no celular */}
+      <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
         <button
           onClick={onBack}
           className="w-9 h-9 rounded-xl border border-[#1F2937] bg-[#111827] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:border-[#2563EB]/50 transition-colors flex-shrink-0"
@@ -439,8 +439,8 @@ function AccountDetailView({
 
         {/* Botão desconectar */}
         {confirmDisconnect ? (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-[11px] text-[#F87171] font-medium">Desconectar?</span>
+          <div className="flex items-center justify-end gap-2 w-full sm:w-auto flex-shrink-0">
+            <span className="text-[11px] text-[#F87171] font-medium">Desconectar esta conta?</span>
             <button
               onClick={() => { onDisconnect(account.id); onBack() }}
               className="px-2.5 py-1.5 rounded-lg bg-[#EF4444] text-white text-[11px] font-semibold hover:bg-[#dc2626] transition-colors"
@@ -457,23 +457,25 @@ function AccountDetailView({
         ) : (
           <button
             onClick={() => setConfirmDisconnect(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#EF4444]/30 text-[#F87171] text-[11px] font-medium hover:bg-[#EF4444]/10 transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border border-[#EF4444]/30 text-[#F87171] text-[11px] font-medium hover:bg-[#EF4444]/10 transition-colors flex-shrink-0"
+            aria-label="Desconectar conta"
+            title="Desconectar conta"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Desconectar
+            <span className="hidden sm:inline">Desconectar</span>
           </button>
         )}
       </div>
 
       {/* Stats da conta */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         {[
           { label: 'Agendados',  value: stats.scheduled, colorDark: 'text-[#60A5FA]', colorLight: 'text-blue-700',    bgDark: 'bg-[#2563EB]/10 border-[#2563EB]/20', bgLight: 'bg-blue-50 border-blue-300'       },
           { label: 'Publicados', value: stats.published, colorDark: 'text-[#4ADE80]', colorLight: 'text-emerald-700', bgDark: 'bg-[#22C55E]/10 border-[#22C55E]/20', bgLight: 'bg-emerald-50 border-emerald-300' },
           { label: 'Falhas',     value: stats.failed,    colorDark: 'text-[#F87171]', colorLight: 'text-red-700',     bgDark: 'bg-[#EF4444]/10 border-[#EF4444]/20', bgLight: 'bg-red-50 border-red-300'         },
           { label: 'Cancelados', value: stats.cancelled, colorDark: 'text-[#9CA3AF]', colorLight: 'text-gray-600',    bgDark: 'bg-[#6B7280]/10 border-[#6B7280]/20', bgLight: 'bg-gray-100 border-gray-300'      },
         ].map(s => (
-          <div key={s.label} className={`rounded-2xl border p-4 text-center ${isDark ? s.bgDark : s.bgLight}`}>
+          <div key={s.label} className={`rounded-2xl border p-3 sm:p-4 text-center ${isDark ? s.bgDark : s.bgLight}`}>
             <div className={`text-[22px] font-bold ${isDark ? s.colorDark : s.colorLight}`}>{s.value}</div>
             <div className="text-[11px] text-[#9CA3AF] mt-0.5 font-medium">{s.label}</div>
           </div>
@@ -516,7 +518,7 @@ function AccountDetailView({
         </div>
 
         {/* Lista de posts */}
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {filteredPosts.length === 0 ? (
             <div className="text-center py-10">
               <div className="w-10 h-10 rounded-2xl bg-[#1F2937] flex items-center justify-center mx-auto mb-3">
@@ -593,7 +595,7 @@ function ConnectInstagramModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[95vw] max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center">
@@ -760,12 +762,12 @@ export function InstagramPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#0B0F14] p-6">
+    <div className="min-h-full bg-[#0B0F14] p-4 sm:p-6">
       <div className="max-w-3xl mx-auto space-y-5">
 
         {/* ── Header global ────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex items-start justify-between gap-x-4 gap-y-3 flex-wrap">
+          <div className="min-w-0">
             <h1 className="text-[20px] font-bold flex items-center gap-2.5" style={{ color: 'var(--sm-text-1)' }}>
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center">
                 <Instagram className="w-4 h-4 text-white" />
@@ -778,21 +780,22 @@ export function InstagramPage() {
                 : 'Selecione uma conta para ver os detalhes'}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => { refetchAccounts(); refetchPosts(); accounts.forEach(a => refreshProfile.mutate(a.id)) }}
               disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 h-9 rounded-xl border border-[#1F2937] bg-[#111827] text-[13px] font-medium hover:border-[#2563EB]/50 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 h-9 rounded-xl border border-[#1F2937] bg-[#111827] text-[13px] font-medium hover:border-[#2563EB]/50 transition-colors disabled:opacity-50 flex-shrink-0"
               style={{ color: 'var(--sm-text-2)' }}
               title="Refresh — reloads the connected accounts and the status of scheduled posts"
+              aria-label="Atualizar"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Atualizar
+              <span className="hidden sm:inline">Atualizar</span>
             </button>
             <button
               onClick={() => setConnectOpen(true)}
               title="Connect Instagram — starts Business Login for Instagram so the agency can publish and read insights for a client account"
-              className="flex items-center gap-2 px-4 h-9 rounded-xl bg-[#2563EB] text-white text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg shadow-[#2563EB]/20"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 h-9 rounded-xl bg-[#2563EB] text-white text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg shadow-[#2563EB]/20 whitespace-nowrap"
             >
               <Instagram className="w-4 h-4" />
               Conectar Instagram

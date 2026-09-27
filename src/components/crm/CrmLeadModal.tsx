@@ -434,11 +434,11 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
                   <button
                     key={p.id}
                     onClick={() => setPanel(p.id)}
-                    className={`flex items-center gap-1.5 px-2.5 h-8 text-[12px] border-b-2 -mb-px transition-colors ${
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-2.5 h-8 text-[12px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
                       panel === p.id ? 'border-[#2563EB] font-semibold' : 'border-transparent'}`}
                     style={{ color: panel === p.id ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}
                   >
-                    <p.icon className="w-3.5 h-3.5" /> {p.label}
+                    <p.icon className="hidden sm:block w-3.5 h-3.5" /> {p.label}
                   </button>
                 ))}
               </div>

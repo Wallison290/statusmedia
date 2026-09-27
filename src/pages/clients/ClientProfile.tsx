@@ -1375,7 +1375,7 @@ export function ClientProfile() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-4 mb-5 p-5 rounded-xl shadow-sm"
+          className="flex items-start gap-3 sm:gap-4 mb-5 p-4 sm:p-5 rounded-xl shadow-sm"
           style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}
         >
           {client.logo_url ? (
@@ -1391,7 +1391,7 @@ export function ClientProfile() {
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-[15px] font-semibold text-[#F8FAFC] flex-1">{client.company_name}</h2>
+              <h2 className="text-[15px] font-semibold text-[#F8FAFC] flex-1 min-w-[9rem] [overflow-wrap:anywhere]">{client.company_name}</h2>
               <Badge status={client.status} />
               <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
                 <Link to="/clients" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#1e293b] text-[#94a3b8] hover:bg-[#0B1020] transition-colors">
@@ -1416,8 +1416,12 @@ export function ClientProfile() {
                 </Link>
               </div>
             </div>
-            <p className="text-[#94a3b8] text-[12px] mt-0.5">{client.responsible_name} · {client.niche}</p>
-            <div className="flex flex-wrap gap-3 mt-1.5">
+            <p className="text-[#94a3b8] text-[12px] mt-0.5">
+              {client.responsible_name} · {client.niche}
+              {/* No celular a coluna "Desde" some da direita e vem para cá */}
+              <span className="sm:hidden"> · desde {formatDate(client.entry_date)}</span>
+            </p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 min-w-0 [overflow-wrap:anywhere]">
               {client.instagram && (
                 <span className="flex items-center gap-1 text-[11px] text-[#64748b]">
                   <Instagram className="w-3 h-3" /> @{client.instagram.replace('@', '')}
@@ -1440,7 +1444,7 @@ export function ClientProfile() {
               )}
             </div>
           </div>
-          <div className="text-right flex-shrink-0">
+          <div className="hidden sm:block text-right flex-shrink-0">
             <p className="text-[10px] text-[#64748b]">Desde</p>
             <p className="text-[12px] font-medium text-[#CBD5E1]">{formatDate(client.entry_date)}</p>
           </div>

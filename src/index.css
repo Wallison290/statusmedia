@@ -277,3 +277,18 @@
 /* ── Scrollbar light mode ────────────────────────────────────────────────────── */
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
+
+/* ── Celular: espaço para o botão de menu flutuante ─────────────────────────────
+   O botão fica fixo no canto superior esquerdo (Layout). O espaço vai no padding
+   da própria página (primeiro filho), e não no contêiner, para herdar o fundo
+   dela em vez de criar uma faixa de outra cor no topo. */
+@media (max-width: 767px) {
+  .sm-menu-gap > :first-child {
+    padding-top: 3.5rem;
+  }
+  /* Página com topo "sangrando" até a borda (hero do Dashboard): ela mesma
+     reserva o espaço por dentro, para o cartão continuar colado no topo */
+  .sm-menu-gap > .sm-menu-gap-inside {
+    padding-top: 0;
+  }
+}

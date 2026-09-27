@@ -442,7 +442,7 @@ export function AdminPanel() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => setTab('users')}
               className={`px-3.5 py-2 rounded-lg text-[12px] font-medium transition-all border flex items-center gap-1.5 ${

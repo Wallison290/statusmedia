@@ -133,7 +133,9 @@ export function Layout() {
 
         <AgencyWhatsappPopup />
         <TrialBanner />
-        <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+        {/* sm-menu-gap: no celular a página começa abaixo do botão de menu
+            flutuante, que senão cobre o título e os primeiros controles */}
+        <div className="sm-menu-gap flex-1 overflow-y-auto overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
           <Outlet />
         </div>
       </main>

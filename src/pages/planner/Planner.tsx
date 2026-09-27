@@ -2209,8 +2209,7 @@ export function Planner() {
     <div className="min-h-full bg-[var(--sm-bg-page)]">
       <div className="p-4 md:p-6">
         {/* ── Cabeçalho ─────────────────────────────────────────────────────────── */}
-        {/* pl-12 no celular: o botão do menu fica fixo no canto superior esquerdo */}
-        <div className="flex items-start justify-between gap-3 mb-5 pl-12 md:pl-0 min-h-[36px]">
+        <div className="flex items-start justify-between gap-3 mb-5 min-h-[36px]">
           <div className="min-w-0">
             <h1 className="font-display text-[22px] sm:text-[26px] font-bold tracking-[-0.02em] leading-tight text-[var(--sm-text-1)]">
               Planejamento

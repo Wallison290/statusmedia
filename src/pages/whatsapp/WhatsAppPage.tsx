@@ -456,7 +456,7 @@ export function WhatsAppPage() {
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="DDD + número (ex: 11999998888)"
-                  className="flex-1 h-9 px-3 rounded-xl text-[13px] outline-none transition-colors"
+                  className="flex-1 min-w-0 h-9 px-3 rounded-xl text-[13px] outline-none transition-colors"
                   style={{
                     background: 'var(--sm-bg)',
                     border: '1px solid var(--sm-border)',

@@ -546,9 +546,9 @@ function FilterBar({
   clients: { id: string; company_name: string }[]
   onChange: (f: NotesFilter) => void
 }) {
-  const selectCls = "text-[12px] text-[#CBD5E1] bg-[#182233] border border-[#1e293b] rounded-xl px-3 py-2 outline-none cursor-pointer hover:border-[#2563EB]/50 transition-colors [&>option]:bg-[#182233] [&>option]:text-[#CBD5E1]"
+  const selectCls = "max-w-full text-[12px] text-[#CBD5E1] bg-[#182233] border border-[#1e293b] rounded-xl px-3 py-2 outline-none cursor-pointer hover:border-[#2563EB]/50 transition-colors [&>option]:bg-[#182233] [&>option]:text-[#CBD5E1]"
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">
       {/* Funil */}
       <div className="w-9 h-9 rounded-xl bg-[#182233] border border-[#1e293b] flex items-center justify-center flex-shrink-0">
         <Filter className="w-3.5 h-3.5 text-[#94a3b8]" />
@@ -648,7 +648,9 @@ export function Notes() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* min-w-0 + max-w-full: sem isso um select com nome de cliente comprido
+            empurra a barra para além da largura do celular */}
+        <div className="flex items-center gap-3 flex-wrap min-w-0 max-w-full">
           <FilterBar filter={filter} clients={clients} onChange={setFilter} />
           <button
             onClick={() => setSelected('new')}

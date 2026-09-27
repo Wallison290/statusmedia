@@ -24,7 +24,7 @@ export function CrmHeader({ subtitle, actions }: Props) {
   return (
     <div className="border-b flex-shrink-0" style={{ borderColor: 'var(--sm-border)' }}>
       <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-2 gap-4 flex-wrap">
-        <div className="pl-9 md:pl-0 min-w-0">
+        <div className="min-w-0">
           <h1 className="text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>CRM</h1>
           {subtitle && (
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{subtitle}</p>
