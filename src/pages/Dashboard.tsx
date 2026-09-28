@@ -1,26 +1,20 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import {
-  Users, CheckSquare, Clock,
-  AlertTriangle, CalendarDays, CheckCircle2,
-  ChevronLeft, ChevronRight, DollarSign, UserCheck, TrendingUp,
-  Instagram, Send,
-} from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { motion, MotionConfig } from 'framer-motion'
+import { CalendarDays, ArrowUpRight, ArrowRight } from 'lucide-react'
 import { DashboardHero } from '@/components/dashboard/DashboardHero'
 import { useDashboardGreeting } from '@/hooks/useDashboardGreeting'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { contentTypeLabels } from '@/utils/formatters'
 import { calcFinancialStatus } from '@/utils/financial'
+import { PLAN_KEYS, planKey, planColor, type PlanKey } from '@/utils/planStatus'
 import {
   startOfWeek, endOfWeek, startOfDay, endOfDay,
   startOfMonth, endOfMonth, startOfYear, endOfYear,
-  eachDayOfInterval, eachMonthOfInterval,
-  format, isToday, addDays, subDays, startOfToday,
+  format, isToday, addDays, startOfToday,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { MetricsCarousel } from '@/components/dashboard/MetricsCarousel'
-import { useTheme } from '@/contexts/ThemeContext'
 
 // ─── Approval helpers ────────────────────────────────────────────────────────
 //
@@ -35,47 +29,6 @@ import { useTheme } from '@/contexts/ThemeContext'
 function isAwaitingClientApproval(item: { approval_status: string | null }): boolean {
   const as = item.approval_status
   return as === 'pendente_aprovacao' || as === 'ajuste_realizado'
-}
-
-// ─── Theme tokens ─────────────────────────────────────────────────────────────
-
-type ThemeTokens = {
-  pageBg:    string
-  cardBg:    string
-  cardBgAlt: string
-  inputBg:   string
-  border:    string
-  borderAlt: string
-  text1:     string
-  text2:     string
-  text3:     string
-  text4:     string
-}
-
-const DARK_T: ThemeTokens = {
-  pageBg:    '#0B1020',
-  cardBg:    '#182233',
-  cardBgAlt: '#101A2B',
-  inputBg:   '#182233',
-  border:    '#1e293b',
-  borderAlt: '#182233',
-  text1:     '#F8FAFC',
-  text2:     '#CBD5E1',
-  text3:     '#94a3b8',
-  text4:     '#64748b',
-}
-
-const LIGHT_T: ThemeTokens = {
-  pageBg:    '#f1f5f9',
-  cardBg:    '#ffffff',
-  cardBgAlt: '#e8edf3',
-  inputBg:   '#f8fafc',
-  border:    '#e2e8f0',
-  borderAlt: '#e2e8f0',
-  text1:     '#1e293b',
-  text2:     '#475569',
-  text3:     '#64748b',
-  text4:     '#94a3b8',
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,17 +52,13 @@ interface Stats {
 }
 
 interface PlannerDay {
-  id: string
-  title: string
-  content_type: string
-  status: string
-  scheduled_date: string
-}
-
-interface PlannerChartEntry {
-  label: string
-  value: number
-  color: string
+  id:              string
+  title:           string
+  content_type:    string
+  status:          string
+  scheduled_date:  string
+  approval_status: string | null
+  sent_to_client:  boolean | null
 }
 
 interface FinStats {
@@ -129,6 +78,10 @@ function fmtBRL(n: number): string {
   }).format(n)
 }
 
+// Janela da agenda: ontem + os próximos 5 dias
+const AGENDA_BEFORE = 1
+const AGENDA_AFTER  = 5
+
 // ─── Period helpers ───────────────────────────────────────────────────────────
 
 function computeRange(mode: PeriodMode, custom: DateRange): DateRange {
@@ -142,36 +95,61 @@ function computeRange(mode: PeriodMode, custom: DateRange): DateRange {
   }
 }
 
-function buildBarData(
-  mode: PeriodMode,
-  range: DateRange,
-  contents: { created_at: string }[],
-): { day: string; conteudos: number }[] {
-  if (mode === 'ano') {
-    return eachMonthOfInterval(range).map(m => ({
-      day: format(m, 'MMM', { locale: ptBR }),
-      conteudos: contents.filter(c => c.created_at.startsWith(format(m, 'yyyy-MM'))).length,
-    }))
-  }
-  const days = eachDayOfInterval({
-    start: range.start,
-    end: range.end,
-  }).slice(0, 60)
-  return days.map(d => ({
-    day: format(d, mode === 'semana' ? 'EEE' : 'd/M', { locale: ptBR }),
-    conteudos: contents.filter(c => c.created_at.startsWith(format(d, 'yyyy-MM-dd'))).length,
-  }))
-}
-
 function rangeLabel(mode: PeriodMode, range: DateRange): string {
   if (mode === 'dia')    return format(range.start, "d 'de' MMM", { locale: ptBR })
   if (mode === 'ano')    return format(range.start, 'yyyy')
   return `${format(range.start, 'd MMM', { locale: ptBR })} – ${format(range.end, 'd MMM yyyy', { locale: ptBR })}`
 }
 
-// ─── Filter Bar ───────────────────────────────────────────────────────────────
+// ─── Blocos base ──────────────────────────────────────────────────────────────
 
-interface FilterBarProps {
+const CARD = 'rounded-2xl border border-[var(--sm-border)] bg-[var(--sm-bg-card)]'
+
+/** Entra ao rolar: sobe 16px e aparece. Respeita "reduzir movimento" via MotionConfig. */
+function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+/** Título de seção numerado: 01, 02… em azul + nome em display. */
+function SectionHead({ n, title, aside, children }: {
+  n: string; title: string; aside?: React.ReactNode; children?: React.ReactNode
+}) {
+  return (
+    <div className="flex items-end justify-between gap-x-4 gap-y-3 mb-4 flex-wrap">
+      <div className="flex items-baseline gap-3 min-w-0">
+        <span className="font-display text-[12px] font-semibold tabular-nums text-[#2563EB]">{n}</span>
+        <h2 className="font-display text-[20px] sm:text-[22px] font-bold tracking-[-0.025em] leading-none text-[var(--sm-text-1)]">
+          {title}
+        </h2>
+        {aside && <span className="text-[12px] text-[var(--sm-text-3)] truncate">{aside}</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Eyebrow({ children, color }: { children: React.ReactNode; color?: string }) {
+  return (
+    <span className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)]">
+      {color && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+      {children}
+    </span>
+  )
+}
+
+// ─── Seletor de período ───────────────────────────────────────────────────────
+
+interface PeriodPickerProps {
   mode:          PeriodMode
   range:         DateRange
   customRange:   DateRange
@@ -179,14 +157,11 @@ interface FilterBarProps {
   onCustomRange: (r: DateRange) => void
 }
 
-function FilterBar({ mode, range, customRange, onMode, onCustomRange }: FilterBarProps) {
-  const { isDark } = useTheme()
-  const t = isDark ? DARK_T : LIGHT_T
-
-  const [open, setOpen]         = useState(false)
-  const [tempS, setTempS]       = useState(format(customRange.start, 'yyyy-MM-dd'))
-  const [tempE, setTempE]       = useState(format(customRange.end,   'yyyy-MM-dd'))
-  const popoverRef              = useRef<HTMLDivElement>(null)
+function PeriodPicker({ mode, range, customRange, onMode, onCustomRange }: PeriodPickerProps) {
+  const [open, setOpen]   = useState(false)
+  const [tempS, setTempS] = useState(format(customRange.start, 'yyyy-MM-dd'))
+  const [tempE, setTempE] = useState(format(customRange.end,   'yyyy-MM-dd'))
+  const popoverRef        = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -210,28 +185,26 @@ function FilterBar({ mode, range, customRange, onMode, onCustomRange }: FilterBa
     { key: 'ano',    label: 'Ano'    },
   ]
 
+  const inputCls = 'w-full h-8 px-3 rounded-lg text-[12px] bg-[var(--sm-bg-input)] border border-[var(--sm-border)] text-[var(--sm-text-1)] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40'
+
   return (
-    <div className="border-b px-6 md:px-8 py-3 flex items-center justify-between gap-4 flex-wrap" style={{ background: t.pageBg, borderColor: t.borderAlt }}>
-      {/* Period pills */}
-      <div className="flex items-center gap-0.5 rounded-xl p-1" style={{ background: t.cardBgAlt }}>
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-0.5 p-1 rounded-xl bg-[var(--sm-bg-alt)]">
         {pills.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => onMode(key)}
-            className={`px-4 py-1.5 rounded-lg text-[12px] font-medium transition-all ${mode === key ? 'shadow-sm' : ''}`}
-            style={{
-              color: mode === key ? 'white' : t.text2,
-              ...(mode === key ? { background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)' } : {}),
-            }}
-            onMouseEnter={e => { if (mode !== key) (e.currentTarget as HTMLElement).style.color = t.text1 }}
-            onMouseLeave={e => { if (mode !== key) (e.currentTarget as HTMLElement).style.color = t.text2 }}
+            className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+              mode === key
+                ? 'bg-[var(--sm-bg-card)] text-[var(--sm-text-1)] shadow-sm'
+                : 'text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)]'
+            }`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {/* Date range button + popover */}
       <div className="relative" ref={popoverRef}>
         <button
           onClick={() => {
@@ -239,60 +212,38 @@ function FilterBar({ mode, range, customRange, onMode, onCustomRange }: FilterBa
             setTempE(format(customRange.end,   'yyyy-MM-dd'))
             setOpen(v => !v)
           }}
-          className="flex items-center gap-2 text-[12px] rounded-xl px-3 py-1.5 transition-colors"
-          style={{
-            background: t.cardBgAlt,
-            border: `1px solid ${mode === 'custom' ? '#2563EB' : t.borderAlt}`,
-            color: t.text2,
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = t.text1 }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = t.text2 }}
+          className={`flex items-center gap-2 h-9 px-3 rounded-xl text-[12px] border transition-colors bg-[var(--sm-bg-card)] text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] ${
+            mode === 'custom' ? 'border-[#2563EB]' : 'border-[var(--sm-border)] hover:border-[var(--sm-text-4)]'
+          }`}
         >
           <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="capitalize whitespace-nowrap">{rangeLabel(mode, range)}</span>
         </button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-2 z-50 rounded-2xl shadow-xl p-4 w-[260px]" style={{ background: t.cardBg, border: `1px solid ${t.borderAlt}` }}>
-            <p className="text-[12px] font-semibold mb-3" style={{ color: t.text1 }}>Período personalizado</p>
+          <div className={`absolute right-0 top-full mt-2 z-50 p-4 w-[260px] shadow-2xl ${CARD}`}>
+            <p className="text-[12px] font-semibold mb-3 text-[var(--sm-text-1)]">Período personalizado</p>
             <div className="space-y-2.5">
               <div>
-                <label className="text-[11px] block mb-1" style={{ color: t.text2 }}>Data inicial</label>
-                <input
-                  type="date"
-                  value={tempS}
-                  onChange={e => setTempS(e.target.value)}
-                  className="w-full h-8 px-3 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40"
-                  style={{ background: t.inputBg, border: `1px solid ${t.border}`, color: t.text1 }}
-                />
+                <label className="text-[11px] block mb-1 text-[var(--sm-text-2)]">Data inicial</label>
+                <input type="date" value={tempS} onChange={e => setTempS(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="text-[11px] block mb-1" style={{ color: t.text2 }}>Data final</label>
-                <input
-                  type="date"
-                  value={tempE}
-                  min={tempS}
-                  onChange={e => setTempE(e.target.value)}
-                  className="w-full h-8 px-3 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40"
-                  style={{ background: t.inputBg, border: `1px solid ${t.border}`, color: t.text1 }}
-                />
+                <label className="text-[11px] block mb-1 text-[var(--sm-text-2)]">Data final</label>
+                <input type="date" value={tempE} min={tempS} onChange={e => setTempE(e.target.value)} className={inputCls} />
               </div>
             </div>
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => setOpen(false)}
-                className="flex-1 h-8 rounded-lg text-[12px] transition-colors"
-                style={{ border: `1px solid ${t.borderAlt}`, color: t.text2 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = t.text1 }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = t.text2 }}
+                className="flex-1 h-8 rounded-lg text-[12px] border border-[var(--sm-border)] text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={applyCustom}
                 disabled={!tempS || !tempE || tempE < tempS}
-                className="flex-1 h-8 rounded-lg text-[12px] text-white font-medium disabled:opacity-40 transition-colors"
-                style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)' }}
+                className="flex-1 h-8 rounded-lg text-[12px] text-white font-medium disabled:opacity-40 bg-[#2563EB] hover:bg-[#1D4ED8] transition-colors"
               >
                 Aplicar
               </button>
@@ -304,379 +255,310 @@ function FilterBar({ mode, range, customRange, onMode, onCustomRange }: FilterBa
   )
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+// ─── 01 · Faixa de números do período ─────────────────────────────────────────
+// Uma faixa só, dividida por fios de 1px. O primeiro número (o que depende do
+// cliente) é o destaque; os outros três ficam menores ao lado.
 
-const iconBgMap: Record<string, string> = {
-  'bg-amber-50':   'rgba(245,166,35,0.15)',
-  'bg-blue-50':    'rgba(79,142,247,0.15)',
-  'bg-emerald-50': 'rgba(34,197,94,0.15)',
-  'bg-green-50':   'rgba(34,197,94,0.15)',
-  'bg-red-50':     'rgba(239,68,68,0.15)',
-  'bg-violet-50':  'rgba(139,92,246,0.15)',
-  'bg-gray-50':    'rgba(203,213,225,0.10)',
-  'bg-gray-100':   'rgba(203,213,225,0.10)',
+interface Kpi {
+  label: string
+  value: number
+  note:  string
+  href:  string
+  color: string
+  alert?: boolean
 }
 
-function KpiCard({
-  label, value, displayValue, subtitle, href, icon: Icon,
-  iconBg = 'bg-gray-100', iconColor = 'text-gray-500',
-  featured = false, warning = false,
-}: {
-  label:         string
-  value:         number
-  displayValue?: string
-  subtitle?:     string
-  href?:         string
-  icon:          React.ElementType
-  iconBg?:       string
-  iconColor?:    string
-  featured?:     boolean
-  warning?:      boolean
-}) {
-  const { isDark } = useTheme()
-  const t = isDark ? DARK_T : LIGHT_T
-
-  const iconBgStyle = iconBgMap[iconBg] ?? 'rgba(203,213,225,0.10)'
-  const showWarning = warning && value > 0
-
-  const inner = featured ? (
-    <div
-      className="h-full rounded-2xl p-5 flex flex-col gap-3 transition-opacity duration-200 hover:opacity-90"
-      style={{
-        background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)',
-        boxShadow:  '0 4px 24px rgba(37,99,235,0.25)',
-      }}
-    >
-      <div className="flex items-start justify-between">
-        <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
-          <Icon className="w-4 h-4 text-white/90" />
-        </div>
-        <span className="text-[9.5px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/60 uppercase tracking-widest">
-          Ativos
-        </span>
-      </div>
-      <div className="mt-auto">
-        <p className="text-[28px] font-semibold text-white tabular-nums leading-none">{displayValue ?? value}</p>
-        <p className="text-[12px] text-white/70 mt-1.5 leading-tight">{label}</p>
-        {subtitle && <p className="text-[10px] text-white/40 mt-0.5">{subtitle}</p>}
-      </div>
-    </div>
-  ) : (
-    <div
-      className="h-full rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 hover:opacity-90"
-      style={{
-        background: t.cardBg,
-        border: `1px solid ${showWarning ? 'rgba(239,68,68,0.3)' : t.border}`,
-        boxShadow: isDark ? '0 1px 8px rgba(0,0,0,0.2)' : '0 1px 8px rgba(37,99,235,0.08)',
-      }}
-    >
-      <div className="flex items-start justify-between">
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ background: showWarning ? 'rgba(239,68,68,0.15)' : iconBgStyle }}
-        >
-          <Icon className={`w-4 h-4 ${showWarning ? 'text-red-400' : iconColor}`} />
-        </div>
-        {showWarning && (
-          <span className="text-[9px] font-medium px-2 py-0.5 rounded-full text-red-400" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)' }}>
-            Atenção
-          </span>
-        )}
-      </div>
-      <div>
-        <p className="text-[26px] font-semibold tabular-nums leading-none" style={{ color: t.text1 }}>{displayValue ?? value}</p>
-        <p className="text-[12px] mt-1.5 leading-tight" style={{ color: t.text2 }}>{label}</p>
-        {subtitle && <p className="text-[10px] mt-0.5" style={{ color: t.text4 }}>{subtitle}</p>}
-      </div>
+function KpiStrip({ items }: { items: Kpi[] }) {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-px bg-[var(--sm-border)] rounded-2xl overflow-hidden border border-[var(--sm-border)]">
+      {items.map((k, i) => {
+        const lead = i === 0
+        return (
+          <Link
+            key={k.label}
+            to={k.href}
+            className={`group relative flex flex-col justify-between gap-5 bg-[var(--sm-bg-card)] hover:bg-[var(--sm-bg-input)] transition-colors p-5 sm:p-6 min-h-[140px] ${lead ? 'col-span-2 lg:col-span-1 lg:min-h-[184px]' : ''}`}
+          >
+            {/* Barra de cor do status, como nos cartões do Planejamento */}
+            <span
+              className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full transition-all duration-300 group-hover:top-4 group-hover:bottom-4"
+              style={{ background: k.value > 0 ? k.color : 'var(--sm-border)' }}
+            />
+            <div className="flex items-center gap-2">
+              <Eyebrow>{k.label}</Eyebrow>
+              <ArrowUpRight className="w-3.5 h-3.5 ml-auto text-[var(--sm-text-3)] opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-300" />
+            </div>
+            <div>
+              <p
+                className="font-display font-bold tabular-nums leading-[0.85] tracking-[-0.045em]"
+                style={{
+                  fontSize: lead ? 'clamp(56px, 7vw, 92px)' : 'clamp(38px, 4vw, 50px)',
+                  color: k.alert && k.value > 0 ? k.color : 'var(--sm-text-1)',
+                }}
+              >
+                {k.value}
+              </p>
+              <p className="text-[12px] text-[var(--sm-text-3)] mt-2.5 leading-snug">{k.note}</p>
+            </div>
+          </Link>
+        )
+      })}
     </div>
   )
-
-  if (href) return <Link to={href} className="block h-full">{inner}</Link>
-  return inner
 }
 
-// ─── Status dot colours ───────────────────────────────────────────────────────
+// ─── 02 · Planejamento: onde cada post está ───────────────────────────────────
 
-const statusDotColor: Record<string, string> = {
-  ideia:     'bg-purple-400',
-  producao:  'bg-blue-400',
-  revisao:   'bg-amber-400',
-  aprovado:  'bg-emerald-400',
-  publicado: 'bg-green-400',
-}
-
-// ─── Calendar Widget ──────────────────────────────────────────────────────────
-
-function CalendarWidget({
-  items,
-  onDayClick,
-}: {
-  items: PlannerDay[]
-  onDayClick: () => void
-}) {
-  const { isDark } = useTheme()
-  const t = isDark ? DARK_T : LIGHT_T
-
-  const today  = startOfToday()
-  const [offset, setOffset] = useState(0)
-  const center = addDays(today, offset)
-  const days   = [-2, -1, 0, 1, 2].map(d => addDays(center, d))
-
-  const todayStr   = format(today, 'yyyy-MM-dd')
-  const todayItems = items.filter(i => i.scheduled_date === todayStr)
+function PipelineWidget({ counts }: { counts: { key: PlanKey; label: string; color: string; n: number }[] }) {
+  const total = counts.reduce((s, c) => s + c.n, 0)
 
   return (
-    <div
-      className="rounded-2xl p-5"
-      style={{
-        background: t.cardBg,
-        border: `1px solid ${t.border}`,
-        boxShadow: isDark ? '0 1px 8px rgba(0,0,0,0.2)' : '0 1px 8px rgba(37,99,235,0.08)',
-      }}
-    >
-      {/* Month + nav */}
-      <div className="flex items-center justify-between mb-5">
-        <button
-          onClick={() => setOffset(o => o - 5)}
-          className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors"
-          style={{ background: t.cardBgAlt, color: t.text2 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = t.text1 }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = t.text2 }}
+    <div className={`${CARD} p-5 sm:p-6 h-full flex flex-col`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p
+            className="font-display font-bold tabular-nums leading-[0.85] tracking-[-0.045em] text-[var(--sm-text-1)]"
+            style={{ fontSize: 'clamp(44px, 5vw, 64px)' }}
+          >
+            {total}
+          </p>
+          <p className="text-[12px] text-[var(--sm-text-3)] mt-2">
+            {total === 1 ? 'post agendado no período' : 'posts agendados no período'}
+          </p>
+        </div>
+        <Link
+          to="/planner"
+          className="group flex items-center gap-1.5 text-[12px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-colors flex-shrink-0 pt-1"
         >
-          <ChevronLeft className="w-3.5 h-3.5" />
-        </button>
-        <h3 className="text-[13px] font-semibold capitalize" style={{ color: t.text1 }}>
-          {format(center, 'MMMM yyyy', { locale: ptBR })}
-        </h3>
-        <button
-          onClick={() => setOffset(o => o + 5)}
-          className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors"
-          style={{ background: t.cardBgAlt, color: t.text2 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = t.text1 }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = t.text2 }}
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+          Abrir planejamento
+          <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+        </Link>
       </div>
 
-      {/* Day labels */}
-      <div className="grid grid-cols-5 mb-1.5">
-        {days.map(day => (
-          <div key={day.toISOString()} className="text-center text-[9.5px] font-semibold py-1 uppercase tracking-wide capitalize" style={{ color: t.text3 }}>
-            {format(day, 'EEE', { locale: ptBR }).replace('.', '')}
+      {total === 0 ? (
+        <div className="flex-1 flex flex-col items-start justify-end pt-10">
+          <div className="w-full h-2.5 rounded-full bg-[var(--sm-bg-alt)]" />
+          <p className="text-[12.5px] text-[var(--sm-text-3)] mt-4">
+            Nada no calendário neste período.{' '}
+            <Link to="/planner" className="text-[#2563EB] hover:underline underline-offset-2">Criar um post</Link>
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Barra única com a proporção de cada status */}
+          <div className="flex w-full h-2.5 gap-[3px] mt-7 mb-6">
+            {counts.filter(c => c.n > 0).map((c, i) => (
+              <motion.span
+                key={c.key}
+                title={`${c.label}: ${c.n}`}
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.9, delay: 0.1 + i * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                className="h-full rounded-full origin-left"
+                style={{ background: c.color, flexGrow: c.n, flexBasis: 0 }}
+              />
+            ))}
           </div>
-        ))}
+
+          {/* Legenda com número e porcentagem */}
+          <div className="grid sm:grid-cols-2 gap-x-8 mt-auto">
+            {counts.map(c => (
+              <div
+                key={c.key}
+                className={`flex items-center gap-3 py-2.5 border-t border-[var(--sm-border)] ${c.n === 0 ? 'opacity-45' : ''}`}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                <span className="text-[12.5px] text-[var(--sm-text-2)] flex-1 truncate">{c.label}</span>
+                <span className="text-[11px] tabular-nums text-[var(--sm-text-4)] w-9 text-right">
+                  {Math.round((c.n / total) * 100)}%
+                </span>
+                <span className="font-display text-[16px] font-bold tabular-nums text-[var(--sm-text-1)] w-7 text-right">{c.n}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── 02 · Agenda dos próximos dias ────────────────────────────────────────────
+
+function AgendaWidget({ items }: { items: PlannerDay[] }) {
+  const today = startOfToday()
+  const days  = Array.from({ length: AGENDA_BEFORE + AGENDA_AFTER + 1 }, (_, i) => addDays(today, i - AGENDA_BEFORE))
+  const [selected, setSelected] = useState(format(today, 'yyyy-MM-dd'))
+
+  const dayItems = items.filter(i => i.scheduled_date === selected)
+  const selDate  = days.find(d => format(d, 'yyyy-MM-dd') === selected) ?? today
+  const selLabel = isToday(selDate) ? 'Hoje' : format(selDate, "EEEE, d 'de' MMM", { locale: ptBR })
+
+  return (
+    <div className={`${CARD} p-5`}>
+      <div className="flex items-center justify-between mb-4">
+        <Eyebrow>Agenda</Eyebrow>
+        <span className="text-[11.5px] text-[var(--sm-text-3)] capitalize">{format(today, 'MMMM', { locale: ptBR })}</span>
       </div>
 
-      {/* Day numbers */}
-      <div className="grid grid-cols-5 gap-0.5 mb-5">
+      {/* Tira de dias */}
+      <div className="grid grid-cols-7 gap-1">
         {days.map(day => {
-          const dayStr    = format(day, 'yyyy-MM-dd')
-          const dayItems  = items.filter(i => i.scheduled_date === dayStr)
-          const isCurrent = isToday(day)
+          const key     = format(day, 'yyyy-MM-dd')
+          const posts   = items.filter(i => i.scheduled_date === key)
+          const isSel   = key === selected
+          const isNow   = isToday(day)
           return (
-            <div
-              key={dayStr}
-              onClick={onDayClick}
-              className="flex flex-col items-center py-2.5 rounded-xl cursor-pointer transition-all duration-150 select-none"
-              style={isCurrent ? { background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)' } : { background: 'transparent' }}
-              onMouseEnter={e => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.background = t.cardBgAlt }}
-              onMouseLeave={e => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+            <button
+              key={key}
+              onClick={() => setSelected(key)}
+              className={`flex flex-col items-center gap-1 py-2 rounded-lg border transition-colors ${
+                isSel
+                  ? 'bg-[var(--sm-bg-alt)] border-[var(--sm-border)]'
+                  : 'border-transparent hover:bg-[var(--sm-bg-alt)]'
+              } ${isNow ? '!border-[#2563EB] ring-1 ring-[#2563EB]/30' : ''}`}
             >
-              <span className="text-[14px] font-semibold leading-none" style={{ color: isCurrent ? 'white' : t.text2 }}>
+              <span className="text-[9.5px] font-semibold uppercase tracking-[0.08em] text-[var(--sm-text-4)]">
+                {format(day, 'EEEEEE', { locale: ptBR })}
+              </span>
+              <span className={`font-display text-[17px] font-bold leading-none tabular-nums ${isNow ? 'text-[#2563EB]' : 'text-[var(--sm-text-1)]'}`}>
                 {format(day, 'd')}
               </span>
-              {dayItems.length > 0 && (
-                <div className="flex gap-0.5 mt-1.5 justify-center">
-                  {dayItems.slice(0, 3).map(item => (
-                    <div key={item.id} className={`w-1 h-1 rounded-full ${isCurrent ? 'bg-white/50' : (statusDotColor[item.status] ?? 'bg-[#94a3b8]')}`} />
-                  ))}
-                </div>
-              )}
-            </div>
+              <span className="flex gap-[3px] h-1">
+                {posts.slice(0, 3).map(p => (
+                  <span key={p.id} className="w-1 h-1 rounded-full" style={{ background: planColor(p) }} />
+                ))}
+              </span>
+            </button>
           )
         })}
       </div>
 
-      {/* Today's list */}
-      {todayItems.length === 0 ? (
-        <p className="text-[11px] text-center py-1" style={{ color: t.text3 }}>Nenhum post hoje</p>
-      ) : (
-        <div className="space-y-1">
-          <p className="text-[9.5px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: t.text3 }}>Hoje</p>
-          {todayItems.slice(0, 3).map(item => (
-            <div key={item.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl" style={{ background: t.cardBgAlt }}>
-              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDotColor[item.status] ?? 'bg-[#94a3b8]'}`} />
-              <p className="text-[11.5px] truncate flex-1 font-medium" style={{ color: t.text1 }}>{item.title}</p>
-              <span className="text-[9.5px] flex-shrink-0" style={{ color: t.text3 }}>
-                {contentTypeLabels[item.content_type as any] ?? item.content_type}
-              </span>
-            </div>
-          ))}
-          {todayItems.length > 3 && (
-            <Link to="/planner">
-              <p className="text-[10.5px] text-center transition-colors mt-1" style={{ color: t.text3 }}>
-                +{todayItems.length - 3} mais →
-              </p>
-            </Link>
-          )}
-        </div>
-      )}
+      {/* Posts do dia escolhido */}
+      <div className="mt-4 pt-4 border-t border-[var(--sm-border)]">
+        <p className="text-[12px] font-semibold text-[var(--sm-text-1)] mb-2.5 first-letter:uppercase">
+          {selLabel}
+          <span className="font-normal text-[var(--sm-text-3)]"> · {dayItems.length} {dayItems.length === 1 ? 'post' : 'posts'}</span>
+        </p>
+        {dayItems.length === 0 ? (
+          <p className="text-[12px] text-[var(--sm-text-3)] py-1">Dia livre no calendário.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {dayItems.slice(0, 4).map(item => (
+              <Link
+                key={item.id}
+                to={`/planner?item=${item.id}`}
+                className="block rounded-md border-l-[3px] bg-[var(--sm-bg-alt)] hover:bg-[var(--sm-bg-input)] hover:translate-x-0.5 transition-all pl-2.5 pr-2 py-1.5"
+                style={{ borderLeftColor: planColor(item) }}
+              >
+                <p className="text-[12px] font-medium leading-tight truncate text-[var(--sm-text-1)]">{item.title}</p>
+                <p className="text-[10.5px] leading-tight truncate text-[var(--sm-text-3)] mt-0.5">
+                  {contentTypeLabels[item.content_type as keyof typeof contentTypeLabels] ?? item.content_type}
+                  {' · '}
+                  {PLAN_KEYS.find(k => k.key === planKey(item))?.label}
+                </p>
+              </Link>
+            ))}
+            {dayItems.length > 4 && (
+              <Link to="/planner" className="block text-[11.5px] text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] pt-1 transition-colors">
+                +{dayItems.length - 4} no planejamento →
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-4 pt-3.5" style={{ borderTop: `1px solid ${t.border}` }}>
-        {Object.entries(statusDotColor).map(([status, color]) => (
-          <div key={status} className="flex items-center gap-1">
-            <div className={`w-1 h-1 rounded-full ${color}`} />
-            <span className="text-[9.5px] capitalize" style={{ color: t.text3 }}>
-              {status === 'producao' ? 'Prod.' : status.charAt(0).toUpperCase() + status.slice(1)}
+// ─── 02 · Tarefas e aprovações ────────────────────────────────────────────────
+
+function OpsWidget({ rows }: { rows: { label: string; value: number; color: string; href: string }[] }) {
+  return (
+    <div className={`${CARD} px-5 pt-5 pb-2`}>
+      <Eyebrow>Operação</Eyebrow>
+      <div className="mt-3">
+        {rows.map(row => (
+          <Link
+            key={row.label}
+            to={row.href}
+            className="group flex items-center gap-3 py-2.5 border-t border-[var(--sm-border)] first:border-t-0"
+          >
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: row.value > 0 ? row.color : 'var(--sm-text-4)' }} />
+            <span className="text-[12.5px] flex-1 text-[var(--sm-text-2)] group-hover:text-[var(--sm-text-1)] transition-colors">{row.label}</span>
+            <span
+              className="font-display text-[18px] font-bold tabular-nums leading-none transition-transform duration-300 group-hover:-translate-x-1"
+              style={{ color: row.value > 0 ? 'var(--sm-text-1)' : 'var(--sm-text-4)' }}
+            >
+              {row.value}
             </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── Financial Summary Widget ─────────────────────────────────────────────────
-
-function FinancialSummary({ data }: { data: FinStats }) {
-  const { isDark } = useTheme()
-  const t = isDark ? DARK_T : LIGHT_T
-
-  const items = [
-    {
-      icon:        <DollarSign className="w-4 h-4" style={{ color: t.text2 }} />,
-      iconBgStyle: 'rgba(203,213,225,0.15)',
-      label:       'MRR',
-      sub:         'receita mensal recorrente',
-      value:       fmtBRL(data.mrr),
-      valueColor:  t.text1,
-      show:        true,
-    },
-    {
-      icon:        <CheckCircle2 className="w-4 h-4" style={{ color: '#22C55E' }} />,
-      iconBgStyle: 'rgba(34,197,94,0.15)',
-      label:       'Recebido',
-      sub:         'pago no ciclo atual',
-      value:       fmtBRL(data.received),
-      valueColor:  '#22C55E',
-      show:        true,
-    },
-    {
-      icon:        <Clock className="w-4 h-4" style={{ color: data.pending > 0 ? '#F5A623' : t.text4 }} />,
-      iconBgStyle: data.pending > 0 ? 'rgba(245,166,35,0.15)' : 'rgba(203,213,225,0.10)',
-      label:       'Pendente',
-      sub:         'a receber no ciclo',
-      value:       fmtBRL(data.pending),
-      valueColor:  data.pending > 0 ? '#F5A623' : t.text3,
-      show:        true,
-    },
-    {
-      icon:        <AlertTriangle className="w-4 h-4" style={{ color: data.overdueCount > 0 ? '#f87171' : t.text4 }} />,
-      iconBgStyle: data.overdueCount > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(203,213,225,0.10)',
-      label:       'Inadimplência',
-      sub:         data.overdueCount > 0
-                     ? `${data.overdueCount} cliente${data.overdueCount !== 1 ? 's' : ''} em atraso`
-                     : 'nenhum em atraso',
-      value:       fmtBRL(data.overdueAmt),
-      valueColor:  data.overdueCount > 0 ? '#f87171' : t.text3,
-      show:        true,
-    },
-    {
-      icon:        <TrendingUp className="w-4 h-4" style={{ color: '#4F8EF7' }} />,
-      iconBgStyle: 'rgba(79,142,247,0.15)',
-      label:       'Ticket médio',
-      sub:         'por cliente ativo',
-      value:       fmtBRL(data.avgTicket),
-      valueColor:  t.text1,
-      show:        true,
-    },
-  ]
-
-  return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        background: t.cardBg,
-        border: `1px solid ${t.border}`,
-        boxShadow: isDark ? '0 1px 8px rgba(0,0,0,0.2)' : '0 1px 8px rgba(37,99,235,0.08)',
-      }}
-    >
-      {/* Header */}
-      <div className="px-6 py-4 flex items-center" style={{ borderBottom: `1px solid ${t.border}` }}>
-        <h3 className="text-[13px] font-semibold" style={{ color: t.text1 }}>Resumo financeiro</h3>
-        <Link to="/financial" className="ml-auto text-[11px] transition-colors" style={{ color: t.text3 }}>
-          Ver detalhes →
-        </Link>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x" style={{ borderColor: t.border }}>
-        {items.map((item, i) => (
-          <div key={i} className="px-6 py-5 flex flex-col gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.iconBgStyle }}>
-              {item.icon}
-            </div>
-            <div>
-              <p className="text-[20px] font-bold leading-tight tabular-nums" style={{ color: item.valueColor }}>
-                {item.value}
-              </p>
-              <p className="text-[10.5px] font-semibold mt-1 uppercase tracking-wide" style={{ color: t.text3 }}>
-                {item.label}
-              </p>
-              <p className="text-[10px] mt-0.5" style={{ color: t.text2 }}>{item.sub}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── Alerts Widget ────────────────────────────────────────────────────────────
-
-function AlertsWidget({
-  pendingApproval, overdueTasks, pendingTasks, periodApproved,
-}: {
-  pendingApproval: number
-  overdueTasks:    number
-  pendingTasks:    number
-  periodApproved:  number
-}) {
-  const { isDark } = useTheme()
-  const t = isDark ? DARK_T : LIGHT_T
-
-  const rows = [
-    { icon: CheckCircle2, label: 'Aprovados no período',  value: periodApproved,  bgStyle: 'rgba(34,197,94,0.15)',                                            iconColor: '#22C55E', href: '/planner' },
-    { icon: Clock,        label: 'Aguardando aprovação',  value: pendingApproval, bgStyle: pendingApproval > 0 ? 'rgba(245,166,35,0.15)'  : 'rgba(203,213,225,0.10)', iconColor: pendingApproval > 0 ? '#F5A623' : t.text4, href: '/planner' },
-    { icon: CheckSquare,  label: 'Tarefas em aberto',     value: pendingTasks,    bgStyle: pendingTasks    > 0 ? 'rgba(79,142,247,0.15)'  : 'rgba(203,213,225,0.10)', iconColor: pendingTasks    > 0 ? '#4F8EF7' : t.text4, href: '/tasks'   },
-    { icon: AlertTriangle,label: 'Tarefas atrasadas',     value: overdueTasks,    bgStyle: overdueTasks    > 0 ? 'rgba(239,68,68,0.15)'   : 'rgba(203,213,225,0.10)', iconColor: overdueTasks    > 0 ? '#f87171' : t.text4, href: '/tasks'   },
-  ]
-
-  return (
-    <div
-      className="rounded-2xl p-5"
-      style={{
-        background: t.cardBg,
-        border: `1px solid ${t.border}`,
-        boxShadow: isDark ? '0 1px 8px rgba(0,0,0,0.2)' : '0 1px 8px rgba(37,99,235,0.08)',
-      }}
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-[13px] font-semibold" style={{ color: t.text1 }}>Resumo operacional</h3>
-      </div>
-      <div className="space-y-0.5">
-        {rows.map((row, i) => (
-          <Link key={i} to={row.href}>
-            <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors cursor-pointer hover:opacity-80" style={{ background: 'transparent' }}>
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: row.bgStyle }}>
-                <row.icon className="w-3.5 h-3.5" style={{ color: row.iconColor }} />
-              </div>
-              <p className="text-[11.5px] flex-1 leading-snug" style={{ color: t.text2 }}>{row.label}</p>
-              <span className="text-[14px] font-semibold tabular-nums" style={{ color: row.iconColor }}>{row.value}</span>
-            </div>
           </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 03 · Financeiro ──────────────────────────────────────────────────────────
+// MRR é a manchete, grande à esquerda, com a barra do quanto já entrou no mês.
+// Os outros quatro valores ficam num 2×2 ao lado.
+
+function FinancialBlock({ data }: { data: FinStats }) {
+  const receivedPct = data.mrr > 0 ? Math.min(100, Math.round((data.received / data.mrr) * 100)) : 0
+
+  const cells = [
+    { label: 'Recebido',     value: data.received,   note: 'pago no mês atual',    color: '#22C55E', on: data.received > 0 },
+    { label: 'A receber',    value: data.pending,    note: 'vence em breve',        color: '#EAB308', on: data.pending > 0 },
+    { label: 'Em atraso',    value: data.overdueAmt,
+      note: data.overdueCount > 0 ? `${data.overdueCount} cliente${data.overdueCount !== 1 ? 's' : ''} em atraso` : 'nenhum cliente em atraso',
+      color: '#EF4444', on: data.overdueCount > 0 },
+    { label: 'Ticket médio', value: data.avgTicket,  note: 'por cliente ativo',    color: '#3B82F6', on: false },
+  ]
+
+  return (
+    <div className="grid lg:grid-cols-[1.25fr_1fr] gap-px bg-[var(--sm-border)] rounded-2xl overflow-hidden border border-[var(--sm-border)]">
+      {/* Manchete: MRR */}
+      <div className="bg-[var(--sm-bg-card)] p-6 sm:p-8 flex flex-col justify-between gap-8 min-h-[220px]">
+        <Eyebrow>Receita mensal recorrente</Eyebrow>
+        <div>
+          <p
+            className="font-display font-bold tabular-nums leading-[0.9] tracking-[-0.045em] text-[var(--sm-text-1)] break-words"
+            style={{ fontSize: 'clamp(40px, 5.6vw, 76px)' }}
+          >
+            {fmtBRL(data.mrr)}
+          </p>
+          <div className="mt-6">
+            <div className="h-1.5 rounded-full bg-[var(--sm-bg-alt)] overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: `${receivedPct}%` }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+                className="h-full rounded-full bg-[#22C55E]"
+              />
+            </div>
+            <p className="text-[12px] text-[var(--sm-text-3)] mt-2.5">
+              <span className="text-[var(--sm-text-1)] font-medium tabular-nums">{receivedPct}%</span> do MRR já recebido este mês
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2×2 */}
+      <div className="grid grid-cols-2 gap-px bg-[var(--sm-border)]">
+        {cells.map(c => (
+          <div key={c.label} className="bg-[var(--sm-bg-card)] p-5 sm:p-6 flex flex-col justify-between gap-4 min-h-[118px]">
+            <Eyebrow color={c.on ? c.color : undefined}>{c.label}</Eyebrow>
+            <div>
+              <p
+                className="font-display text-[20px] sm:text-[26px] font-bold tabular-nums leading-none tracking-[-0.03em] break-words"
+                style={{ color: c.on && c.label === 'Em atraso' ? c.color : 'var(--sm-text-1)' }}
+              >
+                {fmtBRL(c.value)}
+              </p>
+              <p className="text-[11.5px] text-[var(--sm-text-3)] mt-1.5 leading-snug">{c.note}</p>
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -687,9 +569,6 @@ function AlertsWidget({
 
 export function Dashboard() {
   const { user, profile } = useAuth()
-  const navigate = useNavigate()
-  const { isDark } = useTheme()
-  const t = isDark ? DARK_T : LIGHT_T
 
   // ── Period state (single source of truth) ─────────────────────────────────
   const defaultCustom: DateRange = {
@@ -713,14 +592,11 @@ export function Dashboard() {
   ) as string
 
   // ── Data state ────────────────────────────────────────────────────────────
-  const [statsReady, setStatsReady]             = useState(false)
-  const [stats, setStats]                       = useState<Stats>({ total_clients: 0, active_clients: 0, pending_tasks: 0, overdue_tasks: 0, period_pending_approval: 0, period_approved: 0, period_scheduled: 0, period_published: 0, period_adjustments: 0, ig_scheduled: 0, ig_published: 0 })
-  const [weeklyData, setWeeklyData]             = useState<any[]>([])
-  const [assetTypes, setAssetTypes]             = useState<{ type: string; count: number }[]>([])
-  const [plannerStatuses, setPlannerStatuses]   = useState<{ status: string; count: number }[]>([])
-  const [plannerChartData, setPlannerChartData] = useState<PlannerChartEntry[]>([])
-  const [plannerCalItems, setPlannerCalItems]   = useState<PlannerDay[]>([])
-  const [finStats, setFinStats]                 = useState<FinStats>({ mrr: 0, received: 0, pending: 0, overdueAmt: 0, overdueCount: 0, avgTicket: 0 })
+  const [statsReady, setStatsReady]           = useState(false)
+  const [stats, setStats]                     = useState<Stats>({ total_clients: 0, active_clients: 0, pending_tasks: 0, overdue_tasks: 0, period_pending_approval: 0, period_approved: 0, period_scheduled: 0, period_published: 0, period_adjustments: 0, ig_scheduled: 0, ig_published: 0 })
+  const [planCounts, setPlanCounts]           = useState(PLAN_KEYS.map(k => ({ ...k, n: 0 })))
+  const [plannerCalItems, setPlannerCalItems] = useState<PlannerDay[]>([])
+  const [finStats, setFinStats]               = useState<FinStats>({ mrr: 0, received: 0, pending: 0, overdueAmt: 0, overdueCount: 0, avgTicket: 0 })
 
   // ── Re-fetch whenever user or range changes ───────────────────────────────
   useEffect(() => {
@@ -736,34 +612,26 @@ export function Dashboard() {
     const startDate = format(start, 'yyyy-MM-dd')
     const endDate   = format(end,   'yyyy-MM-dd')
 
-    // Calendar widget: janela fixa de ±2 dias em torno de hoje
-    const calStart = format(subDays(now, 2), 'yyyy-MM-dd')
-    const calEnd   = format(addDays(now, 2), 'yyyy-MM-dd')
+    // Agenda: janela fixa em torno de hoje
+    const calStart = format(addDays(now, -AGENDA_BEFORE), 'yyyy-MM-dd')
+    const calEnd   = format(addDays(now,  AGENDA_AFTER),  'yyyy-MM-dd')
 
     const [
       clientsRes,
       tasksRes,
-      contentsRes,
-      assetsRes,
       plannerRes,
       plannerCalRes,
       igPostsRes,
     ] = await Promise.all([
       supabase.from('clients').select('id, status, valor_mensal, financial_status, last_payment_date, dia_vencimento, manual_status_override').eq('user_id', user!.id),
       supabase.from('tasks').select('id, status, due_date').eq('user_id', user!.id).neq('status', 'concluido'),
-      supabase.from('contents')
-        .select('created_at')
-        .eq('user_id', user!.id)
-        .gte('created_at', startIso)
-        .lte('created_at', endIso),
-      supabase.from('content_assets').select('content_type').eq('user_id', user!.id),
       supabase.from('planner')
-        .select('status, approval_status')
+        .select('status, approval_status, sent_to_client')
         .eq('user_id', user!.id)
         .gte('scheduled_date', startDate)
         .lte('scheduled_date', endDate),
       supabase.from('planner')
-        .select('id, title, content_type, status, scheduled_date')
+        .select('id, title, content_type, status, scheduled_date, approval_status, sent_to_client')
         .eq('user_id', user!.id)
         .gte('scheduled_date', calStart)
         .lte('scheduled_date', calEnd),
@@ -782,7 +650,8 @@ export function Dashboard() {
     })
     const overdue = taskList.filter(t => t.due_date && new Date(t.due_date) < now).length
 
-    const pList = plannerRes.data || []
+    // sent_to_client existe no banco (migration 039), mas não nos tipos gerados
+    const pList = (plannerRes.data || []) as unknown as { status: string; approval_status: string | null; sent_to_client: boolean | null }[]
 
     const period_scheduled        = pList.filter((p: any) => p.status === 'aprovado').length
     const period_published        = pList.filter((p: any) => p.status === 'publicado').length
@@ -811,15 +680,15 @@ export function Dashboard() {
       ig_published,
     })
 
-    setPlannerCalItems((plannerCalRes.data || []) as PlannerDay[])
+    setPlanCounts(PLAN_KEYS.map(k => ({ ...k, n: pList.filter((p: any) => planKey(p) === k.key).length })))
+    setPlannerCalItems((plannerCalRes.data || []) as unknown as PlannerDay[])
 
-    const now2      = new Date()
-    const thisYear  = now2.getFullYear()
-    const thisMonth = now2.getMonth() + 1
-    const finClients    = clients.filter((c: any) => c.valor_mensal != null || c.dia_vencimento != null)
+    const thisYear  = now.getFullYear()
+    const thisMonth = now.getMonth() + 1
+    const finClients     = clients.filter((c: any) => c.valor_mensal != null || c.dia_vencimento != null)
     const withCalcStatus = finClients.map((c: any) => ({ client: c, status: calcFinancialStatus(c) }))
-    const mrrClients    = withCalcStatus.filter((x: any) => x.status !== 'cancelado')
-    const mrr           = mrrClients.reduce((s: number, x: any) => s + (Number(x.client.valor_mensal) || 0), 0)
+    const mrrClients     = withCalcStatus.filter((x: any) => x.status !== 'cancelado')
+    const mrr            = mrrClients.reduce((s: number, x: any) => s + (Number(x.client.valor_mensal) || 0), 0)
     const received = withCalcStatus
       .filter((x: any) => {
         if (!x.client.last_payment_date) return false
@@ -832,23 +701,6 @@ export function Dashboard() {
     const overdueCount = withCalcStatus.filter((x: any) => x.status === 'atrasado').length
     const avgTicket    = mrrClients.length > 0 ? mrr / mrrClients.length : 0
     setFinStats({ mrr, received, pending, overdueAmt, overdueCount, avgTicket })
-
-    setWeeklyData(buildBarData(periodMode, { start, end }, contentsRes.data || []))
-
-    const typeMap: Record<string, number> = {}
-    ;(assetsRes.data || []).forEach((a: any) => { typeMap[a.content_type] = (typeMap[a.content_type] || 0) + 1 })
-    setAssetTypes(Object.entries(typeMap).map(([type, count]) => ({ type, count })))
-
-    const statusMap: Record<string, number> = {}
-    pList.forEach((p: any) => { statusMap[p.status] = (statusMap[p.status] || 0) + 1 })
-    setPlannerStatuses(Object.entries(statusMap).map(([status, count]) => ({ status, count })))
-
-    setPlannerChartData([
-      { label: 'Ideia',         value: pList.filter((p: any) => p.status === 'ideia').length,   color: '#a3a3a3' },
-      { label: 'Revisão',       value: pList.filter((p: any) => p.status === 'revisao').length, color: '#f59e0b' },
-      { label: 'Aguardando aprovação', value: pList.filter(isAwaitingClientApproval).length,     color: '#f97316' },
-      { label: 'Aprovado',      value: period_approved,                                          color: '#10b981' },
-    ])
   }
 
   // ── Greeting com IA ───────────────────────────────────────────────────────
@@ -857,104 +709,98 @@ export function Dashboard() {
 
   // ─────────────────────────────────────────────────────────────────────────
 
+  const kpis: Kpi[] = [
+    {
+      label: 'Aguardando aprovação', value: stats.period_pending_approval, href: '/planner', color: '#EAB308',
+      note:  stats.period_pending_approval > 0 ? 'posts com o cliente, esperando resposta' : 'nada parado com o cliente',
+    },
+    {
+      label: 'Ajustes pedidos', value: stats.period_adjustments, href: '/planner', color: '#F97316', alert: true,
+      note:  stats.period_adjustments > 0 ? 'o cliente pediu correções' : 'nenhum ajuste pendente',
+    },
+    {
+      label: 'Fila do Instagram', value: stats.ig_scheduled, href: '/instagram', color: '#3B82F6',
+      note:  stats.ig_scheduled > 0 ? 'agendados para publicar' : 'nenhum na fila',
+    },
+    {
+      label: 'Publicados', value: stats.ig_published, href: '/instagram', color: '#22C55E',
+      note:  stats.ig_published > 0 ? 'no Instagram, no período' : 'nada publicado ainda',
+    },
+  ]
+
+  const opsRows = [
+    { label: 'Aprovados no período', value: stats.period_approved, color: '#22C55E', href: '/planner' },
+    { label: 'Tarefas em aberto',    value: stats.pending_tasks,   color: '#3B82F6', href: '/tasks'   },
+    { label: 'Tarefas atrasadas',    value: stats.overdue_tasks,   color: '#EF4444', href: '/tasks'   },
+    { label: 'Clientes ativos',      value: stats.active_clients,  color: '#94A3B8', href: '/clients' },
+  ]
+
   return (
-    <div className="sm-menu-gap-inside min-h-full" style={{ background: t.pageBg }}>
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-full bg-[var(--sm-bg-page)]">
+        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 pt-4 sm:pt-6 pb-16">
 
-      {/* ── Hero Banner inteligente ── */}
-      <DashboardHero
-        greeting={greeting}
-        userName={userName}
-        message={message}
-        pills={pills}
-        isLoading={greetingLoading}
-        onRefresh={refreshGreeting}
-      />
+          <DashboardHero
+            greeting={greeting}
+            userName={userName}
+            message={message}
+            pills={pills}
+            isLoading={greetingLoading}
+            onRefresh={refreshGreeting}
+          />
 
-      {/* Filter Bar — controlled */}
-      <FilterBar
-        mode={periodMode}
-        range={range}
-        customRange={customRange}
-        onMode={m => setPeriodMode(m)}
-        onCustomRange={r => setCustomRange(r)}
-      />
+          {/* ── 01 · O período ─────────────────────────────────────────────── */}
+          <section className="mt-12 sm:mt-16">
+            <SectionHead n="01" title="O período">
+              <PeriodPicker
+                mode={periodMode}
+                range={range}
+                customRange={customRange}
+                onMode={m => setPeriodMode(m)}
+                onCustomRange={r => setCustomRange(r)}
+              />
+            </SectionHead>
+            <Reveal>
+              <KpiStrip items={kpis} />
+            </Reveal>
+          </section>
 
-      <div className="px-6 py-6 md:px-8 md:py-7 space-y-6">
+          {/* ── 02 · Produção ──────────────────────────────────────────────── */}
+          <section className="mt-12 sm:mt-16">
+            <SectionHead n="02" title="Produção" aside="onde cada post está" />
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] gap-4 lg:gap-5">
+              <Reveal>
+                <PipelineWidget counts={planCounts} />
+              </Reveal>
+              <div className="flex flex-col gap-4 lg:gap-5">
+                <Reveal delay={0.08}>
+                  <AgendaWidget items={plannerCalItems} />
+                </Reveal>
+                <Reveal delay={0.16}>
+                  <OpsWidget rows={opsRows} />
+                </Reveal>
+              </div>
+            </div>
+          </section>
 
-        {/* KPI Cards — conteúdo */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-          <KpiCard
-            label="Aguardando Aprovação"
-            value={stats.period_pending_approval}
-            subtitle={stats.period_pending_approval > 0 ? 'aguardando retorno do cliente' : 'nenhum pendente'}
-            href="/planner"
-            icon={Clock}
-            iconBg="bg-amber-50"
-            iconColor="text-amber-600"
-          />
-          <KpiCard
-            label="Ajustes Solicitados"
-            value={stats.period_adjustments}
-            subtitle={stats.period_adjustments > 0 ? 'cliente pediu correções' : 'nenhum pendente'}
-            href="/planner"
-            icon={AlertTriangle}
-            warning
-          />
-          <KpiCard
-            label="Agendados no Instagram"
-            value={stats.ig_scheduled}
-            subtitle={stats.ig_scheduled > 0 ? 'aguardando publicação' : 'nenhum na fila'}
-            href="/instagram"
-            icon={Instagram}
-            iconBg="bg-fuchsia-50"
-            iconColor="text-fuchsia-600"
-          />
-          <KpiCard
-            label="Conteúdos Publicados"
-            value={stats.ig_published}
-            subtitle={stats.ig_published > 0 ? 'no período' : 'nada publicado ainda'}
-            href="/instagram"
-            icon={Send}
-            iconBg="bg-emerald-50"
-            iconColor="text-emerald-600"
-          />
+          {/* ── 03 · Financeiro ────────────────────────────────────────────── */}
+          <section className="mt-12 sm:mt-16">
+            <SectionHead n="03" title="Financeiro" aside="ciclo atual">
+              <Link
+                to="/financial"
+                className="group flex items-center gap-1.5 text-[12px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-colors"
+              >
+                Ver detalhes
+                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </SectionHead>
+            <Reveal>
+              <FinancialBlock data={finStats} />
+            </Reveal>
+          </section>
+
         </div>
-
-        {/* Main grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Charts — 2/3 */}
-          <div className="lg:col-span-2">
-            <MetricsCarousel
-              weeklyData={weeklyData}
-              assetTypes={assetTypes}
-              plannerStatuses={plannerStatuses}
-              plannerChartData={plannerChartData}
-              contentsThisWeek={weeklyData.reduce((s, d) => s + d.conteudos, 0)}
-              totalAssets={assetTypes.reduce((s, a) => s + a.count, 0)}
-              totalPlanner={plannerStatuses.reduce((s, p) => s + p.count, 0)}
-            />
-          </div>
-
-          {/* Right sidebar — 1/3 */}
-          <div className="flex flex-col gap-4">
-            <CalendarWidget
-              items={plannerCalItems}
-              onDayClick={() => navigate('/planner')}
-            />
-            <AlertsWidget
-              pendingApproval={stats.period_pending_approval}
-              overdueTasks={stats.overdue_tasks}
-              pendingTasks={stats.pending_tasks}
-              periodApproved={stats.period_approved}
-            />
-          </div>
-        </div>
-
-        {/* ── Resumo Financeiro — full width ── */}
-        <FinancialSummary data={finStats} />
-
       </div>
-    </div>
+    </MotionConfig>
   )
 }

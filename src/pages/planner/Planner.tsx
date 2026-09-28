@@ -41,6 +41,7 @@ import { isImageUrl, isImageMedia, isVideoMedia, mimeFromUrl } from '@/utils/med
 import { useContentAssets } from '@/hooks/useContentAssets'
 import { PlannerCommentsThread } from '@/components/PlannerCommentsThread'
 import { useTheme } from '@/contexts/ThemeContext'
+import { PLAN_KEYS, planKey, planColor } from '@/utils/planStatus'
 import { useClientInstagramAccount, useCreateScheduledPost } from '@/hooks/useInstagram'
 import type { PlannerStatus, PlannerItem, PlannerAttachment, PlannerLink, ContentType, ApprovalStatus, ContentAsset } from '@/types'
 
@@ -1432,30 +1433,6 @@ function getChipStyle(item: PlannerItem, isDark: boolean): { bg: string; border:
   if (as_ === 'ajuste_solicitado')  return { bg: 'rgba(245,158,11,0.14)',  border: 'rgba(245,158,11,0.32)',  text: '#78350f' }
   if (as_ === 'ajuste_realizado')   return { bg: 'rgba(37,99,235,0.12)',   border: 'rgba(37,99,235,0.30)',   text: '#1e3a8a' }
   return { bg: 'rgba(234,179,8,0.14)', border: 'rgba(234,179,8,0.32)', text: '#713f12' }
-}
-
-// Status do post numa chave só — a MESMA do filtro de status da tela, para o
-// contador, a cor e o filtro nunca discordarem.
-type PlanKey = 'rascunho' | 'pendente_aprovacao' | 'ajuste_solicitado' | 'ajuste_realizado' | 'aprovado' | 'reprovado'
-
-const PLAN_KEYS: { key: PlanKey; label: string; short: string; color: string }[] = [
-  { key: 'rascunho',           label: 'Não enviado',          short: 'não enviados',  color: '#94A3B8' },
-  { key: 'pendente_aprovacao', label: 'Aguardando aprovação', short: 'aguardando',    color: '#EAB308' },
-  { key: 'ajuste_solicitado',  label: 'Ajuste solicitado',    short: 'ajuste pedido', color: '#F97316' },
-  { key: 'ajuste_realizado',   label: 'Ajuste realizado',     short: 'ajuste feito',  color: '#3B82F6' },
-  { key: 'aprovado',           label: 'Aprovado',             short: 'aprovados',     color: '#22C55E' },
-  { key: 'reprovado',          label: 'Reprovado',            short: 'reprovados',    color: '#EF4444' },
-]
-
-function planKey(item: PlannerItem): PlanKey {
-  if (!item.sent_to_client) return 'rascunho'
-  return ((item.approval_status as PlanKey) || 'pendente_aprovacao')
-}
-
-/** Cor sólida do post: publicado conta como aprovado. */
-function planColor(item: PlannerItem) {
-  if (item.status === 'publicado') return '#22C55E'
-  return PLAN_KEYS.find(k => k.key === planKey(item))?.color ?? '#94A3B8'
 }
 
 function DayPreviewChip({
