@@ -242,16 +242,19 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
       {/* Negócio */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Origem" icon={<Tag className="w-3 h-3" />}>
-          <input
-            list="crm-sources"
+          {/* Select nativo: o <datalist> não abre lista nenhuma no celular.
+              Origem digitada à mão em leads antigos continua aparecendo. */}
+          <select
             className={selectClass}
             value={form.source ?? ''}
-            onChange={e => set('source', e.target.value)}
-            placeholder="De onde veio"
-          />
-          <datalist id="crm-sources">
-            {CRM_SOURCES.map(s => <option key={s} value={s} />)}
-          </datalist>
+            onChange={e => set('source', e.target.value || null)}
+          >
+            <option value="">De onde veio?</option>
+            {CRM_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            {form.source && !CRM_SOURCES.includes(form.source) && (
+              <option value={form.source}>{form.source}</option>
+            )}
+          </select>
         </Field>
         <Field label="Valor estimado" icon={<Wallet className="w-3 h-3" />}>
           <Input
@@ -274,9 +277,12 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
             type="date"
             value={form.next_contact_at ?? ''}
             onChange={e => set('next_contact_at', e.target.value || null)}
-            className="w-full sm:w-[160px] text-left [&::-webkit-date-and-time-value]:text-left"
+            // O iPhone dá ao campo de data uma largura mínima própria: sem min-w-0
+            // e appearance-none ele passa da largura do modal
+            className="w-full min-w-0 appearance-none sm:w-[160px] text-left [&::-webkit-date-and-time-value]:text-left"
           />
-          <div className="grid grid-cols-4 gap-2 sm:flex">
+          {/* minmax(0,1fr): sem isto "1 semana" alarga a coluna e a grade vaza em 320px */}
+          <div className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-1.5 sm:flex sm:gap-2">
             {QUICK_DATES.map(q => {
               const v = todayISO(q.days)
               const active = form.next_contact_at === v
@@ -285,7 +291,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
                   key={q.label}
                   type="button"
                   onClick={() => set('next_contact_at', v)}
-                  className="h-10 sm:h-7 px-2 rounded-lg sm:rounded-md border text-[13px] sm:text-[11.5px] font-medium sm:font-normal transition-colors"
+                  className="h-10 sm:h-7 px-1 sm:px-2 min-w-0 truncate rounded-lg sm:rounded-md border text-[12.5px] sm:text-[11.5px] font-medium sm:font-normal transition-colors"
                   style={{
                     borderColor: active ? '#2563EB' : 'var(--sm-border)',
                     background:  active ? 'rgba(37,99,235,0.12)' : 'var(--sm-bg-input)',
@@ -407,7 +413,9 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
         // Lead existente: não põe o cursor em campo nenhum. No celular isso abre o
         // teclado sozinho e cobre a tela antes de a pessoa decidir o que fazer.
         onOpenAutoFocus={e => { if (lead) e.preventDefault() }}
-        className={`w-[95vw] max-w-[95vw] max-h-[92vh] overflow-y-auto ${lead ? 'lg:max-w-6xl' : 'sm:max-w-2xl'}`}
+        // overflow-x-hidden: overflow-y-auto sozinho também libera rolagem lateral,
+        // e no celular o modal inteiro fica "arrastando" para os lados
+        className={`w-[95vw] max-w-[95vw] max-h-[92vh] overflow-y-auto overflow-x-hidden overscroll-contain ${lead ? 'lg:max-w-6xl' : 'sm:max-w-2xl'}`}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-6">
