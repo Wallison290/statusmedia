@@ -737,20 +737,21 @@ export function Dashboard() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="min-h-full bg-[var(--sm-bg-page)]">
-        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 pt-4 sm:pt-6 pb-16">
+      {/* sm-menu-gap-inside: o banner vai até o topo e reserva o espaço do menu por dentro */}
+      <div className="sm-menu-gap-inside min-h-full bg-[var(--sm-bg-page)]">
+        <DashboardHero
+          greeting={greeting}
+          userName={userName}
+          message={message}
+          pills={pills}
+          isLoading={greetingLoading}
+          onRefresh={refreshGreeting}
+        />
 
-          <DashboardHero
-            greeting={greeting}
-            userName={userName}
-            message={message}
-            pills={pills}
-            isLoading={greetingLoading}
-            onRefresh={refreshGreeting}
-          />
+        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 pb-16">
 
           {/* ── 01 · O período ─────────────────────────────────────────────── */}
-          <section className="mt-12 sm:mt-16">
+          <section className="mt-10 sm:mt-12">
             <SectionHead n="01" title="O período">
               <PeriodPicker
                 mode={periodMode}
