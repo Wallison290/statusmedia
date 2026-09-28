@@ -7,17 +7,21 @@
 // AGÊNCIA. A função agency-whatsapp configura esse webhook sozinha quando a
 // agência conecta, com a URL:
 //   .../crm-whatsapp-assistant?secret=<CRM_ASSISTANT_SECRET>&inst=<id da instância>
-// O dono da agência manda "CRM ..." do número pessoal dele (o verificado na
-// página WhatsApp) para o número da agência, e a resposta sai pelo número da
-// agência.
+// O dono da agência manda "CRM ..." de um destes jeitos, e a resposta sai pelo
+// número da agência:
+//   • do número pessoal dele (o verificado na página WhatsApp) para o número
+//     da agência; ou
+//   • no próprio WhatsApp da agência, na conversa "Você" (mensagem para si
+//     mesmo) — o caso de quem usa um número só, sem pessoal cadastrado.
 // Deploy sem JWT (a UazAPI não manda token do Supabase):
 //   supabase functions deploy crm-whatsapp-assistant --no-verify-jwt
 //   supabase secrets set CRM_ASSISTANT_SECRET=<um texto aleatório longo>
 //
 // Regras de segurança:
 //   • a agência é a dona da instância que recebeu a mensagem (`inst` na URL);
-//   • só responde ao número pessoal VERIFICADO do dono dessa agência: cliente
-//     ou lead que escrever "CRM" para a agência não recebe dados do funil;
+//   • só responde ao número pessoal VERIFICADO do dono dessa agência, ou ao
+//     próprio aparelho da agência na conversa "Você": cliente ou lead que
+//     escrever "CRM" para a agência não recebe dados do funil;
 //   • a pergunta não escolhe de quem ler (não há como pedir dados de outra conta);
 //   • só lê, nunca grava no CRM;
 //   • só reage a mensagem que começa com "CRM", para não responder a qualquer
@@ -48,7 +52,7 @@ const ok = (body: unknown = { ok: true }) =>
 // UazAPI e Evolution mandam formatos diferentes, e versões diferentes da mesma
 // API mudam nomes de campo. Tenta os conhecidos; sem texto ou remetente, ignora.
 
-interface Incoming { number: string; text: string; fromMe: boolean; isGroup: boolean }
+interface Incoming { number: string; text: string; fromMe: boolean; isGroup: boolean; byApi: boolean }
 
 function parseIncoming(body: any): Incoming | null {
   const m = body?.message ?? body?.data ?? body
@@ -59,9 +63,11 @@ function parseIncoming(body: any): Incoming | null {
     m?.message?.conversation ?? m?.message?.extendedTextMessage?.text ?? ''
   const fromMe = Boolean(m?.fromMe ?? m?.key?.fromMe)
   const isGroup = Boolean(m?.isGroup) || String(jid).endsWith('@g.us')
+  // Mensagem que o próprio sistema enviou (a nossa resposta): nunca responder
+  const byApi = Boolean(m?.wasSentByApi)
   const number = String(jid).split('@')[0].replace(/\D/g, '')
   if (!number || typeof text !== 'string' || !text.trim()) return null
-  return { number, text: text.trim(), fromMe, isGroup }
+  return { number, text: text.trim(), fromMe, isGroup, byApi }
 }
 
 // DDD + últimos 8 dígitos: o WhatsApp às vezes entrega o número sem o nono
@@ -167,17 +173,26 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => null)
   const msg = parseIncoming(body)
-  // Resposta 200 mesmo quando ignora: webhook com erro é reenviado pela UazAPI
-  if (!msg || msg.fromMe || msg.isGroup) return ok({ ignored: true })
+  // Resposta 200 mesmo quando ignora: webhook com erro é reenviado pela UazAPI.
+  // Mensagem comum (sem "CRM") sai sem log, para não encher o registro.
+  if (!msg || msg.isGroup || msg.byApi) return ok({ ignored: true })
   if (!/^crm\b/i.test(msg.text)) return ok({ ignored: true })
+
+  // Daqui em diante é um comando: todo "ignorado" deixa o motivo no log da
+  // função (Supabase > Edge Functions > Logs), sem o número completo.
+  const { number: from, fromMe } = msg
+  const skip = (reason: string) => {
+    console.log(`crm-whatsapp-assistant: ignorado (${reason}) inst=${instId.slice(0, 8)} de=…${from.slice(-4)} fromMe=${fromMe}`)
+    return ok({ ignored: true, reason })
+  }
 
   const question = msg.text.replace(/^crm[\s:,.-]*/i, '').trim()
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY) as any
 
   // A instância que recebeu diz de qual agência é o número
-  if (!/^[0-9a-f-]{36}$/i.test(instId)) return ok({ ignored: true })
+  if (!/^[0-9a-f-]{36}$/i.test(instId)) return skip('inst inválida na URL do webhook')
   const { data: inst } = await sb.from('whatsapp_instances').select('user_id, instance_token').eq('id', instId).maybeSingle()
-  if (!inst?.user_id) return ok({ ignored: true })
+  if (!inst?.user_id) return skip('instância não encontrada')
 
   const { data: agency } = await sb
     .from('profiles')
@@ -185,11 +200,21 @@ Deno.serve(async (req) => {
     .eq('id', inst.user_id)
     .maybeSingle()
 
-  // Só o dono, pelo número pessoal verificado. Qualquer outro remetente (cliente,
-  // lead) recebe silêncio: responder confirmaria que o número atende comandos.
+  if (!agency || agency.role !== 'agency') return skip('conta não é agência')
+
+  // Só o dono. Dois caminhos:
+  //   • fromMe na conversa com o próprio número conectado (conversa "Você");
+  //   • mensagem recebida do número pessoal verificado do dono.
+  // Qualquer outro remetente (cliente, lead) recebe silêncio: responder
+  // confirmaria que o número atende comandos. E fromMe em outra conversa é a
+  // agência falando com um cliente — também não é comando.
   const key = phoneKey(msg.number)
-  if (!agency || agency.role !== 'agency' || !agency.whatsapp_verified || !key || phoneKey(agency.whatsapp) !== key) {
-    return ok({ ignored: true })
+  if (!key) return skip('número do remetente ilegível')
+  if (msg.fromMe) {
+    const { data: own } = await sb.from('agency_whatsapp').select('phone').eq('user_id', agency.id).maybeSingle()
+    if (phoneKey(own?.phone) !== key) return skip('enviado pela agência em conversa que não é a "Você"')
+  } else if (!agency.whatsapp_verified || phoneKey(agency.whatsapp) !== key) {
+    return skip(agency.whatsapp_verified ? 'remetente não é o número pessoal do dono' : 'número pessoal do dono não verificado')
   }
   const token = inst.instance_token
 
