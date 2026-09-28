@@ -45,7 +45,10 @@ const DialogContent = React.forwardRef<
         // conteúdo mais largo (um select com opção comprida, um link) e o modal
         // passa da largura da tela no celular
         'fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-full max-w-lg translate-x-[-50%] translate-y-[-50%]',
-        'gap-4 p-4 sm:p-6 shadow-2xl rounded-2xl',
+        // Padding numa classe só (16px no celular → 24px no computador): assim um
+        // `p-0` passado pelo modal zera tudo. Com `p-4 sm:p-6`, o `p-0` só anulava
+        // o `p-4` e sobrava uma moldura de 24px com o fundo do modal aparecendo.
+        'gap-4 p-[clamp(1rem,2.5vw,1.5rem)] shadow-2xl rounded-2xl',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         'data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]',

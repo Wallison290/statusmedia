@@ -829,7 +829,7 @@ function PlannerItemView({
       <DialogContent
         ref={scrollRef}
         onOpenAutoFocus={e => { e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollTop = 0; if (bodyScrollRef.current) bodyScrollRef.current.scrollTop = 0 }}
-        className="w-[96vw] max-w-[96vw] lg:w-auto lg:max-w-[94vw] p-0 !bg-[#0d0f14] flex flex-col max-h-[90vh] overflow-y-auto lg:h-[90vh] lg:overflow-hidden"
+        className="w-[96vw] max-w-[96vw] lg:w-auto lg:max-w-[94vw] p-0 gap-0 [&>button.absolute]:hidden flex flex-col max-h-[90vh] overflow-y-auto lg:h-[90vh] lg:overflow-hidden"
       >
 
         {/* ── Layout dois painéis, cada um com altura 100% do modal ── */}

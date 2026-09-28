@@ -196,7 +196,7 @@ function PeriodPicker({ mode, range, customRange, onMode, onCustomRange }: Perio
             onClick={() => onMode(key)}
             className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
               mode === key
-                ? 'bg-[var(--sm-bg-card)] text-[var(--sm-text-1)] shadow-sm'
+                ? 'bg-[#2563EB] text-white shadow-sm'   /* azul fosco do app (index.css) */
                 : 'text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)]'
             }`}
           >
@@ -261,6 +261,7 @@ function PeriodPicker({ mode, range, customRange, onMode, onCustomRange }: Perio
 
 interface Kpi {
   label: string
+  short: string   // rótulo curto para o celular, onde os três dividem a linha
   value: number
   note:  string
   href:  string
@@ -268,37 +269,46 @@ interface Kpi {
   alert?: boolean
 }
 
-function KpiStrip({ items }: { items: Kpi[] }) {
+// Até o lg: o destaque ocupa a linha toda e os outros três dividem a linha de
+// baixo em 3 colunas — sem célula sobrando. No lg: os quatro lado a lado.
+function KpiStrip({ items, loading }: { items: Kpi[]; loading: boolean }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-px bg-[var(--sm-border)] rounded-2xl overflow-hidden border border-[var(--sm-border)]">
+    <div className={`grid grid-cols-3 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-px bg-[var(--sm-border)] rounded-2xl overflow-hidden border border-[var(--sm-border)] transition-opacity duration-300 ${loading ? 'opacity-50' : ''}`}>
       {items.map((k, i) => {
         const lead = i === 0
         return (
           <Link
             key={k.label}
             to={k.href}
-            className={`group relative flex flex-col justify-between gap-5 bg-[var(--sm-bg-card)] hover:bg-[var(--sm-bg-input)] transition-colors p-5 sm:p-6 min-h-[140px] ${lead ? 'col-span-2 lg:col-span-1 lg:min-h-[184px]' : ''}`}
+            className={`group relative flex flex-col justify-between bg-[var(--sm-bg-card)] hover:bg-[var(--sm-bg-input)] transition-colors ${
+              lead
+                ? 'col-span-3 lg:col-span-1 gap-5 p-5 sm:p-6 min-h-[140px] lg:min-h-[184px]'
+                : 'gap-4 px-3.5 py-4 sm:p-6 min-h-[112px] sm:min-h-[140px]'
+            }`}
           >
             {/* Barra de cor do status, como nos cartões do Planejamento */}
             <span
-              className="absolute left-0 top-6 bottom-6 w-[3px] rounded-r-full transition-all duration-300 group-hover:top-4 group-hover:bottom-4"
+              className={`absolute left-0 w-[3px] rounded-r-full transition-all duration-300 ${lead ? 'top-6 bottom-6 group-hover:top-4 group-hover:bottom-4' : 'top-4 bottom-4 sm:top-6 sm:bottom-6'}`}
               style={{ background: k.value > 0 ? k.color : 'var(--sm-border)' }}
             />
-            <div className="flex items-center gap-2">
-              <Eyebrow>{k.label}</Eyebrow>
-              <ArrowUpRight className="w-3.5 h-3.5 ml-auto text-[var(--sm-text-3)] opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-300" />
+            <div className="flex items-center gap-2 min-w-0">
+              <Eyebrow>
+                <span className={lead ? '' : 'hidden sm:inline'}>{k.label}</span>
+                {!lead && <span className="sm:hidden">{k.short}</span>}
+              </Eyebrow>
+              <ArrowUpRight className="hidden sm:block w-3.5 h-3.5 ml-auto text-[var(--sm-text-3)] opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-300" />
             </div>
             <div>
               <p
                 className="font-display font-bold tabular-nums leading-[0.85] tracking-[-0.045em]"
                 style={{
-                  fontSize: lead ? 'clamp(56px, 7vw, 92px)' : 'clamp(38px, 4vw, 50px)',
+                  fontSize: lead ? 'clamp(56px, 7vw, 92px)' : 'clamp(32px, 4vw, 50px)',
                   color: k.alert && k.value > 0 ? k.color : 'var(--sm-text-1)',
                 }}
               >
                 {k.value}
               </p>
-              <p className="text-[12px] text-[var(--sm-text-3)] mt-2.5 leading-snug">{k.note}</p>
+              <p className={`text-[12px] text-[var(--sm-text-3)] mt-2.5 leading-snug ${lead ? '' : 'hidden sm:block'}`}>{k.note}</p>
             </div>
           </Link>
         )
@@ -593,6 +603,11 @@ export function Dashboard() {
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [statsReady, setStatsReady]           = useState(false)
+  const [loading, setLoading]                 = useState(true)
+  // Cada busca ganha um número; só a mais recente pode gravar o resultado.
+  // Sem isso, trocar Dia → Ano → Mês rápido deixava a resposta lenta do "Ano"
+  // chegar por último e sobrescrever os números do período escolhido.
+  const fetchSeq = useRef(0)
   const [stats, setStats]                     = useState<Stats>({ total_clients: 0, active_clients: 0, pending_tasks: 0, overdue_tasks: 0, period_pending_approval: 0, period_approved: 0, period_scheduled: 0, period_published: 0, period_adjustments: 0, ig_scheduled: 0, ig_published: 0 })
   const [planCounts, setPlanCounts]           = useState(PLAN_KEYS.map(k => ({ ...k, n: 0 })))
   const [plannerCalItems, setPlannerCalItems] = useState<PlannerDay[]>([])
@@ -606,9 +621,9 @@ export function Dashboard() {
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   async function fetchStats({ start, end }: DateRange) {
+    const seq = ++fetchSeq.current
+    setLoading(true)
     const now       = new Date()
-    const startIso  = start.toISOString()
-    const endIso    = end.toISOString()
     const startDate = format(start, 'yyyy-MM-dd')
     const endDate   = format(end,   'yyyy-MM-dd')
 
@@ -640,6 +655,9 @@ export function Dashboard() {
         .eq('user_id', user!.id),
     ])
 
+    if (seq !== fetchSeq.current) return   // o período mudou enquanto buscava
+    setLoading(false)
+
     const clients  = clientsRes.data  || []
     const taskList = tasksRes.data    || []
 
@@ -660,10 +678,14 @@ export function Dashboard() {
     const period_adjustments      = pList.filter((p: any) => p.approval_status === 'ajuste_solicitado').length
 
     const igPosts    = igPostsRes.data || []
-    const ig_scheduled = igPosts.filter((p: any) => p.status === 'scheduled' || p.status === 'publishing').length
-    const ig_published = igPosts.filter((p: any) =>
-      p.status === 'published' && p.scheduled_at >= startIso && p.scheduled_at <= endIso
-    ).length
+    // Compara como data (não como texto): o banco devolve "+00:00" e o ISO local termina em "Z"
+    const inRange = (iso: string | null) => {
+      if (!iso) return false
+      const d = new Date(iso)
+      return d >= start && d <= end
+    }
+    const ig_scheduled = igPosts.filter((p: any) => (p.status === 'scheduled' || p.status === 'publishing') && inRange(p.scheduled_at)).length
+    const ig_published = igPosts.filter((p: any) => p.status === 'published' && inRange(p.scheduled_at)).length
 
     setStatsReady(true)
     setStats({
@@ -711,19 +733,19 @@ export function Dashboard() {
 
   const kpis: Kpi[] = [
     {
-      label: 'Aguardando aprovação', value: stats.period_pending_approval, href: '/planner', color: '#EAB308',
+      label: 'Aguardando aprovação', short: 'Aguardando', value: stats.period_pending_approval, href: '/planner', color: '#EAB308',
       note:  stats.period_pending_approval > 0 ? 'posts com o cliente, esperando resposta' : 'nada parado com o cliente',
     },
     {
-      label: 'Ajustes pedidos', value: stats.period_adjustments, href: '/planner', color: '#F97316', alert: true,
+      label: 'Ajustes pedidos', short: 'Ajustes', value: stats.period_adjustments, href: '/planner', color: '#F97316', alert: true,
       note:  stats.period_adjustments > 0 ? 'o cliente pediu correções' : 'nenhum ajuste pendente',
     },
     {
-      label: 'Fila do Instagram', value: stats.ig_scheduled, href: '/instagram', color: '#3B82F6',
-      note:  stats.ig_scheduled > 0 ? 'agendados para publicar' : 'nenhum na fila',
+      label: 'Fila do Instagram', short: 'Na fila', value: stats.ig_scheduled, href: '/instagram', color: '#3B82F6',
+      note:  stats.ig_scheduled > 0 ? 'agendados para o período' : 'nada agendado no período',
     },
     {
-      label: 'Publicados', value: stats.ig_published, href: '/instagram', color: '#22C55E',
+      label: 'Publicados', short: 'Publicados', value: stats.ig_published, href: '/instagram', color: '#22C55E',
       note:  stats.ig_published > 0 ? 'no Instagram, no período' : 'nada publicado ainda',
     },
   ]
@@ -752,7 +774,7 @@ export function Dashboard() {
 
           {/* ── 01 · O período ─────────────────────────────────────────────── */}
           <section className="mt-10 sm:mt-12">
-            <SectionHead n="01" title="O período">
+            <SectionHead n="01" title="O período" aside={<span className="capitalize">{rangeLabel(periodMode, range)}</span>}>
               <PeriodPicker
                 mode={periodMode}
                 range={range}
@@ -762,7 +784,7 @@ export function Dashboard() {
               />
             </SectionHead>
             <Reveal>
-              <KpiStrip items={kpis} />
+              <KpiStrip items={kpis} loading={loading} />
             </Reveal>
           </section>
 
