@@ -38,7 +38,7 @@ import { PortalFinanceiroTab } from './PortalFinanceiroTab'
 import { PortalNotesTab } from './PortalNotesTab'
 import { useNotifications } from '@/hooks/useNotifications'
 import type { ApprovalStatus, Client, Content, ClientMaterial, ClientSupportContact, MaterialType, ContactType, ContentAsset, BrandDNA } from '@/types'
-import { contentTypeLabels, formatDate, formatRelative } from '@/utils/formatters'
+import { contentTypeLabels, formatDate, formatRelative, statusLabels as clientStatusLabels } from '@/utils/formatters'
 import { calcFinancialStatus, getFinancialAuxText, hasPaidCurrentCycle } from '@/utils/financial'
 import { isImageUrl, isVideoUrl } from '@/utils/media'
 import type { PlannerItem, PlannerAttachment, PlannerStatus, ContentType } from '@/types'
@@ -1681,14 +1681,6 @@ function ClientDashboardTab({
               <ArrowRight className="w-3.5 h-3.5 text-[#92400E] mt-1 transition-transform group-hover:translate-x-0.5" />
             </button>
           )}
-          {client.main_objective && (
-            <div className="border-l-2 border-[#2563EB] pl-5 py-1">
-              <p className={portalEyebrow}>Objetivo da conta</p>
-              <p className="font-display text-[19px] leading-snug font-semibold tracking-[-0.02em] text-[#0F172A] mt-2 line-clamp-4">
-                {client.main_objective}
-              </p>
-            </div>
-          )}
         </motion.div>
       </div>
 
@@ -2720,54 +2712,117 @@ export function PortalDashboard() {
       pendingCount={pendingCount}
       onBellClick={() => setShowNotifications(true)}
     >
-      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 pt-8 sm:pt-14 pb-16">
+      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-16">
 
-        {/* ── Cabeçalho da empresa: nome em display, contatos numa linha ── */}
+        {/* ── Capa do cliente: faixa escura, logo sobreposta, dados principais ── */}
         <motion.header
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-end justify-between gap-6 sm:gap-10"
+          className="relative overflow-hidden rounded-[28px] border border-[#E4E7EC] bg-white"
         >
-          <div className="min-w-0">
-            <p className={portalEyebrow}>
-              Área do cliente
-              <span className="mx-2 text-[#C4CAD4]">/</span>
-              Cliente desde {formatDate(client.entry_date)}
-            </p>
-            <h1
-              className="font-display font-bold text-[#0F172A] mt-4 leading-[0.92] tracking-[-0.045em] break-words"
-              style={{ fontSize: 'clamp(40px, 7vw, 92px)' }}
-            >
-              {client.company_name}<span className="text-[#2563EB]">.</span>
-            </h1>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-5 text-[12.5px] text-[#5B6576]">
-              <span className="text-[#0F172A] font-medium">{client.responsible_name}</span>
-              {client.niche && <span>{client.niche}</span>}
-              {client.instagram && (
-                <span className="inline-flex items-center gap-1.5"><Instagram className="w-3.5 h-3.5 text-[#8A94A6]" />@{client.instagram.replace('@', '')}</span>
-              )}
-              {client.whatsapp && (
-                <span className="inline-flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-[#8A94A6]" />{client.whatsapp}</span>
-              )}
-              {client.email && (
-                <span className="hidden md:inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#8A94A6]" />{client.email}</span>
-              )}
-              {client.website && (
-                <span className="hidden md:inline-flex items-center gap-1.5"><Globe className="w-3.5 h-3.5 text-[#8A94A6]" />{client.website}</span>
-              )}
+          {/* Faixa da capa */}
+          <div className="relative h-[150px] sm:h-[190px] overflow-hidden" style={{ background: '#0F172A' }}>
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage:
+                  'linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)',
+                backgroundSize: '44px 44px',
+                WebkitMaskImage: 'radial-gradient(ellipse 65% 120% at 85% 20%, #000 0%, transparent 75%)',
+                maskImage: 'radial-gradient(ellipse 65% 120% at 85% 20%, #000 0%, transparent 75%)',
+              }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `radial-gradient(ellipse 45% 90% at 88% 0%, ${/^#[0-9a-f]{6}$/i.test(client.brand_color_primary ?? '') ? client.brand_color_primary : '#2563EB'}66 0%, transparent 70%), radial-gradient(ellipse 35% 80% at 10% 120%, rgba(37,99,235,0.25) 0%, transparent 70%)`,
+              }}
+            />
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(96,165,250,0.5) 45%, transparent)' }} />
+
+            <div className="relative h-full flex items-start justify-between gap-4 p-5 sm:p-7">
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: '#93A4C3' }}>
+                Área do cliente
+              </p>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[11.5px] font-semibold bg-white/10 backdrop-blur" style={{ color: '#ffffff' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: client.status === 'ativo' ? '#22C55E' : client.status === 'pausado' ? '#EAB308' : client.status === 'encerrado' ? '#EF4444' : '#60A5FA' }} />
+                  {clientStatusLabels[client.status] ?? client.status}
+                </span>
+                <span className="hidden sm:inline-flex items-center h-7 px-3 rounded-full text-[11.5px] bg-white/10 backdrop-blur" style={{ color: '#CBD5E1' }}>
+                  Cliente desde {formatDate(client.entry_date)}
+                </span>
+              </div>
             </div>
           </div>
-          {client.logo_url ? (
-            <img src={client.logo_url} alt={client.company_name}
-              className="hidden sm:block w-24 h-24 lg:w-28 lg:h-28 rounded-[28px] object-cover border border-[#E4E7EC] bg-white flex-shrink-0" />
-          ) : (
-            <div className="hidden sm:flex w-24 h-24 lg:w-28 lg:h-28 rounded-[28px] bg-[#0F172A] items-center justify-center flex-shrink-0">
-              <span className="font-display text-[44px] font-bold tracking-[-0.04em]" style={{ color: '#ffffff' }}>
-                {client.company_name[0].toUpperCase()}
-              </span>
+
+          {/* Identidade */}
+          <div className="relative px-5 sm:px-8 pb-6 sm:pb-8">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 md:gap-8">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 min-w-0">
+                {client.logo_url ? (
+                  <img src={client.logo_url} alt={client.company_name}
+                    className="-mt-12 sm:-mt-14 w-24 h-24 sm:w-28 sm:h-28 rounded-[26px] object-cover border-4 border-white bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)] flex-shrink-0" />
+                ) : (
+                  <div className="-mt-12 sm:-mt-14 w-24 h-24 sm:w-28 sm:h-28 rounded-[26px] border-4 border-white flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)]"
+                    style={{ background: '#0F172A' }}>
+                    <span className="font-display text-[44px] font-bold tracking-[-0.04em]" style={{ color: '#ffffff' }}>
+                      {client.company_name[0].toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div className="min-w-0 sm:pb-1">
+                  <h1
+                    className="font-display font-bold text-[#0F172A] leading-[0.95] tracking-[-0.04em] break-words"
+                    style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
+                  >
+                    {client.company_name}<span className="text-[#2563EB]">.</span>
+                  </h1>
+                  <p className="text-[13px] text-[#5B6576] mt-2.5">
+                    <span className="font-medium text-[#0F172A]">{client.responsible_name}</span>
+                    {client.niche && <><span className="mx-2 text-[#C4CAD4]">·</span>{client.niche}</>}
+                    <span className="sm:hidden"><span className="mx-2 text-[#C4CAD4]">·</span>desde {formatDate(client.entry_date)}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Contatos */}
+              {(client.instagram || client.whatsapp || client.email || client.website) && (
+                <div className="flex flex-wrap gap-2 md:justify-end md:max-w-[46%]">
+                  {[
+                    client.instagram && { icon: <Instagram className="w-3.5 h-3.5" />, label: `@${client.instagram.replace('@', '')}`, href: `https://instagram.com/${client.instagram.replace('@', '')}` },
+                    client.whatsapp && { icon: <Phone className="w-3.5 h-3.5" />, label: client.whatsapp, href: `https://wa.me/${client.whatsapp.replace(/\D/g, '').replace(/^(?!55)/, '55')}` },
+                    client.email && { icon: <Mail className="w-3.5 h-3.5" />, label: client.email, href: `mailto:${client.email}` },
+                    client.website && { icon: <Globe className="w-3.5 h-3.5" />, label: client.website.replace(/^https?:\/\//, ''), href: client.website.startsWith('http') ? client.website : `https://${client.website}` },
+                  ].filter(Boolean).map(c => {
+                    const it = c as { icon: React.ReactNode; label: string; href: string }
+                    return (
+                      <a key={it.href} href={it.href} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 h-9 max-w-full px-3.5 rounded-full border border-[#E4E7EC] text-[12.5px] text-[#334155] hover:border-[#0F172A] hover:text-[#0F172A] transition-colors">
+                        <span className="text-[#8A94A6]">{it.icon}</span>
+                        <span className="truncate">{it.label}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Dados principais do cliente */}
+            {infoFields.slice(0, 3).some(f => f.value) && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-[#EEF0F3] border-t border-[#EEF0F3] mt-7 -mx-5 sm:-mx-8 -mb-6 sm:-mb-8">
+                {infoFields.slice(0, 3).filter(f => f.value).map(f => (
+                  <div key={f.label} className="bg-white px-5 sm:px-8 py-5">
+                    <p className={portalEyebrow}>{f.label}</p>
+                    <p className="text-[13px] leading-relaxed text-[#0F172A] mt-2 line-clamp-3">{f.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </motion.header>
 
         {/* ── Abas numeradas, com fio azul embaixo da ativa ── */}
