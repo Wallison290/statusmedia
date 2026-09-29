@@ -10,6 +10,7 @@ import { usePlanningReport } from '@/hooks/usePlanningReport'
 import { IgInsights } from '@/components/reports/IgInsights'
 import { contentTypeLabels, statusLabels } from '@/utils/formatters'
 import type { ClientReport, ReportAttachment } from '@/types'
+import { PortalEmpty, PortalFilterChip, portalEyebrow } from '@/components/portal/PortalUI'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -51,13 +52,10 @@ function MetricCard({ icon, label, value, sub, accent }: {
   icon: React.ReactNode; label: string; value: string; sub?: string; accent: string
 }) {
   return (
-    <div className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${accent}`}>
-      <div className="opacity-60">{icon}</div>
-      <div>
-        <p className="text-[11px] text-[#737373]">{label}</p>
-        <p className="text-[20px] font-bold text-[#0f0f0f] leading-tight mt-0.5">{value}</p>
-        {sub && <p className="text-[10px] text-gray-600 mt-0.5">{sub}</p>}
-      </div>
+    <div className="bg-white p-5 sm:p-6 flex flex-col">
+      <p className="flex items-center gap-2 text-[12px] text-[#5B6576] [&>svg]:w-3.5 [&>svg]:h-3.5 [&>svg]:text-[#8A94A6]">{icon}{label}</p>
+      <p className="font-display font-bold text-[#0F172A] tabular-nums leading-none tracking-[-0.045em] mt-4" style={{ fontSize: 'clamp(30px, 3.6vw, 44px)' }}>{value}</p>
+      {sub && <p className="text-[11.5px] text-[#8A94A6] mt-2.5">{sub}</p>}
     </div>
   )
 }
@@ -72,9 +70,9 @@ function AttachmentItem({ att }: { att: ReportAttachment }) {
     <>
       <div
         onClick={() => isImg && setImgOpen(true)}
-        className={`group flex items-center gap-3 p-3 rounded-xl border border-[#e8e8e8] bg-white transition-all ${isImg ? 'cursor-pointer hover:bg-[#f5f5f5] hover:border-[#d0d0d0]' : ''}`}
+        className={`group flex items-center gap-3 p-3 rounded-2xl border border-[#E4E7EC] bg-white transition-all duration-300 ${isImg ? 'cursor-pointer hover:border-[#0F172A]/30' : ''}`}
       >
-        <div className="w-10 h-10 rounded-lg bg-[#f0f0f0] border border-[#e8e8e8] flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <div className="w-11 h-11 rounded-xl bg-[#F6F7F9] flex items-center justify-center flex-shrink-0 overflow-hidden">
           {isImg && att.file_url
             ? <img src={att.file_url} alt={att.title} className="w-full h-full object-cover" />
             : att.type === 'pdf' ? <FileText className="w-4 h-4 text-red-400" />
@@ -128,11 +126,11 @@ function PlanningBar({ label, count, total }: { label: string; count: number; to
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] text-gray-600 w-20 flex-shrink-0 truncate">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-[#f0f0f0] overflow-hidden">
-        <div className="h-full rounded-full bg-[#29457a]" style={{ width: `${pct}%` }} />
+      <span className="text-[12px] text-[#5B6576] w-24 flex-shrink-0 truncate">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-[#EEF0F3] overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#0F172A' }} />
       </div>
-      <span className="text-[11px] font-semibold text-[#0f0f0f] w-6 text-right flex-shrink-0">{count}</span>
+      <span className="text-[12px] font-semibold tabular-nums text-[#0F172A] w-6 text-right flex-shrink-0">{count}</span>
     </div>
   )
 }
@@ -142,21 +140,21 @@ function PlanningSection({ clientId, month, year }: { clientId: string; month: n
   if (!planning || planning.total === 0) return null
 
   return (
-    <section className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#e8e8e8] flex items-center gap-2">
+    <section className="rounded-[22px] border border-[#E4E7EC] bg-white overflow-hidden">
+      <div className="px-6 py-4 border-b border-[#EEF0F3] flex items-center gap-2">
         <Calendar className="w-3.5 h-3.5 text-gray-500" />
-        <p className="text-[13px] font-semibold text-[#0f0f0f]">Planejamento do mês</p>
+        <p className="text-[13px] font-semibold text-[#0F172A]">Planejamento do mês</p>
       </div>
       <div className="p-5 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <p className="text-[10px] text-gray-600 uppercase tracking-wide">Por status</p>
+            <p className="text-[10.5px] font-semibold text-[#8A94A6] uppercase tracking-[0.16em]">Por status</p>
             {Object.entries(planning.byStatus).map(([status, count]) => (
               <PlanningBar key={status} label={statusLabels[status] ?? status} count={count} total={planning.total} />
             ))}
           </div>
           <div className="space-y-2">
-            <p className="text-[10px] text-gray-600 uppercase tracking-wide">Por tipo de conteúdo</p>
+            <p className="text-[10.5px] font-semibold text-[#8A94A6] uppercase tracking-[0.16em]">Por tipo de conteúdo</p>
             {Object.entries(planning.byContentType).map(([type, count]) => (
               <PlanningBar key={type} label={contentTypeLabels[type] ?? type} count={count} total={planning.total} />
             ))}
@@ -165,12 +163,12 @@ function PlanningSection({ clientId, month, year }: { clientId: string; month: n
 
         {planning.published.length > 0 && (
           <div>
-            <p className="text-[10px] text-gray-600 uppercase tracking-wide mb-2">Publicados no mês</p>
+            <p className="text-[10.5px] font-semibold text-[#8A94A6] uppercase tracking-[0.16em] mb-2">Publicados no mês</p>
             <div className="space-y-1">
               {planning.published.map(item => (
-                <div key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7f7f7]">
-                  <span className="text-[12px] text-[#0f0f0f] truncate">{item.title}</span>
-                  <span className="text-[10px] text-gray-600 flex-shrink-0">{contentTypeLabels[item.content_type] ?? item.content_type}</span>
+                <div key={item.id} className="flex items-center justify-between gap-2 py-2.5 border-b border-[#EEF0F3] last:border-b-0">
+                  <span className="text-[13px] text-[#0F172A] truncate">{item.title}</span>
+                  <span className="text-[11px] text-[#8A94A6] flex-shrink-0">{contentTypeLabels[item.content_type] ?? item.content_type}</span>
                 </div>
               ))}
             </div>
@@ -190,7 +188,7 @@ function ReportView({ report }: { report: ClientReport }) {
     <div className="space-y-6">
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-[#E4E7EC] border border-[#E4E7EC] rounded-[22px] overflow-hidden">
         <MetricCard icon={<Users className="w-4 h-4 text-green-400" />}
           label="Crescimento de seguidores" value={followerDiff(report)}
           sub={report.followers_end != null ? `${fmt(report.followers_end)} total` : undefined}
@@ -207,12 +205,12 @@ function ReportView({ report }: { report: ClientReport }) {
       </div>
 
       {/* Social metrics */}
-      <section className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#e8e8e8] flex items-center gap-2">
+      <section className="rounded-[22px] border border-[#E4E7EC] bg-white overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#EEF0F3] flex items-center gap-2">
           <TrendingUp className="w-3.5 h-3.5 text-gray-500" />
-          <p className="text-[13px] font-semibold text-[#0f0f0f]">Redes sociais</p>
+          <p className="text-[13px] font-semibold text-[#0F172A]">Redes sociais</p>
         </div>
-        <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-5">
+        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-7">
           {([
             ['Seguidores (início)', fmt(report.followers_start)],
             ['Seguidores (fim)', fmt(report.followers_end)],
@@ -222,8 +220,8 @@ function ReportView({ report }: { report: ClientReport }) {
             ['Posts publicados', fmt(report.posts_published)],
           ] as [string, string][]).map(([label, value]) => (
             <div key={label}>
-              <p className="text-[10px] text-gray-600 uppercase tracking-wide mb-1">{label}</p>
-              <p className="text-[15px] font-semibold text-[#0f0f0f]">{value}</p>
+              <p className="text-[10.5px] font-semibold text-[#8A94A6] uppercase tracking-[0.16em] mb-2">{label}</p>
+              <p className="font-display text-[24px] font-bold tabular-nums tracking-[-0.03em] text-[#0F172A]">{value}</p>
             </div>
           ))}
         </div>
@@ -237,12 +235,12 @@ function ReportView({ report }: { report: ClientReport }) {
 
       {/* Paid traffic — only if has data */}
       {hasPaid(report) && (
-        <section className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#e8e8e8] flex items-center gap-2">
+        <section className="rounded-[22px] border border-[#E4E7EC] bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#EEF0F3] flex items-center gap-2">
             <DollarSign className="w-3.5 h-3.5 text-gray-500" />
-            <p className="text-[13px] font-semibold text-[#0f0f0f]">Tráfego pago</p>
+            <p className="text-[13px] font-semibold text-[#0F172A]">Tráfego pago</p>
           </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-5">
+          <div className="p-6 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-7">
             {([
               ['Investimento', fmtBRL(report.paid_investment)],
               ['Leads', fmt(report.paid_leads)],
@@ -251,8 +249,8 @@ function ReportView({ report }: { report: ClientReport }) {
               ['ROAS', report.paid_roas != null ? `${report.paid_roas}x` : '—'],
             ] as [string, string][]).map(([label, value]) => (
               <div key={label}>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wide mb-1">{label}</p>
-                <p className="text-[15px] font-semibold text-[#0f0f0f]">{value}</p>
+                <p className="text-[10.5px] font-semibold text-[#8A94A6] uppercase tracking-[0.16em] mb-2">{label}</p>
+                <p className="font-display text-[24px] font-bold tabular-nums tracking-[-0.03em] text-[#0F172A]">{value}</p>
               </div>
             ))}
           </div>
@@ -261,23 +259,22 @@ function ReportView({ report }: { report: ClientReport }) {
 
       {/* Analysis */}
       {report.analysis_text && (
-        <section className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] overflow-hidden">
-          <div className="px-5 py-4 border-b border-indigo-500/[0.12] flex items-center gap-2">
-            <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-            <p className="text-[13px] font-semibold text-[#0f0f0f]">Análise do mês</p>
-          </div>
-          <div className="p-5">
-            <p className="text-[13px] text-[#737373] leading-relaxed whitespace-pre-wrap">{report.analysis_text}</p>
-          </div>
+        <section className="rounded-[22px] border border-[#E4E7EC] bg-white p-6 sm:p-9">
+          <p className={`${portalEyebrow} flex items-center gap-2`}>
+            <BookOpen className="w-3.5 h-3.5 text-[#2563EB]" /> Leitura da agência
+          </p>
+          <p className="mt-5 pl-5 border-l-2 border-[#2563EB] font-display text-[18px] sm:text-[21px] leading-[1.45] tracking-[-0.015em] text-[#0F172A] whitespace-pre-wrap">
+            {report.analysis_text}
+          </p>
         </section>
       )}
 
       {/* Attachments */}
       {atts.length > 0 && (
-        <section className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e8e8e8]">
+        <section className="rounded-[22px] border border-[#E4E7EC] bg-white overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-[#EEF0F3]">
             <ImageIcon className="w-3.5 h-3.5 text-gray-500" />
-            <p className="text-[13px] font-semibold text-[#0f0f0f]">Anexos</p>
+            <p className="text-[13px] font-semibold text-[#0F172A]">Anexos</p>
             <span className="text-[11px] text-gray-600">{atts.length}</span>
           </div>
           <div className="p-5 space-y-2">
@@ -303,20 +300,12 @@ export function PortalResultadosTab() {
     : typedReports[0] ?? null
 
   if (isLoading) {
-    return <div className="py-12 text-center text-[12px] text-gray-600">Carregando resultados...</div>
+    return <div className="py-12 text-center text-[12.5px] text-[#8A94A6]">Carregando resultados...</div>
   }
 
   if (typedReports.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-12 h-12 rounded-xl border border-[#e8e8e8] bg-[#f0f0f0] flex items-center justify-center mb-4">
-          <BarChart3 className="w-5 h-5 text-gray-600" />
-        </div>
-        <p className="text-[14px] font-medium text-[#737373]">Nenhum relatório disponível</p>
-        <p className="text-[12px] text-gray-600 mt-1 max-w-xs">
-          Quando a agência publicar os resultados do mês, eles aparecerão aqui.
-        </p>
-      </div>
+      <PortalEmpty title="Nenhum relatório ainda" text="Quando a agência publicar os resultados do mês, eles aparecem aqui." />
     )
   }
 
@@ -324,33 +313,30 @@ export function PortalResultadosTab() {
     <div className="space-y-5">
 
       {/* Month selector */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {typedReports.map(r => (
-          <button
+          <PortalFilterChip
             key={r.id}
+            active={r.id === selected?.id}
+            label={monthLabel(r.month, r.year)}
             onClick={() => setSelectedId(r.id)}
-            className={`flex-shrink-0 px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all ${
-              r.id === (selected?.id)
-                ? 'bg-[#0f0f0f] text-white border border-[#0f0f0f]'
-                : 'text-[#737373] hover:text-[#0f0f0f] hover:bg-[#f0f0f0] border border-transparent'
-            }`}
-          >
-            {monthLabel(r.month, r.year)}
-          </button>
+          />
         ))}
       </div>
 
       {selected && (
         <>
-          <div className="mb-2">
-            <h3 className="text-[15px] font-semibold text-[#0f0f0f]">{monthLabel(selected.month, selected.year)}</h3>
+          <div className="pt-4 pb-1">
+            <h3 className="font-display font-bold text-[#0F172A] leading-none tracking-[-0.035em]" style={{ fontSize: 'clamp(26px, 3.2vw, 38px)' }}>
+              {MONTHS[selected.month - 1]} <span className="text-[#A0A8B5] font-semibold">{selected.year}</span>
+            </h3>
             {selected.ig_synced_at ? (
-              <p className="text-[11px] text-[#16a34a] mt-0.5 flex items-center gap-1">
+              <p className="text-[12px] text-[#15803D] mt-2.5 flex items-center gap-1.5">
                 <Instagram className="w-3 h-3" />
                 Sincronizado com o Instagram em {new Date(selected.ig_synced_at).toLocaleDateString('pt-BR')}
               </p>
             ) : (
-              <p className="text-[11px] text-gray-600 mt-0.5">Relatório de performance</p>
+              <p className="text-[12px] text-[#8A94A6] mt-2.5">Relatório de performance</p>
             )}
           </div>
           <ReportView key={selected.id} report={selected} />

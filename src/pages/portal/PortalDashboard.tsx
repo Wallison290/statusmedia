@@ -17,6 +17,7 @@ import {
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { PortalLayout } from '@/components/layout/PortalLayout'
+import { PortalSectionHead, PortalEmpty, PortalFilterChip, PortalBlockTitle, portalPanel, portalEyebrow } from '@/components/portal/PortalUI'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -1187,6 +1188,12 @@ const PORTAL_FILTER_OPTIONS: { key: PortalApprovalFilter; label: string; dot: st
   { key: 'reprovado',           label: 'Reprovado',         dot: 'bg-red-500',    activeBg: 'bg-red-50',      activeBorder: 'border-red-500',    activeText: 'text-red-700' },
 ]
 
+// Mesmas cores de status do Planejamento da agência (utils/planStatus)
+const PORTAL_FILTER_DOT: Record<PortalApprovalFilter, string> = {
+  todos: '#0F172A', pendente_aprovacao: '#EAB308', aprovado: '#22C55E',
+  ajuste_solicitado: '#F97316', ajuste_realizado: '#3B82F6', reprovado: '#EF4444',
+}
+
 function PortalPlannerView({
   items,
   autoOpenItemId,
@@ -1277,57 +1284,51 @@ function PortalPlannerView({
   return (
     <div>
       {/* ── Filtros de aprovação ── */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-8">
         {PORTAL_FILTER_OPTIONS.map(opt => {
           const count = countByStatus[opt.key]
           if (opt.key !== 'todos' && count === 0) return null
-          const isActive = approvalFilter === opt.key
           return (
-            <button
+            <PortalFilterChip
               key={opt.key}
+              active={approvalFilter === opt.key}
+              label={opt.label}
+              count={count}
+              dot={PORTAL_FILTER_DOT[opt.key]}
               onClick={() => setApprovalFilter(opt.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all
-                ${isActive
-                  ? `${opt.activeBg} ${opt.activeBorder} ${opt.activeText} shadow-sm`
-                  : 'bg-white border-[#e8e8e8] text-[#737373] hover:border-[#c0c0c0] hover:bg-[#f7f7f7]'
-                }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
-              {opt.label}
-              {count > 0 && (
-                <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold
-                  ${isActive ? 'bg-white/70' : 'bg-[#f0f0f0]'}`}>
-                  {count}
-                </span>
-              )}
-            </button>
+            />
           )
         })}
       </div>
 
-      {/* Nav */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-[#0f0f0f] capitalize">
-          {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
+      {/* ── Mês em display + navegação ── */}
+      <div className="flex items-end justify-between gap-4 mb-5">
+        <h3 className="font-display font-bold text-[#0F172A] capitalize leading-none tracking-[-0.035em]" style={{ fontSize: 'clamp(26px, 3.2vw, 38px)' }}>
+          {format(currentMonth, 'MMMM', { locale: ptBR })}{' '}
+          <span className="text-[#A0A8B5] font-semibold">{format(currentMonth, 'yyyy')}</span>
         </h3>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+        <div className="flex items-center gap-1 p-1 rounded-full border border-[#E4E7EC] bg-white">
+          <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} title="Mês anterior"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#5B6576] hover:bg-[#F6F7F9] hover:text-[#0F172A] transition-colors">
             <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentMonth(new Date())}>Hoje</Button>
-          <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+          </button>
+          <button onClick={() => setCurrentMonth(new Date())}
+            className="h-8 px-3.5 rounded-full text-[12px] font-semibold text-[#0F172A] hover:bg-[#F6F7F9] transition-colors">
+            Hoje
+          </button>
+          <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} title="Próximo mês"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#5B6576] hover:bg-[#F6F7F9] hover:text-[#0F172A] transition-colors">
             <ChevronRight className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
       </div>
 
-      {/* Calendar */}
-      <Card>
-        <CardContent className="p-2 sm:p-4">
+      {/* ── Calendário ── */}
+      <div className={`${portalPanel} p-2 sm:p-4`}>
           <div className="w-full max-w-full min-w-0">
-          <div className="grid grid-cols-7 mb-1 sm:mb-2">
+          <div className="grid grid-cols-7 mb-1 sm:mb-2 border-b border-[#EEF0F3]">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-              <div key={d} className="text-center text-[9px] sm:text-xs font-medium text-gray-500 py-1 sm:py-2 truncate">{d}</div>
+              <div key={d} className="text-center text-[9px] sm:text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#8A94A6] py-2 sm:py-3 truncate">{d}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
@@ -1342,14 +1343,15 @@ function PortalPlannerView({
                   onMouseEnter={!isMobile ? e => inMonth && handleMouseEnter(e, di) : undefined}
                   onMouseLeave={!isMobile ? () => setHover(null) : undefined}
                   className={`
-                    min-h-[52px] sm:min-h-[90px] p-0.5 sm:p-1.5 rounded sm:rounded-lg border transition-all
-                    ${inMonth ? 'border-[#e8e8e8]' : 'border-transparent opacity-30 cursor-default'}
-                    ${inMonth && di.length > 0 ? 'hover:border-[#d0d0d0] hover:bg-[#f5f5f5] cursor-pointer' : ''}
-                    ${today ? 'border-blue-500/40 bg-blue-500/5' : ''}
+                    min-h-[52px] sm:min-h-[96px] p-0.5 sm:p-2 rounded-md sm:rounded-xl border transition-all duration-300
+                    ${inMonth ? 'border-[#EEF0F3] bg-white' : 'border-transparent opacity-30 cursor-default'}
+                    ${inMonth && di.length > 0 ? 'hover:border-[#0F172A]/30 hover:bg-[#FAFBFC] cursor-pointer' : ''}
+                    ${today ? '!border-[#2563EB]/50 !bg-[#EFF4FF]' : ''}
                   `}
                 >
-                  <div className={`text-[10px] sm:text-xs font-medium mb-0.5 sm:mb-1 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full
-                    ${today ? 'bg-blue-600 text-white' : inMonth ? 'text-[#737373]' : 'text-gray-400'}`}>
+                  <div className={`text-[10px] sm:text-[12px] font-semibold tabular-nums mb-0.5 sm:mb-1.5 w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center rounded-full
+                    ${today ? 'text-white' : inMonth ? 'text-[#0F172A]' : 'text-gray-400'}`}
+                    style={today ? { background: '#2563EB', color: '#ffffff' } : undefined}>
                     {format(day, 'd')}
                   </div>
                   <div className="space-y-0.5">
@@ -1382,13 +1384,12 @@ function PortalPlannerView({
             })}
           </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Legend */}
-      <div className="flex gap-3 mt-4 flex-wrap">
+      <div className="flex gap-x-5 gap-y-2 mt-5 flex-wrap">
         {(Object.entries(statusColors) as [PlannerStatus, string][]).map(([s, c]) => (
-          <div key={s} className="flex items-center gap-1.5 text-xs text-[#737373]">
+          <div key={s} className="flex items-center gap-1.5 text-[12px] text-[#5B6576]">
             <div className={`w-2 h-2 rounded-full ${c}`} />
             {statusLabels[s]}
           </div>
@@ -1615,393 +1616,342 @@ function ClientDashboardTab({
       : `${thisMonthItems.length} ${thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados'} para este mês.`
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Alertas de atenção ── */}
-      {showFinancialAlert && (
+    <div>
+      {/* ── 01 Abertura: saudação e manchete do momento ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.6fr] gap-8 lg:gap-14 items-end pb-9 sm:pb-12 border-b border-[#E4E7EC]">
         <motion.div
-          initial={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18 }}
-          className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50"
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-amber-700">Vence em breve</p>
-            <p className="text-[12px] text-amber-800 mt-0.5 leading-snug">
-              {financialAux === 'Vence hoje'
-                ? 'Seu pagamento vence hoje.'
-                : `${financialAux}. Fique atento ao pagamento.`}
-            </p>
-          </div>
-          <button
-            onClick={() => onNavigate('financeiro')}
-            className="flex-shrink-0 flex items-center gap-1 text-[11px] font-medium text-amber-700 hover:text-amber-600 transition-colors whitespace-nowrap"
+          <p className={portalEyebrow}>
+            <span className="text-[#2563EB] tabular-nums">01</span>
+            <span className="mx-2 text-[#C4CAD4]">/</span>
+            Olá, {firstName}
+          </p>
+          <h2
+            className="font-display font-bold text-[#0F172A] mt-4 leading-[1.0] tracking-[-0.035em] max-w-[18ch]"
+            style={{ fontSize: 'clamp(30px, 4.6vw, 56px)' }}
           >
-            Ver <ArrowRight className="w-3 h-3" />
-          </button>
-        </motion.div>
-      )}
-
-      {/* ── Hero header ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22 }}
-        className={`rounded-2xl p-6 border ${
-          pendingItems.length > 0
-            ? 'border-amber-200 bg-gradient-to-br from-amber-50 via-amber-50/40 to-transparent'
-            : 'border-[#e8e8e8] bg-gradient-to-br from-[#f7f7f7] via-white to-transparent'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-gray-600 uppercase tracking-[0.12em] mb-2">
-              Olá, {firstName}
-            </p>
-            <h2 className="text-[18px] sm:text-[20px] font-semibold text-[#0f0f0f] leading-snug">
-              {headline}
-            </h2>
-            <p className="text-[13px] text-gray-500 mt-1.5 leading-relaxed">{subline}</p>
-          </div>
+            {pendingItems.length > 0 ? (
+              <>
+                Você tem{' '}
+                <span className="text-[#2563EB]">
+                  {pendingItems.length} {pendingItems.length === 1 ? 'conteúdo' : 'conteúdos'}
+                </span>{' '}
+                esperando a sua aprovação.
+              </>
+            ) : (
+              headline + '.'
+            )}
+          </h2>
+          <p className="text-[14px] leading-relaxed text-[#5B6576] mt-4 max-w-[52ch]">{subline}</p>
           {pendingItems.length > 0 && (
             <button
               onClick={() => { setSelectedItem(pendingItems[0]); setItemOpen(true) }}
-              className="hidden sm:flex items-center gap-2 flex-shrink-0 px-4 py-2.5 rounded-xl bg-[#f97316] border border-[#ea580c] text-white text-[12px] font-semibold hover:bg-[#ea580c] transition-all"
+              className="group mt-7 inline-flex items-center gap-3 h-12 pl-6 pr-2 rounded-full text-[13px] font-semibold transition-all duration-300 hover:gap-4"
+              style={{ background: '#0F172A', color: '#ffffff' }}
             >
-              Revisar agora <ArrowRight className="w-3.5 h-3.5" />
+              Revisar agora
+              <span className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
+                <ArrowRight className="w-3.5 h-3.5" />
+              </span>
             </button>
           )}
-        </div>
-        {pendingItems.length > 0 && (
-          <button
-            onClick={() => { setSelectedItem(pendingItems[0]); setItemOpen(true) }}
-            className="sm:hidden mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#f97316] border border-[#ea580c] text-white text-[12px] font-semibold hover:bg-[#ea580c] transition-all"
-          >
-            Revisar agora <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </motion.div>
+        </motion.div>
 
-      {/* ── Status cards ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22, delay: 0.06 }}
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
-      >
-        <StatusCard
-          icon={<Clock className="w-4 h-4" />}
-          label={pendingItems.length > 0 ? 'Aguardando sua aprovação' : 'Nada pendente'}
-          value={pendingItems.length > 0
-            ? `${pendingItems.length} ${pendingItems.length === 1 ? 'conteúdo' : 'conteúdos'}`
-            : 'Tudo revisado'}
-          color={pendingItems.length > 0 ? 'amber' : 'green'}
-          onClick={pendingItems.length > 0 ? () => onNavigate('planejamento') : undefined}
-        />
-        <StatusCard
-          icon={<CheckCircle2 className="w-4 h-4" />}
-          label="Aprovados este mês"
-          value={approvedThisMonth.length > 0
-            ? `${approvedThisMonth.length} ${approvedThisMonth.length === 1 ? 'aprovado' : 'aprovados'}`
-            : 'Aguardando revisões'}
-          color={approvedThisMonth.length > 0 ? 'green' : 'default'}
-        />
-        <StatusCard
-          icon={<CalendarDays className="w-4 h-4" />}
-          label="Planejamento ativo"
-          value={thisMonthItems.length > 0
-            ? `${thisMonthItems.length} ${thisMonthItems.length === 1 ? 'conteúdo' : 'conteúdos'} no mês`
-            : 'Sem conteúdos no mês'}
-          color={thisMonthItems.length > 0 ? 'blue' : 'default'}
-          onClick={() => onNavigate('planejamento')}
-        />
-        <StatusCard
-          icon={<Sparkles className="w-4 h-4" />}
-          label={publishedItems.length > 0 ? 'Publicados' : 'Nenhum publicado'}
-          value={publishedItems.length > 0
-            ? `${publishedItems.length} ${publishedItems.length === 1 ? 'publicado' : 'publicados'}`
-            : 'Em breve online'}
-          color={publishedItems.length > 0 ? 'purple' : 'default'}
-        />
-      </motion.div>
-
-      {/* ── Main grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
-
-        {/* ── Left column ── */}
-        <div className="space-y-5">
-
-          {/* Pendentes de aprovação */}
-          {pendingItems.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: 0.1 }}
-              className="rounded-2xl border border-orange-200 bg-orange-50 overflow-hidden"
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-3"
+        >
+          {showFinancialAlert && (
+            <button
+              onClick={() => onNavigate('financeiro')}
+              className="group w-full text-left rounded-[18px] border border-[#F2D98A] bg-[#FFFBEB] px-5 py-4 flex items-start gap-3 transition-colors hover:border-[#EAB308]"
             >
-              <div className="flex items-center gap-2.5 px-5 py-4 border-b border-orange-200">
-                <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse flex-shrink-0" />
-                <p className="text-[13px] font-semibold text-orange-800">
-                  {pendingItems.length === 1
-                    ? '1 conteúdo precisa da sua aprovação'
-                    : `${pendingItems.length} conteúdos precisam da sua aprovação`}
-                </p>
-              </div>
-              <div className="divide-y divide-orange-100">
+              <span className="w-2 h-2 rounded-full bg-[#EAB308] mt-1.5 flex-shrink-0" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-[12.5px] font-semibold text-[#854D0E]">Vence em breve</span>
+                <span className="block text-[12.5px] text-[#92400E] mt-0.5 leading-snug">
+                  {financialAux === 'Vence hoje' ? 'Seu pagamento vence hoje.' : `${financialAux}. Fique atento ao pagamento.`}
+                </span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#92400E] mt-1 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          )}
+          {client.main_objective && (
+            <div className="border-l-2 border-[#2563EB] pl-5 py-1">
+              <p className={portalEyebrow}>Objetivo da conta</p>
+              <p className="font-display text-[19px] leading-snug font-semibold tracking-[-0.02em] text-[#0F172A] mt-2 line-clamp-4">
+                {client.main_objective}
+              </p>
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* ── Números do mês: uma faixa, fios de 1px ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[#E4E7EC] border-b border-[#E4E7EC]"
+      >
+        {[
+          { label: 'Aguardando você', value: pendingItems.length, note: pendingItems.length > 0 ? 'Toque para revisar' : 'Tudo revisado', dot: '#EAB308', go: pendingItems.length > 0 ? 'planejamento' : undefined, hot: pendingItems.length > 0 },
+          { label: 'Aprovados no mês', value: approvedThisMonth.length, note: 'Prontos para publicar', dot: '#22C55E' },
+          { label: 'Programados no mês', value: thisMonthItems.length, note: 'Ver o calendário', dot: '#2563EB', go: 'planejamento' },
+          { label: 'Já publicados', value: publishedItems.length, note: 'No ar no seu perfil', dot: '#0F172A' },
+        ].map(s => {
+          const Tag = s.go ? 'button' : 'div'
+          return (
+            <Tag
+              key={s.label}
+              onClick={s.go ? () => onNavigate(s.go!) : undefined}
+              className={`group text-left bg-[#F6F7F9] py-7 sm:py-9 px-4 sm:px-6 transition-colors ${s.go ? 'cursor-pointer hover:bg-white' : ''}`}
+            >
+              <p className="flex items-center gap-2 text-[11.5px] font-medium text-[#5B6576]">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+                {s.label}
+              </p>
+              <p
+                className={`font-display font-bold tabular-nums leading-none tracking-[-0.05em] mt-4 ${s.hot ? 'text-[#2563EB]' : 'text-[#0F172A]'}`}
+                style={{ fontSize: 'clamp(40px, 5vw, 64px)' }}
+              >
+                {s.value}
+              </p>
+              <p className={`text-[11.5px] mt-3 text-[#8A94A6] inline-flex items-center gap-1 ${s.go ? 'group-hover:text-[#0F172A] transition-colors' : ''}`}>
+                {s.note}
+                {s.go && <ArrowRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />}
+              </p>
+            </Tag>
+          )
+        })}
+      </motion.div>
+
+      {/* ── Corpo: aprovação e andamento à esquerda, agenda à direita ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 mt-9 sm:mt-12">
+        <div className="space-y-5 min-w-0">
+
+          {/* Precisam da sua aprovação */}
+          {pendingItems.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className={`${portalPanel} overflow-hidden`}
+            >
+              <PortalBlockTitle
+                label="Precisam da sua aprovação"
+                count={pendingItems.length}
+                right={<span className="w-2 h-2 rounded-full bg-[#EAB308] animate-pulse" />}
+              />
+              <div className="divide-y divide-[#EEF0F3]">
                 {pendingItems.map(item => {
                   const thumb = item.attachments?.find(a => a.file_type.startsWith('image/'))
                   return (
                     <button
                       key={item.id}
                       onClick={() => { setSelectedItem(item); setItemOpen(true) }}
-                      className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-orange-100 transition-colors text-left group"
+                      className="group relative w-full flex items-center gap-4 px-5 sm:px-6 py-4 text-left transition-colors hover:bg-[#FAFBFC]"
                     >
+                      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-[#EAB308]" />
                       {thumb ? (
-                        <img src={thumb.file_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-orange-200 flex-shrink-0" />
+                        <img src={thumb.file_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#E4E7EC] flex-shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-white border border-orange-200 flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-xl bg-[#F6F7F9] border border-[#E4E7EC] flex items-center justify-center flex-shrink-0">
                           <div className={`w-2 h-2 rounded-full ${statusColors[item.status as PlannerStatus]}`} />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-[#0f0f0f] truncate">{item.title}</p>
-                        <p className="text-[11px] text-[#64748b] mt-0.5">
+                        <p className="text-[14px] font-semibold text-[#0F172A] truncate">{item.title}</p>
+                        <p className="text-[12px] text-[#8A94A6] mt-0.5">
                           {format(parseISO(item.scheduled_date), "dd 'de' MMMM", { locale: ptBR })}
-                          <span className="mx-1.5 text-orange-300">·</span>
+                          <span className="mx-1.5 text-[#C4CAD4]">·</span>
                           {contentTypeLabels[item.content_type as ContentType]}
                         </p>
                       </div>
-                      <span className="text-[11px] text-orange-700 font-semibold px-2.5 py-1 rounded-lg bg-white border border-orange-200 flex-shrink-0 group-hover:bg-orange-200 transition-colors">
-                        Revisar
+                      <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#0F172A]">
+                        <span className="hidden sm:inline">Revisar</span>
+                        <span className="w-8 h-8 rounded-full border border-[#E4E7EC] flex items-center justify-center transition-all duration-300 group-hover:bg-[#0F172A] group-hover:border-[#0F172A] group-hover:text-white group-hover:-rotate-45">
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </span>
                       </span>
                     </button>
                   )
                 })}
               </div>
-            </motion.div>
+            </motion.section>
           )}
 
-          {/* Em andamento */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
+          {/* O que a agência está fazendo */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: 0.14 }}
-            className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden"
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className={`${portalPanel} overflow-hidden`}
           >
-            <div className="flex items-center gap-2.5 px-5 py-4 border-b border-[#e8e8e8]">
-              <div className="flex gap-0.5 items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse [animation-delay:300ms]" />
-              </div>
-              <p className="text-[13px] font-semibold text-[#0f0f0f]">Em andamento</p>
-            </div>
-            <div className="p-5 space-y-3.5">
-              {plannerItems.length === 0 ? (
-                <p className="text-[12px] text-gray-600 py-1">
-                  A agência está preparando a estratégia inicial para você.
-                </p>
-              ) : (
-                <>
-                  {inIdeaCount > 0 && (
-                    <AgencyWorkItem
-                      icon={<Sparkles className="w-3.5 h-3.5 text-purple-400" />}
-                      label="Ideias em desenvolvimento"
-                      detail={`${inIdeaCount} ${inIdeaCount === 1 ? 'conteúdo' : 'conteúdos'} na fase criativa`}
-                    />
-                  )}
-                  {inProductionCount > 0 && (
-                    <AgencyWorkItem
-                      icon={<CalendarDays className="w-3.5 h-3.5 text-blue-400" />}
-                      label="Conteúdos em produção"
-                      detail={`${inProductionCount} ${inProductionCount === 1 ? 'item sendo criado' : 'itens sendo criados'}`}
-                    />
-                  )}
-                  <AgencyWorkItem
-                    icon={<LayoutDashboard className="w-3.5 h-3.5 text-green-400" />}
-                    label="Planejamento do mês ativo"
-                    detail={`${thisMonthItems.length} ${thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados'}`}
-                  />
-                  {contents.length > 0 && (
-                    <AgencyWorkItem
-                      icon={<MessageSquare className="w-3.5 h-3.5 text-indigo-400" />}
-                      label="Estratégia de conteúdo"
-                      detail={`${contents.length} ${contents.length === 1 ? 'conteúdo gerado' : 'conteúdos gerados'}`}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Atividade recente */}
-          {recentActivity.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: 0.18 }}
-              className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden"
-            >
-              <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e8e8e8]">
-                <Bell className="w-3.5 h-3.5 text-gray-500" />
-                <p className="text-[13px] font-semibold text-[#0f0f0f]">Atividade recente</p>
-              </div>
-              <div className="px-5 py-4 space-y-4">
-                {recentActivity.map(item => {
-                  const status = (item.approval_status || 'pendente_aprovacao') as ApprovalStatus
+            <PortalBlockTitle
+              label="Em andamento na agência"
+              right={
+                <span className="flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse [animation-delay:300ms]" />
+                </span>
+              }
+            />
+            {plannerItems.length === 0 ? (
+              <p className="px-6 py-5 text-[13px] text-[#5B6576]">A agência está preparando a estratégia inicial para você.</p>
+            ) : (
+              <div className="grid sm:grid-cols-2">
+                {[
+                  inIdeaCount > 0 && { n: inIdeaCount, label: 'Ideias em desenvolvimento', detail: inIdeaCount === 1 ? 'conteúdo na fase criativa' : 'conteúdos na fase criativa', icon: <Sparkles className="w-4 h-4" /> },
+                  inProductionCount > 0 && { n: inProductionCount, label: 'Em produção', detail: inProductionCount === 1 ? 'item sendo criado' : 'itens sendo criados', icon: <CalendarDays className="w-4 h-4" /> },
+                  { n: thisMonthItems.length, label: 'Planejamento do mês', detail: thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados', icon: <LayoutDashboard className="w-4 h-4" /> },
+                  contents.length > 0 && { n: contents.length, label: 'Estratégia de conteúdo', detail: contents.length === 1 ? 'conteúdo gerado' : 'conteúdos gerados', icon: <MessageSquare className="w-4 h-4" /> },
+                ].filter(Boolean).map((w, i) => {
+                  const it = w as { n: number; label: string; detail: string; icon: React.ReactNode }
                   return (
-                    <div key={item.id} className="flex items-start gap-3">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${status === 'aprovado' ? 'bg-green-50' : status === 'reprovado' ? 'bg-red-50' : 'bg-orange-50'}`}
-                      >
-                        <span className={`${approvalText[status]} [&>svg]:w-3 [&>svg]:h-3`}>
-                          {approvalIcons[status]}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-[#737373] leading-relaxed">
-                          {humanizeActivity(status, item)}
-                        </p>
-                        <p className="text-[11px] text-[#374151] truncate mt-0.5">{item.title}</p>
-                        {item.reviewed_at && (
-                          <p className="text-[10px] text-[#94a3b8] mt-0.5">{formatRelative(item.reviewed_at)}</p>
-                        )}
+                    <div key={it.label} className={`flex items-center gap-4 px-5 sm:px-6 py-4 border-[#EEF0F3] ${i > 0 ? 'border-t' : ''} ${i === 1 ? 'sm:border-t-0' : ''} ${i % 2 === 0 ? 'sm:border-r' : ''} ${i >= 2 ? 'sm:border-t' : ''}`}>
+                      <span className="w-10 h-10 rounded-xl bg-[#F6F7F9] text-[#5B6576] flex items-center justify-center flex-shrink-0">{it.icon}</span>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-[#0F172A] truncate">{it.label}</p>
+                        <p className="text-[12px] text-[#8A94A6]"><span className="tabular-nums text-[#0F172A] font-medium">{it.n}</span> {it.detail}</p>
                       </div>
                     </div>
                   )
                 })}
               </div>
-            </motion.div>
+            )}
+          </motion.section>
+
+          {/* Atividade recente: linha do tempo com fio */}
+          {recentActivity.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className={`${portalPanel} overflow-hidden`}
+            >
+              <PortalBlockTitle label="Atividade recente" />
+              <ol className="px-5 sm:px-6 py-5 relative">
+                <span className="absolute left-[33px] sm:left-[37px] top-7 bottom-7 w-px bg-[#E4E7EC]" />
+                {recentActivity.map(item => {
+                  const status = (item.approval_status || 'pendente_aprovacao') as ApprovalStatus
+                  return (
+                    <li key={item.id} className="relative flex items-start gap-4 py-2.5">
+                      <span className={`relative z-10 w-6 h-6 rounded-full bg-white border border-[#E4E7EC] flex items-center justify-center flex-shrink-0 ${approvalText[status]} [&>svg]:w-3 [&>svg]:h-3`}>
+                        {approvalIcons[status]}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] text-[#0F172A]">{humanizeActivity(status, item)}</p>
+                        <p className="text-[12px] text-[#5B6576] truncate mt-0.5">{item.title}</p>
+                      </div>
+                      {item.reviewed_at && (
+                        <span className="text-[11px] text-[#A0A8B5] flex-shrink-0 mt-0.5">{formatRelative(item.reviewed_at)}</span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            </motion.section>
           )}
         </div>
 
-        {/* ── Right column ── */}
-        <div className="space-y-4">
-
-          {/* Próximos conteúdos */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
+        {/* ── Coluna direita ── */}
+        <div className="space-y-5">
+          {/* Próximos conteúdos: agenda com a data em destaque */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: 0.11 }}
-            className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden"
+            transition={{ duration: 0.5, delay: 0.22 }}
+            className={`${portalPanel} overflow-hidden`}
           >
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#e8e8e8]">
-              <p className="text-[12px] font-semibold text-[#0f0f0f]">Próximos conteúdos</p>
-              <button
-                onClick={() => onNavigate('planejamento')}
-                className="flex items-center gap-1 text-[11px] text-[#3b82f6] hover:text-blue-700 transition-colors"
-              >
-                Ver todos <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-
+            <PortalBlockTitle
+              label="Próximos conteúdos"
+              right={
+                <button
+                  onClick={() => onNavigate('planejamento')}
+                  className="group inline-flex items-center gap-1 text-[12px] font-medium text-[#2563EB]"
+                >
+                  Ver todos <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              }
+            />
             {upcomingItems.length === 0 ? (
-              <div className="py-8 px-4 text-center">
-                <CalendarDays className="w-6 h-6 text-[#94a3b8] mx-auto mb-2" />
-                <p className="text-[12px] text-[#64748b]">Nenhum conteúdo agendado.</p>
-                <p className="text-[11px] text-[#94a3b8] mt-0.5">A agência está preparando o calendário.</p>
+              <div className="px-6 py-10 text-center">
+                <p className="text-[13px] text-[#5B6576]">Nenhum conteúdo agendado.</p>
+                <p className="text-[12px] text-[#A0A8B5] mt-1">A agência está preparando o calendário.</p>
               </div>
             ) : (
-              <div className="divide-y divide-[#e8e8e8]">
+              <div className="divide-y divide-[#EEF0F3]">
                 {upcomingItems.map(item => {
-                  const thumb = item.attachments?.find(a => a.file_type.startsWith('image/'))
                   const isPending = item.approval_status === 'pendente_aprovacao'
                   return (
                     <button
                       key={item.id}
                       onClick={() => { setSelectedItem(item); setItemOpen(true) }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f5f5f5] transition-colors text-left group"
+                      className="group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-[#FAFBFC]"
                     >
-                      <div className="w-9 flex-shrink-0 text-center">
-                        <p className="text-[9px] text-gray-600 uppercase leading-tight">
-                          {format(parseISO(item.scheduled_date), 'MMM', { locale: ptBR })}
-                        </p>
-                        <p className="text-[16px] font-bold text-[#0f0f0f] tabular-nums leading-tight">
+                      <div className="w-11 flex-shrink-0 text-center">
+                        <p className="font-display text-[24px] font-bold text-[#0F172A] tabular-nums leading-none tracking-[-0.04em]">
                           {format(parseISO(item.scheduled_date), 'd')}
                         </p>
-                      </div>
-                      {thumb ? (
-                        <img src={thumb.file_url} alt="" className="w-8 h-8 rounded-md object-cover border border-[#e8e8e8] flex-shrink-0" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-md bg-[#f0f0f0] border border-[#e8e8e8] flex items-center justify-center flex-shrink-0">
-                          <div className={`w-1.5 h-1.5 rounded-full ${statusColors[item.status as PlannerStatus]}`} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium text-[#0f0f0f] truncate">{item.title}</p>
-                        <p className={`text-[10px] mt-0.5 ${statusTextColors[item.status as PlannerStatus]}`}>
-                          {contentTypeLabels[item.content_type as ContentType]}
+                        <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[#8A94A6] mt-1">
+                          {format(parseISO(item.scheduled_date), 'MMM', { locale: ptBR }).replace('.', '')}
                         </p>
                       </div>
-                      {isPending && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 animate-pulse" />
-                      )}
-                      <ChevronRight className="w-3 h-3 text-[#a0a0a0] group-hover:text-[#737373] transition-colors flex-shrink-0" />
+                      <div className="flex-1 min-w-0 border-l border-[#EEF0F3] pl-4">
+                        <p className="text-[13px] font-medium text-[#0F172A] truncate">{item.title}</p>
+                        <p className="text-[11.5px] text-[#8A94A6] mt-0.5 flex items-center gap-1.5">
+                          {isPending && <span className="w-1.5 h-1.5 rounded-full bg-[#EAB308]" />}
+                          {contentTypeLabels[item.content_type as ContentType]}
+                          {isPending && <span className="text-[#A16207]">· aguardando</span>}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-[#C4CAD4] group-hover:text-[#0F172A] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                     </button>
                   )
                 })}
               </div>
             )}
-          </motion.div>
+          </motion.section>
 
-          {/* Próxima reunião */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
+          {/* Conversa com a agência */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: 0.16 }}
-            className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden"
+            transition={{ duration: 0.5, delay: 0.28 }}
+            className="relative overflow-hidden rounded-[22px] p-6"
+            style={{ background: '#0F172A' }}
           >
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b border-[#e8e8e8]">
-              <Calendar className="w-3.5 h-3.5 text-gray-500" />
-              <p className="text-[12px] font-semibold text-[#0f0f0f]">Próxima reunião</p>
-            </div>
-            <div className="p-5 flex flex-col items-center text-center gap-3">
-              <div className="w-10 h-10 rounded-xl border border-[#e8e8e8] bg-[#f0f0f0] flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-gray-600" />
-              </div>
-              <div>
-                <p className="text-[12px] font-medium text-[#737373]">Quer alinhar estratégias?</p>
-                <p className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
-                  Agende uma conversa com a agência.
-                </p>
-              </div>
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse 70% 60% at 100% 0%, rgba(37,99,235,0.35) 0%, transparent 70%)' }}
+            />
+            <div className="relative">
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: '#93A4C3' }}>Próxima reunião</p>
+              <p className="font-display text-[24px] font-bold leading-[1.05] tracking-[-0.03em] mt-3" style={{ color: '#ffffff' }}>
+                Quer alinhar a estratégia?
+              </p>
+              <p className="text-[12.5px] leading-relaxed mt-2" style={{ color: '#B6C2D6' }}>
+                Peça uma conversa com a agência. O pedido fica registrado em Solicitações.
+              </p>
               <button
                 onClick={() => onNavigate('notas')}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#e8e8e8] bg-[#f7f7f7] text-[11px] text-[#737373] font-medium hover:bg-[#f0f0f0] hover:border-[#d0d0d0] transition-all"
+                className="group mt-5 inline-flex items-center gap-2 h-10 pl-4 pr-1.5 rounded-full bg-white text-[12.5px] font-semibold text-[#0F172A] transition-all hover:gap-3"
               >
                 <MessageCircle className="w-3.5 h-3.5" /> Solicitar reunião
+                <span className="w-7 h-7 rounded-full bg-[#0F172A] flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
+                  <ArrowRight className="w-3 h-3" style={{ color: '#ffffff' }} />
+                </span>
               </button>
             </div>
-          </motion.div>
-
-          {/* Resumo empresa */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: 0.2 }}
-            className="rounded-2xl border border-[#e8e8e8] bg-white p-4"
-          >
-            <div className="flex items-center gap-3 mb-3.5">
-              {client.logo_url ? (
-                <img src={client.logo_url} alt={client.company_name}
-                  className="w-8 h-8 rounded-lg object-cover border border-[#e8e8e8] flex-shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded-lg bg-[#f0f0f0] border border-[#e8e8e8] flex items-center justify-center text-xs font-bold text-[#0f0f0f] flex-shrink-0">
-                  {client.company_name[0].toUpperCase()}
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="text-[12px] font-semibold text-[#0f0f0f] truncate">{client.company_name}</p>
-                <p className="text-[10px] text-gray-500 truncate">{client.niche}</p>
-              </div>
-            </div>
-            {client.main_objective && (
-              <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-3">
-                {client.main_objective}
-              </p>
-            )}
-          </motion.div>
+          </motion.section>
         </div>
       </div>
 
@@ -2224,19 +2174,19 @@ function MatRow({
   // Links get a special card — no hover card, click opens URL directly
   if (isLink) {
     return (
-      <div className="flex items-start gap-3 p-4 bg-white border border-[#e8e8e8] rounded-xl hover:border-sky-200 hover:shadow-sm transition-all group">
+      <div className="flex items-center gap-4 px-5 py-4 bg-white border border-[#E4E7EC] rounded-[18px] hover:border-[#0F172A]/30 transition-all duration-300 group">
         {/* Icon */}
-        <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Link2 className="w-4.5 h-4.5 text-sky-500" />
+        <div className="w-12 h-12 rounded-xl bg-[#EFF4FF] flex items-center justify-center flex-shrink-0">
+          <Link2 className="w-4 h-4 text-[#2563EB]" />
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-[#0f0f0f] text-sm truncate">{mat.title}</p>
+          <p className="font-semibold text-[#0F172A] text-[14px] truncate">{mat.title}</p>
           {mat.description && (
-            <p className="text-[12px] text-[#737373] mt-0.5 leading-snug line-clamp-2">{mat.description}</p>
+            <p className="text-[12.5px] text-[#5B6576] mt-0.5 leading-snug line-clamp-2">{mat.description}</p>
           )}
-          <p className="text-[10px] text-[#a0a0a0] mt-1 truncate">{mat.link_url}</p>
+          <p className="text-[11px] text-[#A0A8B5] mt-1 truncate">{mat.link_url}</p>
         </div>
 
         {/* CTA */}
@@ -2245,7 +2195,7 @@ function MatRow({
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className="flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-lg bg-sky-500 text-white text-[12px] font-medium hover:bg-sky-600 transition-colors whitespace-nowrap"
+          className="flex-shrink-0 flex items-center gap-1.5 h-9 px-4 rounded-full border border-[#0F172A] text-[#0F172A] text-[12px] font-semibold hover:bg-[#0F172A] hover:text-white transition-colors whitespace-nowrap"
         >
           <ExternalLink className="w-3.5 h-3.5" /> Abrir
         </a>
@@ -2258,38 +2208,37 @@ function MatRow({
       onClick={() => onClick(mat)}
       onMouseEnter={e => onMouseEnter(e, mat)}
       onMouseLeave={() => onMouseLeave(null)}
-      className="flex items-center gap-3 p-3.5 bg-white border border-[#e8e8e8] rounded-xl hover:bg-[#f5f5f5] hover:border-[#d0d0d0] transition-colors group cursor-pointer"
+      className="flex items-center gap-4 px-5 py-4 bg-white border border-[#E4E7EC] rounded-[18px] hover:border-[#0F172A]/30 transition-all duration-300 group cursor-pointer"
     >
       {/* Thumbnail */}
       {isImg && mat.file_url ? (
         <img
           src={mat.file_url}
           alt={mat.title}
-          className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-[#e8e8e8]"
+          className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-[#E4E7EC]"
         />
       ) : (
-        <div className="w-12 h-12 rounded-lg bg-[#f0f0f0] border border-[#e8e8e8] flex items-center justify-center flex-shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-[#F6F7F9] flex items-center justify-center flex-shrink-0">
           <PortalMaterialIcon type={mat.type} />
         </div>
       )}
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-[#0f0f0f] text-sm truncate">{mat.title}</p>
+        <p className="font-semibold text-[#0F172A] text-[14px] truncate">{mat.title}</p>
         {mat.description && (
-          <p className="text-xs text-[#737373] truncate mt-0.5">{mat.description}</p>
+          <p className="text-[12.5px] text-[#5B6576] truncate mt-0.5">{mat.description}</p>
         )}
-        <p className="text-[10px] text-[#a0a0a0] mt-0.5">
+        <p className="text-[11px] text-[#A0A8B5] mt-1">
           {MATERIAL_TYPE_LABELS[mat.type]}
           {' · '}{formatDate(mat.created_at)}
         </p>
       </div>
 
       {/* Hint */}
-      <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="text-[11px] text-[#737373]">Visualizar</span>
-        <ChevronRight className="w-3.5 h-3.5 text-[#a0a0a0]" />
-      </div>
+      <span className="flex-shrink-0 w-9 h-9 rounded-full border border-[#E4E7EC] flex items-center justify-center text-[#0F172A] transition-all duration-300 group-hover:bg-[#0F172A] group-hover:border-[#0F172A] group-hover:text-white group-hover:-rotate-45">
+        <ArrowRight className="w-3.5 h-3.5" />
+      </span>
     </div>
   )
 }
@@ -2363,15 +2312,7 @@ function PortalMateriaisTab({ materials }: { materials: ClientMaterial[] }) {
 
   if (materials.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-12 h-12 rounded-xl border border-[#e8e8e8] bg-[#f0f0f0] flex items-center justify-center mb-4">
-          <FolderOpen className="w-5 h-5 text-[#a0a0a0]" />
-        </div>
-        <p className="text-[14px] font-medium text-[#737373]">Nenhum material disponível</p>
-        <p className="text-[12px] text-[#a0a0a0] mt-1 max-w-xs">
-          Quando a agência adicionar materiais, eles aparecerão aqui.
-        </p>
-      </div>
+      <PortalEmpty title="Nenhum material ainda" text="Quando a agência adicionar materiais, eles aparecem aqui." />
     )
   }
 
@@ -2381,40 +2322,33 @@ function PortalMateriaisTab({ materials }: { materials: ClientMaterial[] }) {
     <div className="space-y-4">
       {/* Type filter tabs — only shown when multiple types exist */}
       {availableTypes.length > 2 && (
-        <div className="flex gap-1.5 flex-wrap">
-          {availableTypes.map(({ value, label }) => {
-            const count = value === 'todos' ? materials.length : materials.filter(m => m.type === value).length
-            return (
-              <button
-                key={value}
-                onClick={() => setTypeFilter(value)}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all border ${
-                  typeFilter === value
-                    ? 'bg-[#0f0f0f] text-white border-[#0f0f0f]'
-                    : 'bg-white text-[#737373] border-[#e0e0e0] hover:bg-[#f5f5f5] hover:text-[#0f0f0f]'
-                }`}
-              >
-                {label} <span className={`ml-1 text-[10px] ${typeFilter === value ? 'text-white/70' : 'text-[#b0b0b0]'}`}>({count})</span>
-              </button>
-            )
-          })}
+        <div className="flex gap-2 flex-wrap mb-2">
+          {availableTypes.map(({ value, label }) => (
+            <PortalFilterChip
+              key={value}
+              active={typeFilter === value}
+              label={label}
+              count={value === 'todos' ? materials.length : materials.filter(m => m.type === value).length}
+              onClick={() => setTypeFilter(value)}
+            />
+          ))}
         </div>
       )}
 
       {/* Material list — grouped by folder or flat */}
       {filtered.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-[13px] text-[#a0a0a0]">Nenhum material nessa categoria.</p>
+          <p className="text-[13px] text-[#8A94A6]">Nenhum material nessa categoria.</p>
         </div>
       ) : hasFolders ? (
-        <div className="space-y-6">
+        <div className="space-y-9">
           {/* Folders */}
           {folders.map(folder => (
             <div key={folder}>
-              <div className="flex items-center gap-2 mb-2.5">
-                <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
-                <p className="text-[11px] font-semibold text-[#737373] uppercase tracking-wider">{folder}</p>
-                <span className="text-[10px] text-[#b0b0b0]">({byFolder[folder].length})</span>
+              <div className="flex items-center gap-3 mb-3 pb-2.5 border-b border-[#E4E7EC]">
+                <FolderOpen className="w-4 h-4 text-[#8A94A6]" />
+                <p className="font-display text-[18px] font-semibold tracking-[-0.02em] text-[#0F172A]">{folder}</p>
+                <span className="text-[11px] tabular-nums text-[#A0A8B5]">{byFolder[folder].length}</span>
               </div>
               <div className="space-y-2 pl-0.5">
                 {byFolder[folder].map(mat => <MatRow key={mat.id} mat={mat} {...rowProps} />)}
@@ -2424,8 +2358,9 @@ function PortalMateriaisTab({ materials }: { materials: ClientMaterial[] }) {
           {/* Items without folder */}
           {noFolder.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-2.5">
-                <p className="text-[11px] font-semibold text-[#b0b0b0] uppercase tracking-wider">Outros</p>
+              <div className="flex items-center gap-3 mb-3 pb-2.5 border-b border-[#E4E7EC]">
+                <p className="font-display text-[18px] font-semibold tracking-[-0.02em] text-[#0F172A]">Outros</p>
+                <span className="text-[11px] tabular-nums text-[#A0A8B5]">{noFolder.length}</span>
               </div>
               <div className="space-y-2">
                 {noFolder.map(mat => <MatRow key={mat.id} mat={mat} {...rowProps} />)}
@@ -2659,45 +2594,51 @@ function PortalFormularioTab({ token, clientName }: { token: string; clientName:
   }
 
   return (
-    <div className="max-w-xl mx-auto py-6 px-2">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#0f0f0f] mb-4">
-          <ClipboardList className="w-8 h-8 text-white" />
+    <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5 items-stretch">
+      {/* Chamada principal */}
+      <a
+        href={formUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative overflow-hidden rounded-[22px] p-7 sm:p-9 flex flex-col justify-between min-h-[240px]"
+        style={{ background: '#0F172A' }}
+      >
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 70% at 100% 0%, rgba(37,99,235,0.4) 0%, transparent 70%)' }} />
+        <ClipboardList className="relative w-7 h-7" style={{ color: '#93A4C3' }} />
+        <div className="relative mt-10">
+          <p className="font-display text-[30px] sm:text-[36px] font-bold leading-[1.0] tracking-[-0.035em]" style={{ color: '#ffffff' }}>
+            Preencher o formulário da semana
+          </p>
+          <span className="mt-6 inline-flex items-center gap-3 h-11 pl-5 pr-1.5 rounded-full bg-white text-[#0F172A] text-[13px] font-semibold transition-all duration-300 group-hover:gap-4">
+            Abrir agora
+            <span className="w-8 h-8 rounded-full bg-[#0F172A] flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
+              <ExternalLink className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+            </span>
+          </span>
         </div>
-        <h2 className="text-[18px] font-bold text-[#0f172a]">Formulário Semanal de Conteúdo</h2>
-        <p className="text-[13px] text-[#64748b] mt-1">
-          Preencha semanalmente para ajudar sua agência a criar conteúdos alinhados com sua realidade.
-        </p>
-      </div>
+      </a>
 
-      {/* Card com link */}
-      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-5 mb-4 shadow-sm">
-        <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider mb-2">Link do formulário</p>
-        <div className="flex items-center gap-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2.5">
-          <span className="text-[12px] text-[#374151] flex-1 truncate">{formUrl}</span>
+      {/* Link para copiar */}
+      <div className={`${portalPanel} p-6 sm:p-7 flex flex-col justify-between`}>
+        <div>
+          <p className={portalEyebrow}>Link do formulário</p>
+          <p className="text-[13px] text-[#5B6576] mt-3 leading-relaxed">
+            Quer que outra pessoa da equipe responda? Copie o link e envie.
+          </p>
+        </div>
+        <div className="mt-6 flex items-center gap-2 bg-[#F6F7F9] border border-[#E4E7EC] rounded-full pl-4 pr-1.5 py-1.5">
+          <span className="text-[12px] text-[#334155] flex-1 truncate">{formUrl}</span>
           <button
             onClick={handleCopy}
-            className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0f0f0f] text-white text-[11px] font-semibold hover:bg-[#1a1a1a] transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[12px] font-semibold transition-opacity hover:opacity-85"
+            style={{ background: '#0F172A', color: '#ffffff' }}
           >
             <Copy className="w-3 h-3" /> Copiar
           </button>
         </div>
       </div>
 
-      {/* Botão abrir formulário */}
-      <a
-        href={formUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-[#0f0f0f] text-white font-semibold text-[14px] hover:bg-[#1a1a1a] transition-colors"
-      >
-        <ClipboardList className="w-4 h-4" />
-        Preencher formulário agora
-        <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-      </a>
-
-      <p className="text-center text-[11px] text-[#94a3b8] mt-4">
+      <p className="lg:col-span-2 text-[12px] text-[#8A94A6]">
         Você pode compartilhar este link com outros colaboradores da {clientName || 'sua empresa'}.
       </p>
     </div>
@@ -2779,77 +2720,90 @@ export function PortalDashboard() {
       pendingCount={pendingCount}
       onBellClick={() => setShowNotifications(true)}
     >
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 pt-8 sm:pt-14 pb-16">
 
-        {/* Cabeçalho da empresa */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
+        {/* ── Cabeçalho da empresa: nome em display, contatos numa linha ── */}
+        <motion.header
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-4 mb-6 p-5 rounded-2xl border border-[#e2e8f0] bg-white shadow-sm"
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="flex items-end justify-between gap-6 sm:gap-10"
         >
-          {client.logo_url ? (
-            <img src={client.logo_url} alt={client.company_name}
-              className="w-16 h-16 rounded-2xl object-cover border border-[#e8e8e8] flex-shrink-0" />
-          ) : (
-            <div className="w-16 h-16 rounded-2xl bg-[#f0f0f0] border border-[#e8e8e8] flex items-center justify-center text-2xl font-bold text-[#0f0f0f] flex-shrink-0">
-              {client.company_name[0].toUpperCase()}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-bold text-[#0f0f0f]">{client.company_name}</h1>
-              <Badge status={client.status} />
-            </div>
-            <p className="text-[#737373] text-sm mt-0.5">{client.responsible_name} · {client.niche}</p>
-            <div className="flex flex-wrap gap-3 mt-2">
+          <div className="min-w-0">
+            <p className={portalEyebrow}>
+              Área do cliente
+              <span className="mx-2 text-[#C4CAD4]">/</span>
+              Cliente desde {formatDate(client.entry_date)}
+            </p>
+            <h1
+              className="font-display font-bold text-[#0F172A] mt-4 leading-[0.92] tracking-[-0.045em] break-words"
+              style={{ fontSize: 'clamp(40px, 7vw, 92px)' }}
+            >
+              {client.company_name}<span className="text-[#2563EB]">.</span>
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-5 text-[12.5px] text-[#5B6576]">
+              <span className="text-[#0F172A] font-medium">{client.responsible_name}</span>
+              {client.niche && <span>{client.niche}</span>}
               {client.instagram && (
-                <span className="flex items-center gap-1 text-xs text-[#737373]">
-                  <Instagram className="w-3 h-3" /> @{client.instagram.replace('@', '')}
-                </span>
-              )}
-              {client.email && (
-                <span className="flex items-center gap-1 text-xs text-[#737373]">
-                  <Mail className="w-3 h-3" /> {client.email}
-                </span>
+                <span className="inline-flex items-center gap-1.5"><Instagram className="w-3.5 h-3.5 text-[#8A94A6]" />@{client.instagram.replace('@', '')}</span>
               )}
               {client.whatsapp && (
-                <span className="flex items-center gap-1 text-xs text-[#737373]">
-                  <Phone className="w-3 h-3" /> {client.whatsapp}
-                </span>
+                <span className="inline-flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-[#8A94A6]" />{client.whatsapp}</span>
+              )}
+              {client.email && (
+                <span className="hidden md:inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-[#8A94A6]" />{client.email}</span>
               )}
               {client.website && (
-                <span className="flex items-center gap-1 text-xs text-[#737373]">
-                  <Globe className="w-3 h-3" /> {client.website}
-                </span>
+                <span className="hidden md:inline-flex items-center gap-1.5"><Globe className="w-3.5 h-3.5 text-[#8A94A6]" />{client.website}</span>
               )}
             </div>
           </div>
-          <div className="text-right text-xs text-gray-500 flex-shrink-0">
-            <p>Cliente desde</p>
-            <p className="font-medium text-[#737373]">{formatDate(client.entry_date)}</p>
-          </div>
-        </motion.div>
+          {client.logo_url ? (
+            <img src={client.logo_url} alt={client.company_name}
+              className="hidden sm:block w-24 h-24 lg:w-28 lg:h-28 rounded-[28px] object-cover border border-[#E4E7EC] bg-white flex-shrink-0" />
+          ) : (
+            <div className="hidden sm:flex w-24 h-24 lg:w-28 lg:h-28 rounded-[28px] bg-[#0F172A] items-center justify-center flex-shrink-0">
+              <span className="font-display text-[44px] font-bold tracking-[-0.04em]" style={{ color: '#ffffff' }}>
+                {client.company_name[0].toUpperCase()}
+              </span>
+            </div>
+          )}
+        </motion.header>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full flex flex-nowrap overflow-x-auto h-auto gap-1 mb-6 scrollbar-none lg:flex-wrap">
-            <TabsTrigger value="dashboard" className="flex-shrink-0 justify-center lg:flex-1">
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="planejamento" className="flex-shrink-0 justify-center lg:flex-1">
-              Planejamento ({plannerItems?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="notas" className="flex-shrink-0 justify-center lg:flex-1">Solicitações/Ideias</TabsTrigger>
-            <TabsTrigger value="materiais" className="flex-shrink-0 justify-center lg:flex-1">Materiais</TabsTrigger>
-            <TabsTrigger value="resultados" className="flex-shrink-0 justify-center lg:flex-1">Resultados</TabsTrigger>
-            <TabsTrigger value="financeiro" className="flex-shrink-0 justify-center lg:flex-1">Financeiro</TabsTrigger>
-            {formConfig?.is_active && (
-              <TabsTrigger value="formulario" className="flex-shrink-0 justify-center lg:flex-1">Formulário</TabsTrigger>
-            )}
+        {/* ── Abas numeradas, com fio azul embaixo da ativa ── */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-10 sm:mt-14">
+          <TabsList className="portal-tabs w-full h-auto p-0 bg-transparent border-0 border-b border-[#E4E7EC] rounded-none justify-start gap-6 sm:gap-8 flex-nowrap overflow-x-auto scrollbar-none mb-9 sm:mb-12">
+            {[
+              { v: 'dashboard',    label: 'Dashboard' },
+              { v: 'planejamento', label: 'Planejamento', count: plannerItems?.length || 0 },
+              { v: 'notas',        label: 'Solicitações e ideias' },
+              { v: 'materiais',    label: 'Materiais' },
+              { v: 'resultados',   label: 'Resultados' },
+              { v: 'financeiro',   label: 'Financeiro' },
+              ...(formConfig?.is_active ? [{ v: 'formulario', label: 'Formulário' }] : []),
+            ].map((t, i) => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                className="group relative flex-shrink-0 gap-2 rounded-none px-0 pt-1 pb-3.5 text-[13.5px] font-medium bg-transparent text-[#8A94A6] hover:bg-transparent hover:text-[#0F172A] data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:left-0 after:right-0 after:-bottom-px after:h-[2px] after:bg-[#0F172A] after:origin-left after:scale-x-0 after:transition-transform after:duration-500 data-[state=active]:after:scale-x-100"
+              >
+                <span className="text-[10.5px] tabular-nums text-[#C4CAD4] group-data-[state=active]:text-[#2563EB] transition-colors">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                {t.label}
+                {pendingCount > 0 && t.v === 'planejamento' ? (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center" style={{ background: '#EAB308', color: '#fff' }}>
+                    {pendingCount}
+                  </span>
+                ) : t.count != null && (
+                  <span className="text-[11px] tabular-nums text-[#A0A8B5]">{t.count}</span>
+                )}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Aba Dashboard */}
-          <TabsContent value="dashboard">
+          <TabsContent value="dashboard" className="mt-0">
             <ClientDashboardTab
               client={client}
               plannerItems={plannerItems || []}
@@ -2861,11 +2815,13 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Planejamento */}
-          <TabsContent value="planejamento">
+          <TabsContent value="planejamento" className="mt-0">
+            <PortalSectionHead
+              n="02" eyebrow="Planejamento" title="O calendário" accent="do mês."
+              desc="Cada post aparece no dia em que vai ao ar. Clique para ver a arte, ler a legenda e aprovar ou pedir ajuste."
+            />
             {plannerItems && plannerItems.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-[#64748b] text-sm">Nenhum conteúdo planejado ainda.</p>
-              </div>
+              <PortalEmpty title="Nada planejado ainda" text="Assim que a agência montar o calendário, os conteúdos aparecem aqui." />
             ) : (
               <PortalPlannerView
                 items={plannerItems || []}
@@ -2876,28 +2832,48 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Materiais */}
-          <TabsContent value="materiais">
+          <TabsContent value="materiais" className="mt-0">
+            <PortalSectionHead
+              n="04" eyebrow="Materiais" title="Tudo da sua marca," accent="num lugar só."
+              desc="Logos, fotos, vídeos e documentos que a agência organizou para você baixar quando precisar."
+            />
             <PortalMateriaisTab materials={materials} />
           </TabsContent>
 
           {/* Aba Resultados */}
-          <TabsContent value="resultados">
+          <TabsContent value="resultados" className="mt-0">
+            <PortalSectionHead
+              n="05" eyebrow="Resultados" title="O que os números" accent="dizem."
+              desc="O relatório de cada mês, com alcance, seguidores, engajamento e a leitura da agência."
+            />
             <PortalResultadosTab />
           </TabsContent>
 
           {/* Aba Financeiro */}
-          <TabsContent value="financeiro">
+          <TabsContent value="financeiro" className="mt-0">
+            <PortalSectionHead
+              n="06" eyebrow="Financeiro" title="Pagamentos" accent="em dia."
+              desc="A situação do contrato, o próximo vencimento e o histórico do que já foi pago."
+            />
             <PortalFinanceiroTab />
           </TabsContent>
 
           {/* Aba Notas */}
-          <TabsContent value="notas">
+          <TabsContent value="notas" className="mt-0">
+            <PortalSectionHead
+              n="03" eyebrow="Solicitações e ideias" title="Fale com" accent="a agência."
+              desc="Mande ideias de conteúdo, avisos e pedidos. Tudo fica registrado aqui, em vez de se perder na conversa."
+            />
             <PortalNotesTab />
           </TabsContent>
 
           {/* Aba Formulário */}
           {formConfig?.is_active && (
-            <TabsContent value="formulario">
+            <TabsContent value="formulario" className="mt-0">
+              <PortalSectionHead
+                n="07" eyebrow="Formulário" title="A sua semana" accent="em 5 minutos."
+                desc="Conte o que está acontecendo aí. É com isso que a agência cria conteúdos alinhados à sua realidade."
+              />
               <PortalFormularioTab
                 token={formConfig.public_token}
                 clientName={client?.company_name || ''}

@@ -10,6 +10,7 @@ import {
 } from '@/hooks/useNotes'
 import { useToast } from '@/components/ui/toast'
 import type { Note, NoteChecklistItem } from '@/types'
+import { PortalEmpty } from '@/components/portal/PortalUI'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,62 +32,47 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       onClick={onOpen}
-      className={`group border rounded-2xl p-4 cursor-pointer hover:shadow-sm transition-all duration-150 select-none ${
-        isClientNote
-          ? 'bg-blue-50/60 border-blue-200/60 hover:border-blue-300'
-          : 'bg-white border-[#e8e8e8] hover:border-[#c8c8c8]'
-      }`}
+      className="group relative bg-white border border-[#E4E7EC] rounded-[20px] p-5 cursor-pointer transition-all duration-300 select-none hover:border-[#0F172A]/30 hover:-translate-y-0.5"
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h3 className="text-[13px] font-semibold text-[#0f0f0f] leading-snug line-clamp-2 flex-1">
-          {note.title || 'Sem título'}
-        </h3>
+      {isClientNote && <span className="absolute left-0 top-5 bottom-5 w-[3px] rounded-r bg-[#2563EB]" />}
+
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#8A94A6]">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: note.type === 'ideia' ? '#EAB308' : note.type === 'solicitacao' ? '#2563EB' : '#94A3B8' }} />
+          {note.type === 'ideia' ? 'Ideia' : note.type === 'solicitacao' ? 'Solicitação' : 'Nota'}
+          {isClientNote && <span className="text-[#2563EB] normal-case tracking-normal font-medium">· sua</span>}
+        </span>
         {isClientNote
-          ? <MessageSquare className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
-          : <NotebookPen className="w-3.5 h-3.5 text-[#a0a0a0] flex-shrink-0 mt-0.5" />
+          ? <MessageSquare className="w-3.5 h-3.5 text-[#A0A8B5] flex-shrink-0" />
+          : <NotebookPen className="w-3.5 h-3.5 text-[#A0A8B5] flex-shrink-0" />
         }
       </div>
 
-      {/* Tipo badge */}
-      <div className="mb-1.5">
-        {note.type === 'solicitacao' && (
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-800">
-            Solicitação
-          </span>
-        )}
-        {note.type === 'ideia' && (
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800">
-            Ideia
-          </span>
-        )}
-        {isClientNote && (
-          <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-900">
-            sua nota
-          </span>
-        )}
-      </div>
+      <h3 className="font-display text-[18px] font-semibold tracking-[-0.02em] text-[#0F172A] leading-snug line-clamp-2">
+        {note.title || 'Sem título'}
+      </h3>
 
       {preview && (
-        <p className="text-[12px] text-[#737373] leading-relaxed line-clamp-2 mb-2 whitespace-pre-wrap">
+        <p className="text-[12.5px] text-[#5B6576] leading-relaxed line-clamp-2 mt-2 whitespace-pre-wrap">
           {preview}
         </p>
       )}
 
       {note.checklist.length > 0 && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="h-1 flex-1 rounded-full bg-[#f0f0f0] overflow-hidden">
+        <div className="flex items-center gap-2 mt-4">
+          <div className="h-1 flex-1 rounded-full bg-[#EEF0F3] overflow-hidden">
             <div
-              className="h-full bg-[#0f0f0f] rounded-full transition-all"
-              style={{ width: `${(doneCount / note.checklist.length) * 100}%` }}
+              className="h-full rounded-full transition-all"
+              style={{ width: `${(doneCount / note.checklist.length) * 100}%`, background: '#0F172A' }}
             />
           </div>
-          <span className="text-[11px] text-[#a0a0a0] flex-shrink-0">
+          <span className="text-[11px] tabular-nums text-[#8A94A6] flex-shrink-0">
             {doneCount}/{note.checklist.length}
           </span>
         </div>
       )}
 
-      <p className="text-[11px] text-[#b0b0b0]">
+      <p className="text-[11px] text-[#A0A8B5] mt-4 pt-3 border-t border-[#EEF0F3]">
         {formatDistanceToNow(parseISO(note.updated_at), { addSuffix: true, locale: ptBR })}
       </p>
     </motion.div>
@@ -409,58 +395,42 @@ export function PortalNotesTab() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-[15px] font-semibold text-[#0f0f0f]">Solicitações e Ideias</h2>
-          <p className="text-[12px] text-[#a0a0a0] mt-0.5">
-            Solicite conteúdos e compartilhe ideias com sua agência
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-4 mb-7">
+        <p className="text-[13px] text-[#5B6576]">
+          {notes.length > 0
+            ? <><span className="font-semibold text-[#0F172A] tabular-nums">{notes.length}</span> {notes.length === 1 ? 'nota' : 'notas'} no mural</>
+            : 'O mural ainda está vazio'}
+        </p>
         <button
           onClick={() => setSelected('new')}
-          className="flex items-center gap-2 text-[13px] font-medium px-4 py-2.5 rounded-xl bg-[#0f0f0f] hover:bg-[#1a1a1a] transition-colors"
-          style={{ color: '#ffffff' }}
+          className="group flex items-center gap-2.5 h-11 pl-5 pr-1.5 rounded-full text-[13px] font-semibold transition-all hover:gap-3.5"
+          style={{ background: '#0F172A', color: '#ffffff' }}
         >
-          <Plus className="w-4 h-4" style={{ color: '#ffffff' }} />
           Nova nota
+          <span className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300 group-hover:rotate-90">
+            <Plus className="w-4 h-4" style={{ color: '#ffffff' }} />
+          </span>
         </button>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-[#f8f8f8] rounded-2xl h-32 animate-pulse" />
+            <div key={i} className="bg-white border border-[#E4E7EC] rounded-[20px] h-40 animate-pulse" />
           ))}
         </div>
       ) : notes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#f8f8f8] flex items-center justify-center">
-            <StickyNote className="w-7 h-7 text-[#d0d0d0]" />
-          </div>
-          <div>
-            <p className="text-[14px] font-semibold text-[#0f0f0f] mb-1">Nenhuma nota ainda</p>
-            <p className="text-[12px] text-[#a0a0a0]">
-              Envie uma solicitação ou ideia para sua agência
-            </p>
-          </div>
-          <button
-            onClick={() => setSelected('new')}
-            className="flex items-center gap-2 text-[13px] font-medium px-4 py-2.5 rounded-xl bg-[#0f0f0f] hover:bg-[#1a1a1a] transition-colors mt-1"
-            style={{ color: '#ffffff' }}
-          >
-            <Plus className="w-4 h-4" style={{ color: '#ffffff' }} />
-            Enviar primeira nota
-          </button>
-        </div>
+        <PortalEmpty title="Nenhuma nota ainda" text="Envie uma solicitação ou uma ideia para a agência pelo botão Nova nota." />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-10">
           {/* Notas da agência */}
           {agencyNotes.length > 0 && (
             <div>
-              <h3 className="text-[12px] font-semibold text-[#737373] uppercase tracking-wide mb-3">
-                Da agência ({agencyNotes.length})
+              <h3 className="flex items-baseline gap-3 mb-4 pb-2.5 border-b border-[#E4E7EC]">
+                <span className="font-display text-[20px] font-semibold tracking-[-0.02em] text-[#0F172A]">Da agência</span>
+                <span className="text-[11px] tabular-nums text-[#A0A8B5]">{agencyNotes.length}</span>
               </h3>
-              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {agencyNotes.map(note => (
                     <NoteCard key={note.id} note={note} onOpen={() => setSelected(note)} />
@@ -473,10 +443,11 @@ export function PortalNotesTab() {
           {/* Suas notas */}
           {clientNotes.length > 0 && (
             <div>
-              <h3 className="text-[12px] font-semibold text-[#737373] uppercase tracking-wide mb-3">
-                Suas notas ({clientNotes.length})
+              <h3 className="flex items-baseline gap-3 mb-4 pb-2.5 border-b border-[#E4E7EC]">
+                <span className="font-display text-[20px] font-semibold tracking-[-0.02em] text-[#0F172A]">Suas notas</span>
+                <span className="text-[11px] tabular-nums text-[#A0A8B5]">{clientNotes.length}</span>
               </h3>
-              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {clientNotes.map(note => (
                     <NoteCard key={note.id} note={note} onOpen={() => setSelected(note)} />

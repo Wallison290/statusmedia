@@ -122,6 +122,9 @@
   .portal-light .text-\[\#E2E8F0\] { color: #0f172a !important; }
   .portal-light .text-\[\#CBD5E1\] { color: #374151 !important; }
   .portal-light .bg-\[\#29457a\] { color: #ffffff !important; }
+  /* Abas do portal: a ativa fica escura (a regra global acima a deixa branca) */
+  .portal-light [role="tab"][data-state="active"],
+  .portal-light [role="tab"][data-state="active"] svg { color: #0F172A !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════

@@ -1,10 +1,11 @@
 import {
   CheckCircle2, Clock, AlertCircle, Ban, DollarSign,
-  CalendarDays, History, MessageCircle, ExternalLink,
+  CalendarDays, History, MessageCircle, ExternalLink, ArrowRight,
 } from 'lucide-react'
 import { usePortalClient, usePortalPayments, usePortalSupportContacts } from '@/hooks/usePortal'
 import { calcFinancialStatus, getFinancialAuxText, hasPaidCurrentCycle } from '@/utils/financial'
 import type { FinancialStatus, ContactType } from '@/types'
+import { PortalEmpty, portalPanel, portalEyebrow, PortalBlockTitle } from '@/components/portal/PortalUI'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -92,15 +93,10 @@ export function PortalFinanceiroTab() {
   // No financial data configured
   if (!client || (client.valor_mensal == null && client.dia_vencimento == null)) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-12 h-12 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center mb-4">
-          <DollarSign className="w-5 h-5 text-gray-600" />
-        </div>
-        <p className="text-[14px] font-medium text-gray-400">Informações financeiras não disponíveis</p>
-        <p className="text-[12px] text-gray-600 mt-1 max-w-xs">
-          A agência ainda não cadastrou as informações financeiras do seu plano.
-        </p>
-      </div>
+      <PortalEmpty
+        title="Financeiro ainda não cadastrado"
+        text="A agência ainda não registrou as informações financeiras do seu plano."
+      />
     )
   }
 
@@ -129,104 +125,94 @@ export function PortalFinanceiroTab() {
     return dueDate.toLocaleDateString('pt-BR')
   })()
 
+  const STATUS_DOT: Record<FinancialStatus, string> = {
+    ativo: '#22C55E', vence_em_breve: '#EAB308', atrasado: '#EF4444', cancelado: '#94A3B8',
+  }
+
+  // "2026-09-01" → "Setembro de 2026"; qualquer outro formato aparece como veio
+  const monthLabel = (ref: string) => {
+    const m = /^(\d{4})-(\d{2})/.exec(ref)
+    if (!m) return ref
+    const d = new Date(+m[1], +m[2] - 1, 1)
+    const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    return s.charAt(0).toUpperCase() + s.slice(1)
+  }
+
   return (
     <div className="space-y-5 w-full max-w-full min-w-0">
 
-      {/* ── Status hero card ────────────────────────────────────────── */}
-      <div className={`rounded-2xl border p-4 sm:p-5 flex items-start gap-3 sm:gap-4 min-w-0 overflow-hidden ${cfg.color}`}>
-        <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white border border-[#e8e8e8] flex items-center justify-center">
-          {cfg.icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[11px] font-semibold uppercase tracking-wide ${cfg.titleColor}`}>
-              {cfg.label}
-            </span>
-          </div>
-          <p className="text-[13px] sm:text-[14px] text-[#0f0f0f] leading-relaxed break-words">
+      {/* ── Manchete: mensalidade grande + situação ── */}
+      <div className={`${portalPanel} overflow-hidden grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr]`}>
+        <div className="p-6 sm:p-9 min-w-0">
+          <span
+            className="inline-flex items-center gap-2 h-7 px-3 rounded-full border border-[#E4E7EC] text-[12px] font-semibold text-[#0F172A]"
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_DOT[status] }} />
+            {cfg.label}
+          </span>
+          <p className={`${portalEyebrow} mt-7`}>Mensalidade</p>
+          <p
+            className="font-display font-bold text-[#0F172A] tabular-nums leading-none tracking-[-0.05em] mt-3 break-words"
+            style={{ fontSize: 'clamp(40px, 6vw, 72px)' }}
+          >
+            {client.valor_mensal != null ? fmtBRL(client.valor_mensal) : '—'}
+          </p>
+          <p className="text-[13.5px] text-[#5B6576] mt-5 leading-relaxed max-w-[48ch] break-words">
             {cfg.message(aux)}
           </p>
         </div>
-      </div>
-
-      {/* ── Summary row ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-[#e8e8e8] bg-white p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden">
-          <div className="flex items-center gap-1.5 text-[#737373]">
-            <DollarSign className="w-3.5 h-3.5 flex-shrink-0" />
-            <p className="text-[10px] uppercase tracking-wide truncate">Mensalidade</p>
+        <div className="border-t lg:border-t-0 lg:border-l border-[#EEF0F3] divide-y divide-[#EEF0F3]">
+          <div className="p-6 sm:px-8 sm:py-7">
+            <p className="flex items-center gap-2 text-[12px] text-[#5B6576]">
+              <CalendarDays className="w-3.5 h-3.5 text-[#8A94A6]" /> Próximo vencimento
+            </p>
+            <p className="font-display text-[28px] font-bold tabular-nums tracking-[-0.03em] text-[#0F172A] mt-2">{nextDueLabel}</p>
+            {client.dia_vencimento != null && (
+              <p className="text-[12px] text-[#8A94A6] mt-1">Todo dia {client.dia_vencimento}</p>
+            )}
           </div>
-          <p className="text-[22px] sm:text-[18px] font-bold text-[#0f0f0f] leading-tight break-words">
-            {client.valor_mensal != null ? fmtBRL(client.valor_mensal) : '—'}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-[#e8e8e8] bg-white p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden">
-          <div className="flex items-center gap-1.5 text-[#737373]">
-            <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-            <p className="text-[10px] uppercase tracking-wide truncate">Próximo venc.</p>
+          <div className="p-6 sm:px-8 sm:py-7">
+            <p className="flex items-center gap-2 text-[12px] text-[#5B6576]">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#8A94A6]" /> Último pagamento
+            </p>
+            <p className="font-display text-[28px] font-bold tabular-nums tracking-[-0.03em] text-[#0F172A] mt-2">
+              {fmtDate(client.last_payment_date)}
+            </p>
           </div>
-          <p className="text-[22px] sm:text-[18px] font-bold text-[#0f0f0f] leading-tight break-words">{nextDueLabel}</p>
-          {client.dia_vencimento != null && (
-            <p className="text-[10px] text-[#a0a0a0] break-words leading-snug">dia {client.dia_vencimento} de cada mês</p>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-[#e8e8e8] bg-white p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden">
-          <div className="flex items-center gap-1.5 text-[#737373]">
-            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-            <p className="text-[10px] uppercase tracking-wide truncate">Último pgto.</p>
-          </div>
-          <p className="text-[22px] sm:text-[18px] font-bold text-[#0f0f0f] leading-tight break-words">
-            {fmtDate(client.last_payment_date)}
-          </p>
         </div>
       </div>
 
-      {/* ── Payment history ─────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-[#e8e8e8] bg-white overflow-hidden min-w-0">
-        <div className="flex items-center gap-2 px-4 sm:px-5 py-4 border-b border-[#e8e8e8]">
-          <History className="w-3.5 h-3.5 text-[#737373] flex-shrink-0" />
-          <p className="text-[13px] font-semibold text-[#0f0f0f]">Histórico de pagamentos</p>
-          {payments.length > 0 && (
-            <span className="text-[11px] text-[#a0a0a0]">{payments.length}</span>
-          )}
-        </div>
+      {/* ── Histórico ── */}
+      <section className={`${portalPanel} overflow-hidden min-w-0`}>
+        <PortalBlockTitle
+          label="Histórico de pagamentos"
+          count={payments.length > 0 ? payments.length : undefined}
+          right={<History className="w-4 h-4 text-[#A0A8B5]" />}
+        />
 
         {loadingPayments && (
-          <div className="px-4 sm:px-5 py-6 text-center text-[12px] text-[#737373]">Carregando...</div>
+          <div className="px-6 py-6 text-center text-[12.5px] text-[#8A94A6]">Carregando...</div>
         )}
 
         {!loadingPayments && payments.length === 0 && (
-          <div className="px-4 sm:px-5 py-10 text-center">
-            <p className="text-[13px] text-[#737373]">Nenhum pagamento registrado ainda.</p>
+          <div className="px-6 py-10 text-center">
+            <p className="text-[13px] text-[#5B6576]">Nenhum pagamento registrado ainda.</p>
           </div>
         )}
 
         {!loadingPayments && payments.length > 0 && (
-          <div className="divide-y divide-[#e8e8e8]">
+          <div className="divide-y divide-[#EEF0F3]">
             {payments.map(p => (
-              <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-4 sm:px-5 py-3 sm:py-3.5 min-w-0">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.status === 'pago' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-[#0f0f0f] break-words">{p.reference_month}</p>
-                    {p.notes && <p className="text-[10px] text-[#737373] truncate mt-0.5">{p.notes}</p>}
-                  </div>
+              <div key={p.id} className="relative flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-6 pl-6 pr-5 sm:pr-6 py-4 min-w-0">
+                <span className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r ${p.status === 'pago' ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-[#0F172A] break-words">{monthLabel(p.reference_month)}</p>
+                  {p.notes && <p className="text-[12px] text-[#8A94A6] truncate mt-0.5">{p.notes}</p>}
                 </div>
-                <div className="flex items-center gap-2 pl-5 sm:pl-0 flex-wrap">
-                  <p className="text-[13px] font-semibold text-[#0f0f0f]">{fmtBRL(p.amount)}</p>
-                  <p className="hidden sm:block text-[11px] text-[#737373] w-24 text-right flex-shrink-0">
-                    {fmtDate(p.payment_date)}
-                  </p>
-                  <p className="sm:hidden text-[10px] text-[#737373]">
-                    {fmtDate(p.payment_date)}
-                  </p>
-                  <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full border flex-shrink-0 ${
-                    p.status === 'pago'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                      : 'bg-red-50 border-red-200 text-red-700'
-                  }`}>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <p className="text-[12px] text-[#8A94A6] tabular-nums">{fmtDate(p.payment_date)}</p>
+                  <p className="text-[14px] font-semibold text-[#0F172A] tabular-nums sm:w-28 sm:text-right">{fmtBRL(p.amount)}</p>
+                  <span className={`text-[11px] font-semibold ${p.status === 'pago' ? 'text-[#15803D]' : 'text-[#B91C1C]'}`}>
                     {p.status === 'pago' ? 'Pago' : 'Atrasado'}
                   </span>
                 </div>
@@ -236,30 +222,32 @@ export function PortalFinanceiroTab() {
         )}
       </section>
 
-      {/* ── Contact button ───────────────────────────────────────────── */}
+      {/* ── Contato do financeiro ── */}
       {financialContact && (
-        <div className="rounded-2xl border border-[#e8e8e8] bg-white p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 min-w-0 overflow-hidden">
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-[#0f0f0f] break-words">Precisa de ajuda com o financeiro?</p>
-            <p className="text-[11px] text-[#737373] mt-0.5 break-words">
-              Fale diretamente com a nossa equipe.
+        <div className="relative overflow-hidden rounded-[22px] p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 min-w-0" style={{ background: '#0F172A' }}>
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 90% at 100% 0%, rgba(37,99,235,0.35) 0%, transparent 70%)' }} />
+          <div className="relative flex-1 min-w-0">
+            <p className="font-display text-[22px] sm:text-[26px] font-bold tracking-[-0.03em] leading-tight" style={{ color: '#ffffff' }}>
+              Precisa de ajuda com o financeiro?
             </p>
+            <p className="text-[13px] mt-1.5" style={{ color: '#B6C2D6' }}>Fale direto com a nossa equipe.</p>
           </div>
           <a
             href={buildContactHref(financialContact.contact_type, financialContact.contact_value, financialContact.direct_link)}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#e8e8e8] bg-[#f7f7f7] text-[12px] font-medium text-[#0f0f0f] hover:bg-[#f0f0f0] hover:border-[#d0d0d0] transition-all"
+            className="group relative w-full sm:w-auto flex items-center justify-center gap-2.5 h-11 pl-5 pr-1.5 rounded-full bg-white text-[13px] font-semibold text-[#0F172A] transition-all hover:gap-3.5"
           >
             {financialContact.contact_type === 'whatsapp'
-              ? <MessageCircle className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-              : <ExternalLink className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />}
-            Falar com financeiro
+              ? <MessageCircle className="w-4 h-4 text-[#16A34A] flex-shrink-0" />
+              : <ExternalLink className="w-4 h-4 text-[#2563EB] flex-shrink-0" />}
+            Falar com o financeiro
             {contactTypeLabel[financialContact.contact_type] && (
-              <span className="text-[10px] text-[#737373]">
-                ({contactTypeLabel[financialContact.contact_type]})
-              </span>
+              <span className="text-[11px] text-[#8A94A6] font-medium">{contactTypeLabel[financialContact.contact_type]}</span>
             )}
+            <span className="w-8 h-8 rounded-full bg-[#0F172A] flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
+              <ArrowRight className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+            </span>
           </a>
         </div>
       )}
