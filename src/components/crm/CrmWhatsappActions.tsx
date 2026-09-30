@@ -6,7 +6,7 @@
 // Nada sai pelo número da plataforma: ver o cabeçalho da migration 075.
 // Todo envio fica registrado no histórico do lead.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MessageCircle, Sparkles, Loader2, Copy, ChevronDown, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -40,6 +40,9 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
   // De onde veio o texto do campo: vai junto no histórico ("Boas-vindas: ...")
   const [label, setLabel]       = useState('Mensagem')
   const [aiBusy, setAiBusy]     = useState(false)
+  // Trava síncrona: o isPending só chega no próximo render, e um toque duplo
+  // (ou Ctrl+Enter junto com o clique) disparava o envio duas vezes
+  const sendingRef = useRef(false)
 
   // Outro lead aberto: o rascunho do anterior não pode ir para ele
   useEffect(() => { setDraft(''); setLabel('Mensagem') }, [lead.id])
@@ -56,11 +59,13 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
 
   function send() {
     const text = draft.trim()
-    if (!lead.whatsapp || !text) return
+    if (!lead.whatsapp || !text || sendingRef.current) return
     if (connected) {
+      sendingRef.current = true
       sendDirect.mutate({ lead_id: lead.id, text, label }, {
         onSuccess: () => { toast(`Mensagem enviada para ${firstName}`, 'success'); setDraft(''); setLabel('Mensagem') },
         onError:   (e: any) => toast(e.message, 'error'),
+        onSettled: () => { sendingRef.current = false },
       })
       return
     }

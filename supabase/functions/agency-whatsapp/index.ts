@@ -244,8 +244,26 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: 'Limite de envios pelo sistema atingido por agora, para proteger o seu número. Use o botão de abrir no WhatsApp.' }, 429)
       }
 
+      // Registra ANTES de enviar e serve de trava: se chegar outra chamada com o
+      // mesmo texto para o mesmo lead no último minuto (clique duplo, pedido
+      // repetido), só a primeira envia. As outras respondem ok sem mandar nada.
+      const content = `${label} (enviada pelo sistema): "${text}"`
+      const { data: mine } = await sb.from('crm_lead_activities').insert({
+        user_id: user.id, lead_id: lead.id, kind: 'whatsapp', content,
+        meta: { sent_via: 'agency_whatsapp' },
+      }).select('id, created_at').single()
+      const { data: same } = await sb.from('crm_lead_activities').select('id')
+        .eq('lead_id', lead.id).eq('kind', 'whatsapp').eq('meta->>sent_via', 'agency_whatsapp')
+        .eq('content', content).gte('created_at', new Date(Date.now() - 60e3).toISOString())
+        .order('created_at', { ascending: true }).order('id', { ascending: true }).limit(1)
+      if (mine && same?.[0] && same[0].id !== mine.id) {
+        await sb.from('crm_lead_activities').delete().eq('id', mine.id)
+        return json({ ok: true, duplicate: true })
+      }
+
       const r = await uaz('/send/text', inst.instance_token, { method: 'POST', body: { number: normalize(lead.whatsapp), text } })
       if (!r.ok) {
+        if (mine) await sb.from('crm_lead_activities').delete().eq('id', mine.id)
         const st = await uaz('/instance/status', inst.instance_token)
         if (st.ok) await saveState(readState(st.data))
         const disconnected = st.ok && readState(st.data).status !== 'connected'
@@ -257,11 +275,6 @@ Deno.serve(async (req) => {
         }, 502)
       }
 
-      await sb.from('crm_lead_activities').insert({
-        user_id: user.id, lead_id: lead.id, kind: 'whatsapp',
-        content: `${label} (enviada pelo sistema): "${text}"`,
-        meta: { sent_via: 'agency_whatsapp' },
-      })
       return json({ ok: true })
     }
 
