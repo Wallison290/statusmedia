@@ -74,6 +74,10 @@
   .line-clamp-2 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   .line-clamp-3 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; }
 
+  /* Rolagem lateral sem barra visível (abas, filtros) */
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
   /* Fonte de display — usada só na landing page (títulos e números grandes).
      O app continua 100% em Inter. */
   .font-display {

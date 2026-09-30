@@ -30,7 +30,7 @@ export function PortalLayout({
   const initial   = (rawName || profile?.email || 'C')[0].toUpperCase()
 
   return (
-    <div className="portal-light relative min-h-screen bg-[#F6F7F9] text-[#0F172A] flex flex-col">
+    <div className="portal-light relative min-h-screen overflow-x-clip bg-[#F6F7F9] text-[#0F172A] flex flex-col">
       {/* Trama de linhas finas no topo da página */}
       <div
         aria-hidden

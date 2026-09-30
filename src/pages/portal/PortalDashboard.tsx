@@ -2651,6 +2651,18 @@ export function PortalDashboard() {
   const { data: notifications = [] } = useNotifications()
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
+  const tabsRef = useRef<HTMLDivElement>(null)
+
+  // No celular a barra de abas rola de lado: traz a aba escolhida para a área visível
+  useEffect(() => {
+    const list = tabsRef.current
+    const el = list?.querySelector<HTMLElement>('[data-state="active"]')
+    if (!list || !el) return
+    const left = el.offsetLeft - 16
+    const right = el.offsetLeft + el.offsetWidth - list.clientWidth + 16
+    if (list.scrollLeft > left) list.scrollTo({ left, behavior: 'smooth' })
+    else if (list.scrollLeft < right) list.scrollTo({ left: right, behavior: 'smooth' })
+  }, [activeTab])
   const clientId = profile?.linked_client_id ?? ''
   const { data: formConfig } = useWeeklyFormConfig(clientId)
   const [selectedAsset, setSelectedAsset] = useState<ContentAsset | null>(null)
@@ -2827,7 +2839,13 @@ export function PortalDashboard() {
 
         {/* ── Abas numeradas, com fio azul embaixo da ativa ── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-10 sm:mt-14">
-          <TabsList className="portal-tabs w-full h-auto p-0 bg-transparent border-0 border-b border-[#E4E7EC] rounded-none justify-start gap-6 sm:gap-8 flex-nowrap overflow-x-auto scrollbar-none mb-9 sm:mb-12">
+          {/* O fio fica no invólucro (fora da área que rola) para a barra não tremer na vertical */}
+          <div className="relative -mx-4 sm:mx-0 mb-9 sm:mb-12 border-b border-[#E4E7EC]">
+          <div aria-hidden className="sm:hidden absolute right-0 top-0 bottom-px w-12 z-10 pointer-events-none bg-gradient-to-l from-[#F6F7F9] to-transparent" />
+          <TabsList
+            ref={tabsRef}
+            className="portal-tabs relative flex w-full h-auto p-0 px-4 sm:px-0 bg-transparent border-0 rounded-none justify-start gap-6 sm:gap-8 flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain scrollbar-none"
+          >
             {[
               { v: 'dashboard',    label: 'Dashboard' },
               { v: 'planejamento', label: 'Planejamento', count: plannerItems?.length || 0 },
@@ -2840,7 +2858,7 @@ export function PortalDashboard() {
               <TabsTrigger
                 key={t.v}
                 value={t.v}
-                className="group relative flex-shrink-0 gap-2 rounded-none px-0 pt-1 pb-3.5 text-[13.5px] font-medium bg-transparent text-[#8A94A6] hover:bg-transparent hover:text-[#0F172A] data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:left-0 after:right-0 after:-bottom-px after:h-[2px] after:bg-[#0F172A] after:origin-left after:scale-x-0 after:transition-transform after:duration-500 data-[state=active]:after:scale-x-100"
+                className="group relative flex-shrink-0 gap-2 rounded-none px-0 pt-1 pb-3.5 text-[13.5px] font-medium bg-transparent text-[#8A94A6] hover:bg-transparent hover:text-[#0F172A] data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[2px] after:bg-[#0F172A] after:origin-left after:scale-x-0 after:transition-transform after:duration-500 data-[state=active]:after:scale-x-100"
               >
                 <span className="text-[10.5px] tabular-nums text-[#C4CAD4] group-data-[state=active]:text-[#2563EB] transition-colors">
                   {String(i + 1).padStart(2, '0')}
@@ -2856,6 +2874,7 @@ export function PortalDashboard() {
               </TabsTrigger>
             ))}
           </TabsList>
+          </div>
 
           {/* Aba Dashboard */}
           <TabsContent value="dashboard" className="mt-0">
