@@ -51,6 +51,12 @@ export function jaPublicoNoR2(url: string): boolean {
   }
 }
 
+const TENTATIVAS_R2 = 3
+
+class FalhaDeRede extends Error {
+  constructor() { super('Falha de rede ao enviar o arquivo.') }
+}
+
 /** Envia direto ao R2 usando uma URL assinada gerada pela Edge Function. */
 async function enviarParaR2(file: File, onProgress?: (pct: number) => void): Promise<string> {
   const { data, error } = await supabase.functions.invoke('r2-upload-url', {
@@ -63,7 +69,7 @@ async function enviarParaR2(file: File, onProgress?: (pct: number) => void): Pro
 
   // XMLHttpRequest em vez de fetch: é o único jeito de ter barra de progresso
   // em upload, e arquivo grande sem progresso parece travado.
-  await new Promise<void>((resolve, reject) => {
+  const put = () => new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', uploadUrl, true)
     xhr.setRequestHeader('Content-Type', file.type)
@@ -77,9 +83,27 @@ async function enviarParaR2(file: File, onProgress?: (pct: number) => void): Pro
       xhr.status >= 200 && xhr.status < 300
         ? resolve()
         : reject(new Error(`Falha no envio (${xhr.status}).`))
-    xhr.onerror = () => reject(new Error('Falha de rede ao enviar o arquivo.'))
+    xhr.onerror = () => reject(new FalhaDeRede())
     xhr.send(file)
   })
+
+  // Queda de conexão no meio do envio (Wi-Fi oscilando, 4G) deixava o post
+  // salvo sem a imagem. Tenta de novo sozinho antes de desistir; a URL
+  // assinada vale 1 hora, então serve para as novas tentativas.
+  for (let tentativa = 1; ; tentativa++) {
+    try {
+      await put()
+      break
+    } catch (err) {
+      if (!(err instanceof FalhaDeRede) || tentativa >= TENTATIVAS_R2) {
+        throw err instanceof FalhaDeRede
+          ? new Error(`Falha de rede ao enviar o arquivo (${TENTATIVAS_R2} tentativas). Confira a internet e anexe de novo.`)
+          : err
+      }
+      onProgress?.(0)
+      await new Promise(r => setTimeout(r, 1500 * tentativa))
+    }
+  }
 
   return publicUrl
 }
