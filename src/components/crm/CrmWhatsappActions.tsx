@@ -1,10 +1,13 @@
-// ── WhatsApp do lead: mensagens prontas e sugestão da IA ─────────────────────
-// Tudo abre o WhatsApp da própria agência (wa.me) com o texto já escrito.
+// ── WhatsApp do lead: escrever e enviar daqui mesmo ─────────────────────────
+// A mensagem é escrita no campo da ficha (à mão, a partir de uma mensagem
+// pronta ou sugerida pela IA) e enviada para o WhatsApp cadastrado no lead.
+// WhatsApp da agência conectado: sai direto pelo número dela, sem abrir nada.
+// Sem conexão: abre o WhatsApp da própria agência (wa.me) com o texto pronto.
 // Nada sai pelo número da plataforma: ver o cabeçalho da migration 075.
-// Abrir uma mensagem registra no histórico que o contato foi feito.
+// Todo envio fica registrado no histórico do lead.
 
-import { useState } from 'react'
-import { MessageCircle, Sparkles, Loader2, Copy, ChevronDown } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MessageCircle, Sparkles, Loader2, Copy, ChevronDown, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
@@ -33,32 +36,44 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
   const connected = wa?.status === 'connected'
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [aiText, setAiText]     = useState<string | null>(null)
+  const [draft, setDraft]       = useState('')
+  // De onde veio o texto do campo: vai junto no histórico ("Boas-vindas: ...")
+  const [label, setLabel]       = useState('Mensagem')
   const [aiBusy, setAiBusy]     = useState(false)
+
+  // Outro lead aberto: o rascunho do anterior não pode ir para ele
+  useEffect(() => { setDraft(''); setLabel('Mensagem') }, [lead.id])
 
   const agency    = profile?.agency_name || profile?.full_name || 'nossa agência'
   const templates = settings?.message_templates?.length ? settings.message_templates : CRM_DEFAULT_MESSAGES
+  const firstName = lead.name.trim().split(/\s+/)[0] ?? ''
 
-  function send(text: string, label: string) {
-    if (!lead.whatsapp) return
+  function fill(text: string, from: string) {
+    setDraft(text)
+    setLabel(from)
     setMenuOpen(false)
-    // WhatsApp da agência conectado: sai direto pelo número dela, sem abrir nada
+  }
+
+  function send() {
+    const text = draft.trim()
+    if (!lead.whatsapp || !text) return
     if (connected) {
-      if (!window.confirm(`Enviar agora para ${lead.name} pelo seu WhatsApp?\n\n"${text}"`)) return
       sendDirect.mutate({ lead_id: lead.id, text, label }, {
-        onSuccess: () => toast('Mensagem enviada pelo seu WhatsApp', 'success'),
+        onSuccess: () => { toast(`Mensagem enviada para ${firstName}`, 'success'); setDraft(''); setLabel('Mensagem') },
         onError:   (e: any) => toast(e.message, 'error'),
       })
       return
     }
     window.open(waLink(lead.whatsapp, text), '_blank', 'noopener')
     addActivity.mutate({ lead_id: lead.id, kind: 'whatsapp', content: `${label}: "${text}"` })
-    setMenuOpen(false)
+    setDraft('')
+    setLabel('Mensagem')
   }
 
   async function suggest() {
     setAiBusy(true)
-    setAiText('')
+    setDraft('')
+    setLabel('Mensagem sugerida pela IA')
     const stage = columns.find(c => c.id === lead.column_id)?.name ?? 'sem etapa'
     const history = activities.slice(0, 15).reverse()
       .map(a => `- ${new Date(a.created_at).toLocaleDateString('pt-BR')} [${a.kind}] ${a.content ?? ''}`)
@@ -82,16 +97,19 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
 
     try {
       const full = await streamChat([{ role: 'user', content: user }], system, false, chunk => {
-        setAiText(prev => (prev ?? '') + chunk)
+        setDraft(prev => prev + chunk)
       })
-      setAiText(full.trim())
+      setDraft(full.trim())
     } catch (err: any) {
-      setAiText(null)
+      setDraft('')
+      setLabel('Mensagem')
       toast(err.message ?? 'A IA não respondeu agora', 'error')
     } finally {
       setAiBusy(false)
     }
   }
+
+  const sending = sendDirect.isPending
 
   return (
     <div className="space-y-2">
@@ -100,7 +118,7 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
           <Button size="sm" variant="outline" disabled={!lead.whatsapp} onClick={() => setMenuOpen(v => !v)}
                   title={lead.whatsapp ? undefined : 'Cadastre o WhatsApp do lead'}>
             <MessageCircle className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />
-            WhatsApp
+            Mensagens prontas
             <ChevronDown className="w-3 h-3" />
           </Button>
           {menuOpen && (
@@ -113,15 +131,15 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
                   className="w-full text-left px-3 py-2 text-[12px] hover:bg-white/5"
                   style={{ color: 'var(--sm-text-2)' }}
                 >
-                  Abrir conversa em branco
+                  Abrir conversa no WhatsApp
                 </button>
                 <div className="px-3 pt-1.5 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-4)' }}>
-                  Mensagens prontas
+                  Usar no campo de mensagem
                 </div>
                 {templates.map(t => (
                   <button
                     key={t.title}
-                    onClick={() => send(fillVars(t.text, lead, agency), t.title)}
+                    onClick={() => fill(fillVars(t.text, lead, agency), t.title)}
                     className="w-full text-left px-3 py-1.5 hover:bg-white/5"
                   >
                     <span className="block text-[12px] font-medium" style={{ color: 'var(--sm-text-1)' }}>{t.title}</span>
@@ -141,23 +159,41 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
         </Button>
       </div>
 
-      {aiText !== null && (
-        <div className="rounded-xl border p-2.5 space-y-2" style={{ borderColor: 'rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.06)' }}>
-          <Textarea rows={4} value={aiText} onChange={e => setAiText(e.target.value)} className="text-[12.5px]" />
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setAiText(null)}>Descartar</Button>
-            <Button size="sm" variant="outline" disabled={!aiText}
-                    onClick={async () => toast((await copyText(aiText)) ? 'Mensagem copiada' : 'Não consegui copiar', 'success')}>
-              <Copy className="w-3 h-3" /> Copiar
-            </Button>
-            {lead.whatsapp && (
-              <Button size="sm" variant="success" disabled={!aiText || aiBusy}
-                      onClick={() => { send(aiText, 'Mensagem sugerida pela IA'); setAiText(null) }}>
-                <MessageCircle className="w-3 h-3" /> Enviar no WhatsApp
+      {lead.whatsapp ? (
+        <div className="rounded-xl border p-2.5 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-input)' }}>
+          <Textarea
+            rows={3}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send() } }}
+            placeholder={`Escreva uma mensagem para ${firstName}...`}
+            className="text-[12.5px]"
+            disabled={aiBusy}
+          />
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[11px] min-w-0" style={{ color: 'var(--sm-text-4)' }}>
+              {connected
+                ? `Vai direto para ${lead.whatsapp} pelo seu WhatsApp`
+                : 'Abre o seu WhatsApp com o texto pronto. Conecte em CRM → Configurações para enviar direto daqui.'}
+            </span>
+            <div className="flex items-center gap-1.5 ml-auto">
+              {draft.trim() && (
+                <Button size="sm" variant="ghost" title="Copiar"
+                        onClick={async () => toast((await copyText(draft)) ? 'Mensagem copiada' : 'Não consegui copiar', 'success')}>
+                  <Copy className="w-3 h-3" />
+                </Button>
+              )}
+              <Button size="sm" variant="success" disabled={!draft.trim() || aiBusy || sending} onClick={send}>
+                {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                Enviar
               </Button>
-            )}
+            </div>
           </div>
         </div>
+      ) : (
+        <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
+          Cadastre o WhatsApp do lead e salve para enviar mensagens daqui.
+        </p>
       )}
     </div>
   )
