@@ -117,6 +117,7 @@ async function writeMessage(ai: OpenAI, args: {
     '- Termine com uma pergunta fácil de responder.\n' +
     '- Sem pressão e sem escassez falsa. Nunca invente fatos, números, casos ou promessas que não estejam no briefing.\n' +
     '- Não repita o que já foi dito nos follow-ups anteriores.\n' +
+    '- Nunca atribua ao lead algo que ele não escreveu na conversa. Nada de "você comentou", "você disse" ou "lembrei que você" sem a fala real dele.\n' +
     '- Sem markdown, sem aspas, no máximo 1 emoji. Chame o lead pelo primeiro nome.\n' +
     '- Responda somente com o texto da mensagem.\n\n' +
     `BRIEFING DO QUE ESTAMOS VENDENDO:\n${briefingText(offer)}`
@@ -127,11 +128,16 @@ async function writeMessage(ai: OpenAI, args: {
     `\nEste é o follow-up de ${step} dia${step > 1 ? 's' : ''}. Objetivo desta mensagem: ${STEP_GOAL[step]}\n\n` +
     `Conversa (mais antiga primeiro):\n${history}`
 
+  // Lead que ainda não respondeu nada não tem palavras dele para retomar
+  const leadSpoke = conversation.some(m => m.direction === 'in')
+  const silentNote = leadSpoke ? '' :
+    '\nO lead AINDA NÃO RESPONDEU nada: não existe fala dele para retomar. Parta do motivo do contato e da necessidade descrita no briefing, em forma de pergunta, sem afirmar o que ele pensa ou precisa.\n'
+
   const res = await ai.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0.6,
     max_tokens: 220,
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    messages: [{ role: 'system', content: system }, { role: 'user', content: user + silentNote }],
   })
   return (res.choices[0]?.message?.content ?? '').trim().replace(/^["']|["']$/g, '')
 }
