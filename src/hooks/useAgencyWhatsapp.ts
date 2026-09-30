@@ -67,6 +67,9 @@ export function useSendAgencyWhatsapp() {
   return useMutation({
     mutationFn: (m: { lead_id: string; text: string; label?: string }) =>
       call<{ ok: boolean }>({ action: 'send', ...m }),
-    onSuccess: (_d, m) => qc.invalidateQueries({ queryKey: ['crm_activities', m.lead_id] }),
+    onSuccess: (_d, m) => {
+      qc.invalidateQueries({ queryKey: ['crm_activities', m.lead_id] })
+      qc.invalidateQueries({ queryKey: ['crm_messages', m.lead_id] })
+    },
   })
 }

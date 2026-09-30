@@ -88,6 +88,48 @@ async function reply(token: string, number: string, text: string) {
   }).catch(() => {})
 }
 
+// ─── Conversa com leads (follow-up automático, migration 080) ─────────────────
+// Toda mensagem entre o número da agência e um lead fica gravada: é por ela
+// que a função crm-followup sabe quem falou por último e há quanto tempo.
+// Mensagem sem texto (áudio, foto) também conta como interação.
+
+async function storeConversation(sb: any, instId: string, body: any) {
+  const m = body?.message ?? body?.data ?? body
+  const jid: string = m?.chatid ?? m?.key?.remoteJid ?? m?.remoteJid ?? m?.sender ?? m?.from ?? ''
+  if (!jid || String(jid).endsWith('@g.us') || m?.isGroup || m?.wasSentByApi) return
+  const key = phoneKey(String(jid).split('@')[0])
+  if (!key || !/^[0-9a-f-]{36}$/i.test(instId)) return
+
+  const { data: inst } = await sb.from('whatsapp_instances').select('user_id').eq('id', instId).maybeSingle()
+  if (!inst?.user_id) return
+  const { data: leads } = await sb.from('crm_leads').select('id, whatsapp, archived_at')
+    .eq('user_id', inst.user_id).not('whatsapp', 'is', null)
+  const matches = (leads ?? []).filter((l: any) => phoneKey(l.whatsapp) === key)
+  // Mesmo número em mais de um card: fica no que está ativo
+  const lead = matches.find((l: any) => !l.archived_at) ?? matches[0]
+  if (!lead) return
+
+  const rawText =
+    m?.text ?? m?.content?.text ?? m?.body ??
+    m?.message?.conversation ?? m?.message?.extendedTextMessage?.text ?? ''
+  const type = String(m?.messageType ?? m?.type ?? '').toLowerCase()
+  const text = typeof rawText === 'string' && rawText.trim()
+    ? rawText.trim().slice(0, 4000)
+    : `[${/audio|ptt/.test(type) ? 'áudio' : /image/.test(type) ? 'imagem' : /video/.test(type) ? 'vídeo' : /document/.test(type) ? 'documento' : /sticker/.test(type) ? 'figurinha' : 'mídia'}]`
+  let ts = Number(m?.messageTimestamp ?? m?.timestamp ?? 0)
+  if (ts && ts < 1e12) ts *= 1000
+  const sentAt = ts ? new Date(ts).toISOString() : new Date().toISOString()
+  const waId = m?.messageid ?? m?.id ?? m?.key?.id ?? null
+
+  const { error } = await sb.from('crm_messages').insert({
+    user_id: inst.user_id, lead_id: lead.id,
+    direction: (m?.fromMe ?? m?.key?.fromMe) ? 'out' : 'in',
+    text, source: 'whatsapp', wa_id: waId ? String(waId) : null, sent_at: sentAt,
+  })
+  // 23505 = a UazAPI reenviou a mesma mensagem: já está gravada
+  if (error && error.code !== '23505') console.error('crm-whatsapp-assistant: conversa não gravada', error.message)
+}
+
 // ─── Créditos de IA (mesma regra do ai-chat) ──────────────────────────────────
 
 async function consumeCredit(sb: any, userId: string): Promise<string | null> {
@@ -172,6 +214,15 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => null)
+
+  // Antes de tudo: guarda a conversa se for com um lead. Falha aqui não pode
+  // impedir o assistente de responder.
+  try {
+    await storeConversation(createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY), instId, body)
+  } catch (err) {
+    console.error('crm-whatsapp-assistant: storeConversation', err)
+  }
+
   const msg = parseIncoming(body)
   // Resposta 200 mesmo quando ignora: webhook com erro é reenviado pela UazAPI.
   // Mensagem comum (sem "CRM") sai sem log, para não encher o registro.

@@ -534,6 +534,40 @@ export interface CrmLead {
   closed_at:           string | null
   created_at:          string
   updated_at:          string
+  // Follow-up automático (migration 080)
+  followup_paused?:    boolean
+  followup_offer_id?:  string | null
+  followup_done?:      number[]
+  followup_last_at?:   string | null
+}
+
+/** Briefing do que a agência vende: base das mensagens do follow-up automático. */
+export interface CrmOffer {
+  id:         string
+  user_id:    string
+  name:       string
+  product:    string | null
+  audience:   string | null
+  problem:    string | null
+  solution:   string | null
+  price:      string | null
+  proof:      string | null
+  tips:       string | null
+  tone:       string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** Mensagem da conversa de WhatsApp com o lead. */
+export interface CrmMessage {
+  id:            string
+  lead_id:       string
+  direction:     'in' | 'out'
+  text:          string
+  source:        'whatsapp' | 'sistema' | 'followup'
+  followup_step: number | null
+  sent_at:       string
 }
 
 /** Tipos que a agência registra à mão; os demais o banco grava sozinho. */
@@ -640,6 +674,7 @@ export interface CrmSettings {
   capture_thanks:      string | null
   brand_color:         string | null   // #RRGGBB: cor da agência nas páginas do cliente
   brand_logo_url:      string | null
+  followup_enabled?:   boolean
   created_at:          string
   updated_at:          string
 }

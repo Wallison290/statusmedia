@@ -275,6 +275,11 @@ Deno.serve(async (req) => {
         }, 502)
       }
 
+      // Entra na conversa do lead: o follow-up automático conta a partir daqui
+      await sb.from('crm_messages').insert({
+        user_id: user.id, lead_id: lead.id, direction: 'out', text, source: 'sistema',
+        wa_id: [r.data?.messageid, r.data?.key?.id, r.data?.id].find(v => typeof v === 'string') ?? null,
+      })
       return json({ ok: true })
     }
 

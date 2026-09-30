@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import {
   Trash2, Loader2, UserPlus, MessageCircle, Mail, Instagram, Building2,
   CalendarClock, Wallet, Flame, Tag, StickyNote, ArrowRightLeft, Archive, ArchiveRestore,
-  History, CheckSquare, FileText, XCircle,
+  History, CheckSquare, FileText, XCircle, MessagesSquare,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,7 @@ import { CrmLeadTimeline } from './CrmLeadTimeline'
 import { CrmLeadTasks } from './CrmLeadTasks'
 import { CrmLeadDocs } from './CrmLeadDocs'
 import { CrmWhatsappActions } from './CrmWhatsappActions'
+import { CrmLeadConversation, CrmLeadFollowup } from './CrmLeadConversation'
 import type { CrmColumn, CrmLead, CrmTemperature } from '@/types'
 
 interface Props {
@@ -51,7 +52,7 @@ const QUICK_DATES: { label: string; days: number }[] = [
   { label: '1 semana', days: 7 },
 ]
 
-type Panel = 'historico' | 'tarefas' | 'documentos'
+type Panel = 'conversa' | 'historico' | 'tarefas' | 'documentos'
 
 /** "Sexta-feira, daqui a 3 dias" / "Atrasado há 2 dias": a data dita em palavras. */
 function nextContactHint(iso: string): { text: string; late: boolean } {
@@ -97,14 +98,14 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
 
   const [form, setForm] = useState<CrmLeadInput>({ name: '', column_id: columnId })
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [panel, setPanel] = useState<Panel>('historico')
+  const [panel, setPanel] = useState<Panel>('conversa')
 
   // Recarrega o formulário sempre que o modal abre — abrir outro lead não pode
   // herdar o que estava digitado no anterior.
   useEffect(() => {
     if (!open) return
     setConfirmDelete(false)
-    setPanel('historico')
+    setPanel('conversa')
     setForm(lead
       ? {
           name:                lead.name,
@@ -402,6 +403,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   )
 
   const PANELS: { id: Panel; label: string; icon: React.ElementType }[] = [
+    { id: 'conversa',   label: 'Conversa',   icon: MessagesSquare },
     { id: 'historico',  label: 'Histórico',  icon: History },
     { id: 'tarefas',    label: 'Tarefas',    icon: CheckSquare },
     { id: 'documentos', label: 'Documentos', icon: FileText },
@@ -436,6 +438,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
 
             <div className="flex flex-col gap-3 min-w-0 order-first lg:order-none lg:border-l lg:pl-6" style={{ borderColor: 'var(--sm-border)' }}>
               <CrmWhatsappActions lead={lead} columns={columns} />
+              <CrmLeadFollowup lead={lead} />
 
               <div className="flex gap-1 border-b" style={{ borderColor: 'var(--sm-border)' }}>
                 {PANELS.map(p => (
@@ -452,6 +455,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
               </div>
 
               <div className="min-h-[240px]">
+                {panel === 'conversa'   && <CrmLeadConversation leadId={lead.id} />}
                 {panel === 'historico'  && <CrmLeadTimeline leadId={lead.id} />}
                 {panel === 'tarefas'    && <CrmLeadTasks leadId={lead.id} defaultAssignee={lead.responsible_user_id} />}
                 {panel === 'documentos' && <CrmLeadDocs leadId={lead.id} onNavigate={onClose} />}
