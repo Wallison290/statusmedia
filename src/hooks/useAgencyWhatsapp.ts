@@ -73,3 +73,15 @@ export function useSendAgencyWhatsapp() {
     },
   })
 }
+
+/** Etiquetas do WhatsApp Business da agência (vazio se não for Business). */
+export function useAgencyWhatsappLabels(enabled: boolean) {
+  const { user } = useAuth()
+  return useQuery<{ id: string; name: string; color: string | null }[]>({
+    queryKey: ['agency_whatsapp_labels', user?.id],
+    enabled:  !!user && enabled,
+    queryFn:  async () => (await call<{ labels: { id: string; name: string; color: string | null }[] }>({ action: 'labels' })).labels,
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+}

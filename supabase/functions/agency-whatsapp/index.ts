@@ -223,6 +223,24 @@ Deno.serve(async (req) => {
       return json({ ok: true, status: 'disconnected' })
     }
 
+    // ── labels ────────────────────────────────────────────────────────────────
+    // Etiquetas do WhatsApp Business da agência, para escolher a do primeiro
+    // contato. WhatsApp comum não tem etiquetas: volta lista vazia.
+    if (action === 'labels') {
+      if (!inst) return json({ ok: true, labels: [] })
+      const r = await uaz('/labels', inst.instance_token)
+      const list = Array.isArray(r.data) ? r.data : []
+      return json({
+        ok: true,
+        labels: list.map((l: any) => ({
+          id: String(l.labelid ?? l.id),
+          // O WhatsApp põe um caractere invisível no nome das etiquetas padrão
+          name: String(l.name ?? '').replace(/[‎‏]/g, '').trim(),
+          color: l.colorHex ?? null,
+        })).filter((l: any) => l.name),
+      })
+    }
+
     // ── send ──────────────────────────────────────────────────────────────────
     if (action === 'send') {
       const leadId = String(body?.lead_id ?? '')
@@ -232,7 +250,7 @@ Deno.serve(async (req) => {
       if (!inst) return json({ ok: false, error: 'Conecte o seu WhatsApp em CRM → Configurações.' }, 409)
 
       // O lead precisa ser DESTA agência: o id vem do navegador
-      const { data: lead } = await sb.from('crm_leads').select('id, name, whatsapp').eq('id', leadId).eq('user_id', user.id).maybeSingle()
+      const { data: lead } = await sb.from('crm_leads').select('id, name, whatsapp, column_id').eq('id', leadId).eq('user_id', user.id).maybeSingle()
       if (!lead) return json({ ok: false, error: 'Lead não encontrado.' }, 404)
       if (!lead.whatsapp) return json({ ok: false, error: 'Este lead está sem WhatsApp no cadastro.' }, 400)
 
@@ -280,7 +298,27 @@ Deno.serve(async (req) => {
         user_id: user.id, lead_id: lead.id, direction: 'out', text, source: 'sistema',
         wa_id: [r.data?.messageid, r.data?.key?.id, r.data?.id].find(v => typeof v === 'string') ?? null,
       })
-      return json({ ok: true })
+
+      // Primeiro contato (lead na primeira etapa do funil): a conversa ganha a
+      // etiqueta escolhida no WhatsApp Business. Falhar aqui não desfaz o envio.
+      let labeled = false
+      try {
+        const [{ data: settings }, { data: first }] = await Promise.all([
+          sb.from('crm_settings').select('wa_first_contact_label').eq('user_id', user.id).maybeSingle(),
+          sb.from('crm_columns').select('id').eq('user_id', user.id).order('position').limit(1).maybeSingle(),
+        ])
+        if (settings?.wa_first_contact_label && first?.id === lead.column_id) {
+          const lr = await uaz('/chat/labels', inst.instance_token, {
+            method: 'POST',
+            body: { number: normalize(lead.whatsapp), add_labelid: settings.wa_first_contact_label },
+          })
+          labeled = lr.ok
+          if (!lr.ok) console.warn('agency-whatsapp: etiqueta não aplicada', lr.status, JSON.stringify(lr.data).slice(0, 200))
+        }
+      } catch (err) {
+        console.warn('agency-whatsapp: etiqueta', err)
+      }
+      return json({ ok: true, labeled })
     }
 
     return json({ ok: false, error: 'Ação desconhecida.' }, 400)

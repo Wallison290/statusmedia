@@ -675,6 +675,8 @@ export interface CrmSettings {
   brand_color:         string | null   // #RRGGBB: cor da agência nas páginas do cliente
   brand_logo_url:      string | null
   followup_enabled?:   boolean
+  wa_first_contact_label?:      string | null   // id da etiqueta do WhatsApp Business
+  wa_first_contact_label_name?: string | null
   created_at:          string
   updated_at:          string
 }
