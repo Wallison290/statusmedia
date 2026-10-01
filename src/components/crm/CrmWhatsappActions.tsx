@@ -23,9 +23,11 @@ import type { CrmColumn, CrmLead } from '@/types'
 interface Props {
   lead:    CrmLead
   columns: CrmColumn[]
+  /** Uma mensagem saiu daqui: a ficha usa para mover o lead de etapa ao fechar */
+  onSent?: () => void
 }
 
-export function CrmWhatsappActions({ lead, columns }: Props) {
+export function CrmWhatsappActions({ lead, columns, onSent }: Props) {
   const { toast } = useToast()
   const { profile } = useAuth()
   const { data: settings } = useCrmSettings()
@@ -63,7 +65,7 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
     if (connected) {
       sendingRef.current = true
       sendDirect.mutate({ lead_id: lead.id, text, label }, {
-        onSuccess: () => { toast(`Mensagem enviada para ${firstName}`, 'success'); setDraft(''); setLabel('Mensagem') },
+        onSuccess: () => { toast(`Mensagem enviada para ${firstName}`, 'success'); setDraft(''); setLabel('Mensagem'); onSent?.() },
         onError:   (e: any) => toast(e.message, 'error'),
         onSettled: () => { sendingRef.current = false },
       })
@@ -73,6 +75,7 @@ export function CrmWhatsappActions({ lead, columns }: Props) {
     addActivity.mutate({ lead_id: lead.id, kind: 'whatsapp', content: `${label}: "${text}"` })
     setDraft('')
     setLabel('Mensagem')
+    onSent?.()
   }
 
   async function suggest() {

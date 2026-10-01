@@ -99,6 +99,9 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   const [form, setForm] = useState<CrmLeadInput>({ name: '', column_id: columnId })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [panel, setPanel] = useState<Panel>('conversa')
+  // Mandou mensagem pelo CRM com o lead na primeira etapa: o contato foi feito,
+  // então ao salvar ou fechar ele passa para a etapa seguinte do funil.
+  const [sentFromCrm, setSentFromCrm] = useState(false)
 
   // Recarrega o formulário sempre que o modal abre — abrir outro lead não pode
   // herdar o que estava digitado no anterior.
@@ -106,6 +109,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
     if (!open) return
     setConfirmDelete(false)
     setPanel('conversa')
+    setSentFromCrm(false)
     setForm(lead
       ? {
           name:                lead.name,
@@ -133,6 +137,28 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   }
 
   const currentColumn = columns.find(c => c.id === form.column_id)
+
+  const ordered     = [...columns].sort((a, b) => a.position - b.position)
+  const firstColumn = ordered[0]
+  const contactColumn = ordered[1]?.stage_type === 'normal' ? ordered[1] : undefined
+
+  /** Etapa de destino quando houve envio pelo CRM com o lead na primeira etapa. */
+  function advancedColumn(columnId: string) {
+    return sentFromCrm && contactColumn && columnId === firstColumn?.id ? contactColumn : null
+  }
+
+  // Fechar sem salvar (X, Cancelar, fora do card): só a etapa muda, o resto do
+  // formulário continua descartado como sempre
+  function handleClose() {
+    const to = lead && !lead.archived_at ? advancedColumn(lead.column_id) : null
+    if (lead && to) {
+      updateLead.mutate({ id: lead.id, column_id: to.id }, {
+        onSuccess: () => toast(`${lead.name} foi para "${to.name}"`, 'success'),
+        onError:   (e: any) => toast(e.message ?? 'Não consegui mudar a etapa', 'error'),
+      })
+    }
+    onClose()
+  }
   const isWonColumn   = currentColumn?.stage_type === 'ganho'
   const isLostColumn  = currentColumn?.stage_type === 'perdido'
 
@@ -140,9 +166,12 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
     const name = (form.name ?? '').trim()
     if (!name) { toast('Dê um nome ao lead', 'warning'); return }
 
+    const moved = advancedColumn(form.column_id)
+
     // Campos de texto vazios viram null para não poluir o card com string vazia
     const payload = {
       ...form,
+      column_id: moved?.id ?? form.column_id,
       name,
       company:   form.company?.trim()   || null,
       whatsapp:  form.whatsapp?.trim()  || null,
@@ -159,7 +188,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
     try {
       if (lead) {
         await updateLead.mutateAsync({ id: lead.id, ...payload })
-        toast('Lead atualizado', 'success')
+        toast(moved ? `Lead atualizado e movido para "${moved.name}"` : 'Lead atualizado', 'success')
       } else {
         await createLead.mutateAsync(payload as CrmLeadInput)
         toast('Lead cadastrado', 'success')
@@ -410,7 +439,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   ]
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
       <DialogContent
         // Lead existente: não põe o cursor em campo nenhum. No celular isso abre o
         // teclado sozinho e cobre a tela antes de a pessoa decidir o que fazer.
@@ -437,7 +466,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
             {formBody}
 
             <div className="flex flex-col gap-3 min-w-0 order-first lg:order-none lg:border-l lg:pl-6" style={{ borderColor: 'var(--sm-border)' }}>
-              <CrmWhatsappActions lead={lead} columns={columns} />
+              <CrmWhatsappActions lead={lead} columns={columns} onSent={() => setSentFromCrm(true)} />
               <CrmLeadFollowup lead={lead} />
 
               <div className="flex gap-1 border-b" style={{ borderColor: 'var(--sm-border)' }}>
@@ -494,7 +523,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button variant="outline" onClick={handleClose}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {lead ? 'Salvar' : 'Cadastrar lead'}
