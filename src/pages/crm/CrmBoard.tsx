@@ -31,9 +31,10 @@ import { CrmHeader } from '@/components/crm/CrmHeader'
 import { CrmLostReasonDialog } from '@/components/crm/CrmLostReason'
 import { CrmAssistant } from '@/components/crm/CrmAssistant'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { fmtBRL, todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
+import { todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
 import { CRM_COLUMN_COLORS } from '@/data/crmTemplates'
 import type { CrmColumn, CrmLead, CrmStageType } from '@/types'
+import { useMoney } from '@/hooks/useHideValues'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ interface LeadCardProps {
 }
 
 function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: LeadCardProps) {
+  const money = useMoney()
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: lead.id })
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -135,7 +137,7 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
             {lead.estimated_value != null && (
               <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md leading-none"
                     style={{ color: '#22C55E', background: 'rgba(34,197,94,0.12)' }}>
-                {fmtBRL(lead.estimated_value)}
+                {money(lead.estimated_value)}
               </span>
             )}
             {lead.next_contact_at && (
@@ -254,6 +256,7 @@ function Column({
   column, leads, columns, memberOf, onAddLead, onOpenLead, onMoveLead, onArchiveLead,
   onRename, onRecolor, onStageType, onDelete, onShift, isFirst, isLast,
 }: ColumnProps) {
+  const money = useMoney()
   const { setNodeRef, isOver } = useDroppable({ id: `col-${column.id}` })
 
   // A coluna inteira é solta em `col-<id>`; quem é arrastado é a alça do
@@ -421,7 +424,7 @@ function Column({
       <div className="px-1 mb-2 h-4 flex items-center justify-between">
         <div className="h-[3px] rounded-full flex-1 mr-2" style={{ background: column.color, opacity: 0.5 }} />
         {total > 0 && (
-          <span className="text-[10.5px] font-medium leading-none" style={{ color: 'var(--sm-text-3)' }}>{fmtBRL(total)}</span>
+          <span className="text-[10.5px] font-medium leading-none" style={{ color: 'var(--sm-text-3)' }}>{money(total)}</span>
         )}
       </div>
 
@@ -479,6 +482,7 @@ function Column({
 // ── Página ────────────────────────────────────────────────────────────────────
 
 export function CrmBoard() {
+  const money = useMoney()
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -775,12 +779,12 @@ export function CrmBoard() {
               <span className="text-[11.5px] px-2 py-1 rounded-lg"
                     style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
                 <strong style={{ color: 'var(--sm-text-1)' }}>{stats.openCount}</strong> em aberto
-                {stats.openValue > 0 && <> · {fmtBRL(stats.openValue)}</>}
+                {stats.openValue > 0 && <> · {money(stats.openValue)}</>}
               </span>
               <span className="text-[11.5px] px-2 py-1 rounded-lg"
                     style={{ background: 'rgba(34,197,94,0.10)', color: '#22C55E' }}>
                 <strong>{stats.wonCount}</strong> ganhos
-                {stats.wonValue > 0 && <> · {fmtBRL(stats.wonValue)}</>}
+                {stats.wonValue > 0 && <> · {money(stats.wonValue)}</>}
               </span>
               {stats.conversion !== null && (
                 <span className="text-[11.5px] px-2 py-1 rounded-lg"

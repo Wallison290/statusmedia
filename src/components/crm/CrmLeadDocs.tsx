@@ -10,9 +10,11 @@ import { useCrmLeads } from '@/hooks/useCrm'
 import { useAuth } from '@/hooks/useAuth'
 import { proposalMessage, contractMessage } from './CrmShareBox'
 import { PROPOSAL_STATUS, CONTRACT_STATUS } from './crmStatus'
-import { fmtBRL, proposalLink, contractLink, waLink } from '@/utils/crm'
+import { proposalLink, contractLink, waLink } from '@/utils/crm'
+import { useMoney } from '@/hooks/useHideValues'
 
 export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate: () => void }) {
+  const money = useMoney()
   const navigate = useNavigate()
   const { data: proposals = [] } = useCrmProposals()
   const { data: contracts = [] } = useCrmContracts()
@@ -50,7 +52,7 @@ export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate
                   <button className="min-w-0 flex-1 text-left" onClick={() => go(`/crm/propostas?abrir=${p.id}`)}>
                     <p className="text-[12.5px] truncate" style={{ color: 'var(--sm-text-1)' }}>{p.title}</p>
                     <p className="text-[10.5px]" style={{ color: 'var(--sm-text-4)' }}>
-                      {fmtBRL(Number(p.total))} · <span style={{ color: S.color }}>{S.label}</span>
+                      {money(Number(p.total))} · <span style={{ color: S.color }}>{S.label}</span>
                       {p.view_count > 0 && ` · aberta ${p.view_count}x`}
                     </p>
                   </button>

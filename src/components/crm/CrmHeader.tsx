@@ -4,7 +4,8 @@
 // e o voltar do navegador funciona.
 
 import { NavLink } from 'react-router-dom'
-import { Columns3, FileText, PenLine, Zap, BarChart3, Settings2 } from 'lucide-react'
+import { Columns3, FileText, PenLine, Zap, BarChart3, Settings2, Eye, EyeOff } from 'lucide-react'
+import { useHideValues, setHideValues } from '@/hooks/useHideValues'
 
 const TABS = [
   { to: '/crm',               label: 'Funil',         icon: Columns3,  end: true },
@@ -21,11 +22,26 @@ interface Props {
 }
 
 export function CrmHeader({ subtitle, actions }: Props) {
+  const hidden = useHideValues()
   return (
     <div className="border-b flex-shrink-0" style={{ borderColor: 'var(--sm-border)' }}>
       <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-2 gap-4 flex-wrap">
         <div className="min-w-0">
-          <h1 className="text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>CRM</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>CRM</h1>
+            {/* Olho: esconde os valores em reais em todas as telas do CRM */}
+            <button
+              type="button"
+              onClick={() => setHideValues(!hidden)}
+              aria-label={hidden ? 'Mostrar valores' : 'Esconder valores'}
+              aria-pressed={hidden}
+              title={hidden ? 'Mostrar valores' : 'Esconder valores'}
+              className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/5"
+              style={{ color: hidden ? '#4F8EF7' : 'var(--sm-text-3)' }}
+            >
+              {hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
           {subtitle && (
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{subtitle}</p>
           )}

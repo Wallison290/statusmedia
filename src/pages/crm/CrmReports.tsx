@@ -16,8 +16,8 @@ import { useCrmStageMoves } from '@/hooks/useCrmActivities'
 import { useCrmSettings, useUpdateCrmSettings } from '@/hooks/useCrmSettings'
 import { useTeamMembers } from '@/hooks/useTeamMembers'
 import { CrmHeader } from '@/components/crm/CrmHeader'
-import { fmtBRL } from '@/utils/crm'
 import type { CrmLead } from '@/types'
+import { useMoney } from '@/hooks/useHideValues'
 
 type Period = 'mes' | 'mes_passado' | '90d' | 'ano'
 
@@ -113,6 +113,7 @@ function GoalBar({ label, current, goal, format }: { label: string; current: num
 }
 
 export function CrmReports() {
+  const money = useMoney()
   const { toast } = useToast()
   const [period, setPeriod] = useState<Period>('mes')
   const { data: columns = [] } = useCrmColumns()
@@ -152,7 +153,7 @@ export function CrmReports() {
     // Funil atual (etapas do meio + terminais), leads ativos
     const funnel = columns.map(c => {
       const ls = leads.filter(l => !l.archived_at && l.column_id === c.id)
-      return { label: c.name, value: ls.length, note: ls.reduce((s, l) => s + (l.estimated_value ?? 0), 0) ? fmtBRL(ls.reduce((s, l) => s + (l.estimated_value ?? 0), 0)) : undefined }
+      return { label: c.name, value: ls.length, note: ls.reduce((s, l) => s + (l.estimated_value ?? 0), 0) ? money(ls.reduce((s, l) => s + (l.estimated_value ?? 0), 0)) : undefined }
     })
 
     // Tempo médio que o lead passa em cada etapa, pelas saídas registradas no período
@@ -212,7 +213,7 @@ export function CrmReports() {
       sources: [...bySource.entries()].map(([k, v]) => ({ source: k, ...v })).sort((a, b) => b.total - a.total),
       members: [...byMember.entries()].map(([k, v]) => ({ name: k, ...v })).sort((a, b) => b.value - a.value),
     }
-  }, [leads, columns, moves, members, r[0].getTime(), r[1].getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [leads, columns, moves, members, r[0].getTime(), r[1].getTime(), money]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Meta é sempre do mês corrente, independente do período escolhido
   const month = useMemo(() => {
@@ -274,7 +275,7 @@ export function CrmReports() {
           ) : hasGoal ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {!!settings?.goal_monthly_value && (
-                <GoalBar label="Valor fechado" current={month.value} goal={Number(settings.goal_monthly_value)} format={n => fmtBRL(n)} />
+                <GoalBar label="Valor fechado" current={month.value} goal={Number(settings.goal_monthly_value)} format={n => money(n)} />
               )}
               {!!settings?.goal_monthly_deals && (
                 <GoalBar label="Clientes fechados" current={month.deals} goal={settings.goal_monthly_deals} format={n => String(n)} />
@@ -306,12 +307,12 @@ export function CrmReports() {
         ) : (
           <>
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-              <Tile label="Fechados" value={fmtBRL(report.wonValue)} sub={`${report.won} cliente(s) no período`} />
+              <Tile label="Fechados" value={money(report.wonValue)} sub={`${report.won} cliente(s) no período`} />
               <Tile label="Conversão" value={report.conversion === null ? 'sem dados' : `${report.conversion}%`}
                     sub={`${report.won} ganho(s) de ${report.won + report.lost} fechado(s)`} />
-              <Tile label="Ticket médio" value={report.ticket === null ? 'sem dados' : fmtBRL(report.ticket)}
+              <Tile label="Ticket médio" value={report.ticket === null ? 'sem dados' : money(report.ticket)}
                     sub={report.cycle === null ? 'sem vendas no período' : `${report.cycle} dia(s) do cadastro ao fechamento`} />
-              <Tile label="Na mesa agora" value={fmtBRL(report.openValue)} sub={`${report.openCount} lead(s) em aberto · ${report.created} novo(s) no período`} />
+              <Tile label="Na mesa agora" value={money(report.openValue)} sub={`${report.openCount} lead(s) em aberto · ${report.created} novo(s) no período`} />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -345,7 +346,7 @@ export function CrmReports() {
                         <tr key={s.source} className="border-t" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
                           <td className="py-1.5">{s.source}</td>
                           <td className="py-1.5 text-right">{s.total}</td>
-                          <td className="py-1.5 text-right">{s.won}{s.value ? ` · ${fmtBRL(s.value)}` : ''}</td>
+                          <td className="py-1.5 text-right">{s.won}{s.value ? ` · ${money(s.value)}` : ''}</td>
                           <td className="py-1.5 text-right" style={{ color: 'var(--sm-text-1)' }}>{pct(s.won, s.total) ?? 0}%</td>
                         </tr>
                       ))}
@@ -371,7 +372,7 @@ export function CrmReports() {
                           <td className="py-1.5">{m.name}</td>
                           <td className="py-1.5 text-right">{m.won}</td>
                           <td className="py-1.5 text-right">{m.lost}</td>
-                          <td className="py-1.5 text-right" style={{ color: 'var(--sm-text-1)' }}>{fmtBRL(m.value)}</td>
+                          <td className="py-1.5 text-right" style={{ color: 'var(--sm-text-1)' }}>{money(m.value)}</td>
                         </tr>
                       ))}
                     </tbody>

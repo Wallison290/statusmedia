@@ -19,8 +19,9 @@ import { CRM_DEFAULT_CONTRACT } from '@/data/crmTemplates'
 import { CONTRACT_STATUS } from './crmStatus'
 import { SignaturePad } from './SignaturePad'
 import { CrmShareBox, contractMessage } from './CrmShareBox'
-import { fillContract, contractLink, fmtDateTime, fmtBRL, waLink } from '@/utils/crm'
+import { fillContract, contractLink, fmtDateTime, waLink } from '@/utils/crm'
 import type { CrmContract, CrmLead, CrmProposal } from '@/types'
+import { useMoney } from '@/hooks/useHideValues'
 
 interface Props {
   open:       boolean
@@ -44,6 +45,7 @@ const selectClass =
   'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
 
 export function CrmContractEditor({ open, onClose, contract, leads, proposals, defaultLeadId, defaultProposalId }: Props) {
+  const money = useMoney()
   const { toast } = useToast()
   const { profile } = useAuth()
   const { data: settings } = useCrmSettings()
@@ -220,7 +222,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
               >
                 <option value="">Nenhuma</option>
                 {leadProposals.map(p => (
-                  <option key={p.id} value={p.id}>{p.title} · {fmtBRL(Number(p.total))}{p.status === 'aceita' ? ' ✓' : ''}</option>
+                  <option key={p.id} value={p.id}>{p.title} · {money(Number(p.total))}{p.status === 'aceita' ? ' ✓' : ''}</option>
                 ))}
               </select>
             </div>

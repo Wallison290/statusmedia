@@ -17,12 +17,14 @@ import { useCrmProposals, useSaveCrmProposal, useDeleteCrmProposal } from '@/hoo
 import { CrmHeader } from '@/components/crm/CrmHeader'
 import { CrmProposalEditor } from '@/components/crm/CrmProposalEditor'
 import { PROPOSAL_STATUS } from '@/components/crm/crmStatus'
-import { fmtBRL, fmtShortDate, proposalLink, copyText, todayISO, waLink } from '@/utils/crm'
+import { fmtShortDate, proposalLink, copyText, todayISO, waLink } from '@/utils/crm'
 import type { CrmProposal, CrmProposalStatus } from '@/types'
+import { useMoney } from '@/hooks/useHideValues'
 
 type Filter = 'todas' | 'abertas' | CrmProposalStatus
 
 export function CrmProposals() {
+  const money = useMoney()
   const navigate = useNavigate()
   const { toast } = useToast()
   const [params, setParams] = useSearchParams()
@@ -133,8 +135,8 @@ export function CrmProposals() {
         {/* Números */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Aguardando resposta', value: `${stats.openCount}`, sub: stats.openValue ? fmtBRL(stats.openValue) : 'nenhum valor na mesa' },
-            { label: 'Total aceito',        value: fmtBRL(stats.acceptedValue), sub: 'soma das propostas aceitas' },
+            { label: 'Aguardando resposta', value: `${stats.openCount}`, sub: stats.openValue ? money(stats.openValue) : 'nenhum valor na mesa' },
+            { label: 'Total aceito',        value: money(stats.acceptedValue), sub: 'soma das propostas aceitas' },
             { label: 'Taxa de aceite',      value: stats.rate === null ? 'sem dados' : `${stats.rate}%`, sub: 'das propostas já respondidas' },
           ].map(k => (
             <div key={k.label} className="rounded-xl border px-4 py-3" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
@@ -194,7 +196,7 @@ export function CrmProposals() {
                     </p>
                   </button>
 
-                  <span className="text-[14px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{fmtBRL(Number(p.total))}</span>
+                  <span className="text-[14px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{money(Number(p.total))}</span>
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
                         style={{ color: expired ? '#f87171' : S.color, background: `${expired ? '#ef4444' : S.color}1f` }}>
                     {expired ? 'Vencida' : S.label}

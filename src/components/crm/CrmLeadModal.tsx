@@ -26,6 +26,7 @@ import { CrmLeadTimeline } from './CrmLeadTimeline'
 import { CrmLeadTasks } from './CrmLeadTasks'
 import { CrmLeadDocs } from './CrmLeadDocs'
 import { CrmWhatsappActions } from './CrmWhatsappActions'
+import { useHideValues } from '@/hooks/useHideValues'
 import { CrmLeadConversation, CrmLeadFollowup } from './CrmLeadConversation'
 import type { CrmColumn, CrmLead, CrmTemperature } from '@/types'
 
@@ -88,6 +89,7 @@ const selectClass =
 export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert }: Props) {
   const { toast } = useToast()
   const { data: members = [] } = useTeamMembers()
+  const hideValues = useHideValues()
   const activeMembers = members.filter(m => m.is_active)
 
   const createLead = useCreateCrmLead()
@@ -287,12 +289,19 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           </select>
         </Field>
         <Field label="Valor estimado" icon={<Wallet className="w-3 h-3" />}>
+          {/* Olho do CRM fechado: o valor vira pontinhos, mas continua editável */}
           <Input
-            type="number"
+            type={hideValues ? 'password' : 'number'}
+            inputMode="decimal"
             min={0}
             step="0.01"
             value={form.estimated_value ?? ''}
-            onChange={e => set('estimated_value', e.target.value === '' ? null : Number(e.target.value))}
+            onChange={e => {
+              // Em modo escondido o campo é texto: vírgula vira ponto e letra é ignorada
+              const v = e.target.value.replace(',', '.')
+              if (v === '') set('estimated_value', null)
+              else if (Number.isFinite(Number(v))) set('estimated_value', Number(v))
+            }}
             placeholder="0,00"
           />
         </Field>
