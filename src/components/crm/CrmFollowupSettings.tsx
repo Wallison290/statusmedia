@@ -133,7 +133,7 @@ export function CrmFollowupSettings() {
         <li>• Cada degrau é usado uma vez por lead. Se ele voltar a conversar e sumir de novo, o sistema espera o próximo degrau que ainda não foi usado.</li>
         <li>• Sai das 8h às 20h, de segunda a sábado. A cada follow-up o card vai para a etapa escolhida acima, só para frente: lead que já está mais adiante no funil não volta.</li>
         <li>• Depois do de 14 dias, se o lead seguir sem responder por mais 7 dias, vai para a etapa de perdido.</li>
-        <li>• Leads em etapas fechadas ou de descarte (Ganho, Perdido, Sem interesse) nunca recebem follow-up.</li>
+        <li>• Leads em etapas fechadas ou de descarte (Ganho, Contrato assinado, Perdido, Sem interesse) ou com contrato assinado na aba Contratos nunca recebem follow-up.</li>
         <li>• Vale para as conversas a partir de agora: o sistema precisa ter visto a conversa para saber quem falou por último. Cada mensagem usa 1 crédito de IA.</li>
       </ul>
 

@@ -55,8 +55,9 @@ const STEP_NAME: Record<number, RegExp> = {
   14: /(^|\D)14\s*dias?(\D|$)/,
 }
 
-// Etapas comuns ("normal") que na prática encerram a conversa: sem follow-up
-const NO_FOLLOWUP_NAME = /sem\s*interesse|desisti|descartad|perdid|nao\s*qualificad|desqualificad/
+// Etapas comuns ("normal") que na prática encerram a conversa (descarte ou
+// negócio fechado): sem follow-up
+const NO_FOLLOWUP_NAME = /sem\s*interesse|desisti|descartad|perdid|nao\s*qualificad|desqualificad|contrato\s*assinad|fechad|ganh/
 
 /** Etapa do funil para o degrau: a escolhida nas configurações ou a achada pelo nome. */
 function followupColumn(step: number, columns: any[], chosen: Record<string, string>) {
@@ -172,17 +173,20 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   const sender = await agencySender(sb, userId)
   if (!sender) return { ...report, note: 'WhatsApp desconectado' }
 
-  const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }, { data: settings }] = await Promise.all([
+  const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }, { data: settings }, { data: signed }] = await Promise.all([
     sb.from('crm_columns').select('id, name, stage_type, position').eq('user_id', userId).order('position'),
     sb.from('crm_offers').select('*').eq('user_id', userId).order('created_at'),
     sb.from('crm_leads').select('id, name, company, notes, whatsapp, column_id, followup_offer_id, followup_done, followup_last_at')
       .eq('user_id', userId).is('archived_at', null).eq('followup_paused', false).not('whatsapp', 'is', null),
     sb.from('profiles').select('agency_name, full_name').eq('id', userId).maybeSingle(),
     sb.from('crm_settings').select('followup_columns').eq('user_id', userId).maybeSingle(),
+    sb.from('crm_contracts').select('lead_id').eq('user_id', userId).eq('status', 'assinado').not('lead_id', 'is', null),
   ])
   if (!offers?.length) return { ...report, note: 'sem briefing' }
 
   const stage = new Map((columns ?? []).map((c: any) => [c.id, c.stage_type]))
+  // Contrato assinado é negócio fechado, mesmo que o card tenha ficado em outra etapa
+  const closedLeads = new Set((signed ?? []).map((k: any) => k.lead_id))
   const colById = new Map((columns ?? []).map((c: any) => [c.id, c]))
   const stepColumn = (step: number) => followupColumn(step, columns ?? [], settings?.followup_columns ?? {})
 
@@ -207,7 +211,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     const st = stage.get(lead.column_id)
     // Etapa fechada (ganho/perdido) ou de descarte ("Sem interesse"): nada de follow-up
     const colName = plain((colById.get(lead.column_id) as any)?.name ?? '')
-    if (st === 'ganho' || st === 'perdido' || NO_FOLLOWUP_NAME.test(colName) || !phoneKey(lead.whatsapp)) continue
+    if (st === 'ganho' || st === 'perdido' || NO_FOLLOWUP_NAME.test(colName) || closedLeads.has(lead.id) || !phoneKey(lead.whatsapp)) continue
 
     const done: number[] = lead.followup_done ?? []
     const next = STEPS.find(d => !done.includes(d))
