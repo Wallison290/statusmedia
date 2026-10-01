@@ -27,11 +27,26 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, style, ...props }, ref) => (
+>(({ className, children, style, onPointerDownOutside, onInteractOutside, ...props }, ref) => {
+  // Toque fantasma do celular: um modal que abre no lugar de outro (ex.: o lápis
+  // de "editar" troca a visualização pela edição) recebia o mesmo toque no botão
+  // de fechar que nasceu embaixo do dedo, e fechava na hora. Nos primeiros
+  // instantes depois de abrir, toque de fechar é ignorado.
+  const openedAt = React.useRef(0)
+  const tooSoon = () => Date.now() - openedAt.current < 450
+  // Este componente continua montado com o modal fechado: o relógio zera quando
+  // o conteúdo aparece de fato, a cada abertura.
+  const setNode = React.useCallback((node: HTMLDivElement | null) => {
+    if (node) openedAt.current = Date.now()
+    if (typeof ref === 'function') ref(node)
+    else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+  }, [ref])
+
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
-      ref={ref}
+      ref={setNode}
       style={{
         WebkitUserSelect: 'text',
         userSelect: 'text',
@@ -55,11 +70,16 @@ const DialogContent = React.forwardRef<
         'data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
         className
       )}
+      onPointerDownOutside={e => { if (tooSoon()) e.preventDefault(); else onPointerDownOutside?.(e) }}
+      onInteractOutside={e => { if (tooSoon()) e.preventDefault(); else onInteractOutside?.(e) }}
       {...props}
     >
       {children}
+      {/* p-2 no lugar de right-4/top-4: o ícone fica no mesmo ponto, mas a área
+          de toque passa de 16px para 32px */}
       <DialogPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
+        onClick={e => { if (tooSoon()) e.preventDefault() }}
+        className="absolute right-2 top-2 p-2 rounded-lg opacity-70 hover:opacity-100 transition-opacity touch-manipulation"
         style={{ color: 'var(--sm-text-3)' }}
       >
         <X className="h-4 w-4" />
@@ -67,7 +87,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

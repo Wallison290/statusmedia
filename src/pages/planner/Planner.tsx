@@ -249,7 +249,7 @@ function VideoPreview({ file, onRemove }: { file: File; onRemove: () => void }) 
         <button
           type="button"
           onClick={onRemove}
-          className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0"
+          aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0"
         >
           <X className="w-3 h-3" />
         </button>
@@ -955,12 +955,17 @@ function PlannerItemView({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button onClick={onEdit} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] transition-all">
-                    <Pencil className="w-3.5 h-3.5" />
+                {/* Celular: alvos de 40px e "Editar" escrito, bem separado do X.
+                    Com 28px colados, o dedo acertava o fechar no lugar do lápis. */}
+                <div className="flex items-center gap-3 lg:gap-1.5 flex-shrink-0">
+                  <button type="button" onClick={onEdit} aria-label="Editar"
+                          className="h-10 px-3 lg:h-7 lg:w-7 lg:px-0 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-all">
+                    <Pencil className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+                    <span className="lg:hidden">Editar</span>
                   </button>
-                  <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] transition-all">
-                    <X className="w-3.5 h-3.5" />
+                  <button type="button" onClick={onClose} aria-label="Fechar"
+                          className="w-10 h-10 lg:w-7 lg:h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] transition-all">
+                    <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1573,6 +1578,18 @@ export function Planner() {
     setExIgDragOver(i)
   }, [])
   const exIgOnDragEnd = useCallback(() => { setExIgDragOver(null); exIgDragIdx.current = null }, [])
+
+  // Arrastar (drag and drop do HTML) não funciona com o dedo: no celular a
+  // ordem do carrossel muda pelas setas de cada miniatura.
+  const swap = <T,>(arr: T[], i: number, j: number) => {
+    if (j < 0 || j >= arr.length) return arr
+    const next = [...arr]; [next[i], next[j]] = [next[j], next[i]]; return next
+  }
+  const moveExistingIg = (i: number, dir: -1 | 1) => setExistingIgMedia(prev => swap(prev, i, i + dir))
+  const moveNewIg = (i: number, dir: -1 | 1) => {
+    setIgFiles(prev => swap(prev, i, i + dir))
+    setIgPreviews(prev => swap(prev, i, i + dir))
+  }
 
   const handleIgFiles = (list: FileList | null) => {
     if (!list || !form.ig_post_type) return
@@ -2979,7 +2996,7 @@ export function Planner() {
       <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) resetForm() }}>
         <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
-            <DialogTitle>{editingItem ? 'Editar Post' : 'Adicionar ao Planejamento'}</DialogTitle>
+            <DialogTitle className="pr-8">{editingItem ? 'Editar Post' : 'Adicionar ao Planejamento'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 min-w-0 w-full max-w-full overflow-x-hidden">
@@ -2992,7 +3009,9 @@ export function Planner() {
                   type="date"
                   value={form.scheduled_date}
                   onChange={e => set('scheduled_date', e.target.value)}
-                  className="w-full h-9 px-3 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  // iPhone dá ao campo de data uma largura mínima própria: sem
+                  // min-w-0 e appearance-none ele passa da largura do modal
+                  className="w-full min-w-0 appearance-none h-10 sm:h-9 px-3 rounded-md text-sm text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   style={{ background: 'var(--sm-bg-input)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}
                 />
               </div>
@@ -3002,7 +3021,7 @@ export function Planner() {
                   type="time"
                   value={form.scheduled_time}
                   onChange={e => set('scheduled_time', e.target.value)}
-                  className="w-full h-9 px-3 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full min-w-0 appearance-none h-10 sm:h-9 px-3 rounded-md text-sm text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   style={{ background: 'var(--sm-bg-input)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}
                 />
               </div>
@@ -3079,7 +3098,8 @@ export function Planner() {
                     <button
                       type="button"
                       onClick={() => setLinkedAsset(null)}
-                      className="text-zinc-500 hover:text-zinc-300 flex-shrink-0"
+                      aria-label="Remover"
+                      className="p-2 -m-1 text-zinc-500 hover:text-zinc-300 flex-shrink-0"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -3167,14 +3187,16 @@ export function Planner() {
                   <div className="space-y-2">
                     {isCarousel && (
                       <p className="text-[10px] text-zinc-600">
-                        Arraste para reordenar · 1ª imagem = capa
+                        <span className="hidden sm:inline">Arraste para reordenar</span>
+                        <span className="sm:hidden">Use as setas para reordenar</span>
+                        {' '}· 1ª imagem = capa
                       </p>
                     )}
 
                     {/* Mídias existentes (edição) — arrastáveis para reordenar */}
                     {existingIgMedia.length > 0 && (
                       isCarousel ? (
-                        <div className="grid grid-cols-5 gap-1.5">
+                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
                           {existingIgMedia.map((att, i) => (
                             <div
                               key={att.id}
@@ -3204,10 +3226,22 @@ export function Planner() {
                               <button
                                 type="button"
                                 onClick={() => removeExistingIgMedia(att)}
-                                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
+                                className="absolute top-0.5 right-0.5 w-7 h-7 sm:w-4 sm:h-4 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
                               >
-                                <X className="w-2.5 h-2.5 text-white" />
+                                <X className="w-3.5 h-3.5 sm:w-2.5 sm:h-2.5 text-white" />
                               </button>
+                              <div className="sm:hidden absolute bottom-0 inset-x-0 flex justify-between">
+                                <button type="button" aria-label="Mover para trás" disabled={i === 0}
+                                        onClick={() => moveExistingIg(i, -1)}
+                                        className="w-7 h-7 bg-black/60 text-white flex items-center justify-center disabled:opacity-0">
+                                  <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <button type="button" aria-label="Mover para frente" disabled={i === existingIgMedia.length - 1}
+                                        onClick={() => moveExistingIg(i, 1)}
+                                        className="w-7 h-7 bg-black/60 text-white flex items-center justify-center disabled:opacity-0">
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -3220,7 +3254,7 @@ export function Planner() {
                           <button
                             type="button"
                             onClick={() => removeExistingIgMedia(existingIgMedia[0])}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
+                            className="absolute top-1.5 right-1.5 w-8 h-8 sm:top-1 sm:right-1 sm:w-5 sm:h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
                           >
                             <X className="w-3 h-3 text-white" />
                           </button>
@@ -3231,7 +3265,7 @@ export function Planner() {
                     {/* Novas mídias pendentes */}
                     {igPreviews.length > 0 && (
                       isCarousel ? (
-                        <div className="grid grid-cols-5 gap-1.5">
+                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
                           {igPreviews.map((url, i) => {
                             const globalIdx = existingIgMedia.length + i
                             return (
@@ -3263,10 +3297,22 @@ export function Planner() {
                                 <button
                                   type="button"
                                   onClick={() => removeIgFile(i)}
-                                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
+                                  className="absolute top-0.5 right-0.5 w-7 h-7 sm:w-4 sm:h-4 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
                                 >
-                                  <X className="w-2.5 h-2.5 text-white" />
+                                  <X className="w-3.5 h-3.5 sm:w-2.5 sm:h-2.5 text-white" />
                                 </button>
+                                <div className="sm:hidden absolute bottom-0 inset-x-0 flex justify-between">
+                                  <button type="button" aria-label="Mover para trás" disabled={i === 0}
+                                          onClick={() => moveNewIg(i, -1)}
+                                          className="w-7 h-7 bg-black/60 text-white flex items-center justify-center disabled:opacity-0">
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </button>
+                                  <button type="button" aria-label="Mover para frente" disabled={i === igPreviews.length - 1}
+                                          onClick={() => moveNewIg(i, 1)}
+                                          className="w-7 h-7 bg-black/60 text-white flex items-center justify-center disabled:opacity-0">
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             )
                           })}
@@ -3290,7 +3336,7 @@ export function Planner() {
                           <button
                             type="button"
                             onClick={() => { setIgFiles([]); setIgPreviews([]) }}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
+                            className="absolute top-1.5 right-1.5 w-8 h-8 sm:top-1 sm:right-1 sm:w-5 sm:h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500 transition-colors"
                           >
                             <X className="w-3 h-3 text-white" />
                           </button>
@@ -3376,7 +3422,7 @@ export function Planner() {
                           <Video className="w-3 h-3 text-purple-400 flex-shrink-0" />
                           <span className="text-xs text-gray-300 truncate flex-1">{att.file_name}</span>
                           {att.file_size && <span className="text-[10px] text-gray-600 flex-shrink-0">{formatFileSize(att.file_size)}</span>}
-                          <button type="button" onClick={() => markAttachmentForDeletion(att)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                          <button type="button" onClick={() => markAttachmentForDeletion(att)} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
                             <X className="w-3 h-3" />
                           </button>
                         </div>
@@ -3386,7 +3432,7 @@ export function Planner() {
                         <FileTypeIcon type={att.file_type} />
                         <span className="truncate flex-1">{att.file_name}</span>
                         {att.file_size && <span className="text-gray-600 flex-shrink-0 text-[10px]">{formatFileSize(att.file_size)}</span>}
-                        <button type="button" onClick={() => markAttachmentForDeletion(att)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                        <button type="button" onClick={() => markAttachmentForDeletion(att)} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -3413,7 +3459,7 @@ export function Planner() {
                         <FileTypeIcon type={f.type} />
                         <span className="truncate flex-1">{f.name}</span>
                         <span className="text-gray-600 flex-shrink-0 text-[10px]">{formatFileSize(f.size)}</span>
-                        <button type="button" onClick={remove} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                        <button type="button" onClick={remove} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -3432,7 +3478,7 @@ export function Planner() {
                     <div key={link.id} className="flex items-center gap-2 text-xs bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5">
                       <Link2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
                       <span className="truncate flex-1 text-blue-300 text-[11px]">{link.url}</span>
-                      <button type="button" onClick={() => markLinkForDeletion(link)} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                      <button type="button" onClick={() => markLinkForDeletion(link)} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -3458,7 +3504,7 @@ export function Planner() {
                     <div key={i} className="flex items-center gap-2 text-xs bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5">
                       <Link2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
                       <span className="truncate flex-1 text-blue-300 text-[11px]">{url}</span>
-                      <button type="button" onClick={() => setPendingLinks(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                      <button type="button" onClick={() => setPendingLinks(prev => prev.filter((_, idx) => idx !== i))} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -3468,7 +3514,8 @@ export function Planner() {
             </div>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          {/* Celular: botões de 40px, um por linha, fáceis de acertar com o dedo */}
+          <DialogFooter className="flex-col sm:flex-row gap-2 [&>button]:h-10 sm:[&>button]:h-8">
             <Button variant="outline" onClick={() => { setOpen(false); resetForm() }} className="sm:mr-auto">Cancelar</Button>
             <Button
               variant="outline"

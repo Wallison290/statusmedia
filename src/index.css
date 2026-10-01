@@ -63,6 +63,12 @@
       font-size: 16px !important;
     }
   }
+
+  /* Toque sem a espera do "toque duplo para zoom": o clique sai na hora e não
+     sobra um toque atrasado caindo no que abriu embaixo do dedo. */
+  button, a, label, select, input, textarea, [role='button'], [role='tab'] {
+    touch-action: manipulation;
+  }
 }
 
 /* ── Utility classes (always) ───────────────────────────────────────────────── */
