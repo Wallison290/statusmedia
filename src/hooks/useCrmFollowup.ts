@@ -18,6 +18,21 @@ export const FOLLOWUP_STEP_GOAL: Record<number, string> = {
   14: 'Encerramento leve, com a porta aberta',
 }
 
+const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+// Mesmo reconhecimento pelo nome da função crm-followup
+const STEP_NAME: Record<number, RegExp> = {
+  1:  /(^|\D)(24\s*h|24\s*horas|0?1\s*dia)(\D|$)/,
+  3:  /(^|\D)0?3\s*dias?(\D|$)/,
+  7:  /(^|\D)0?7\s*dias?(\D|$)/,
+  14: /(^|\D)14\s*dias?(\D|$)/,
+}
+
+/** Etapa que o degrau usa quando a agência não escolheu nenhuma. */
+export function autoFollowupColumn<T extends { id: string; name: string; stage_type: string }>(step: number, columns: T[]) {
+  return columns.find(c => c.stage_type === 'normal' && STEP_NAME[step].test(plain(c.name))) ?? null
+}
+
 export function useCrmOffers() {
   const { user } = useAuth()
   return useQuery<CrmOffer[]>({

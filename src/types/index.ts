@@ -675,6 +675,7 @@ export interface CrmSettings {
   brand_color:         string | null   // #RRGGBB: cor da agência nas páginas do cliente
   brand_logo_url:      string | null
   followup_enabled?:   boolean
+  followup_columns?:   Record<string, string>  // degrau -> etapa do funil ("none" = não mover)
   wa_first_contact_label?:      string | null   // id da etiqueta do WhatsApp Business
   wa_first_contact_label_name?: string | null
   created_at:          string

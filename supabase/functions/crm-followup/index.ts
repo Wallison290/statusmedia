@@ -40,6 +40,31 @@ const MAX_PER_AGENCY_RUN = 15
 const MAX_PER_HOUR = 60
 const MAX_PER_DAY  = 300
 const LOST_REASON  = 'Sem resposta depois da cadência de follow-up'
+// Depois do último follow-up, quantos dias de silêncio até ir para perdido
+const LOST_AFTER_DAYS = 7
+
+/** Remove acento e caixa para comparar nomes de etapa. */
+const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+// Como reconhecer pelo nome a etapa de cada degrau: "Follow-up 24h",
+// "Follow-Up 03 dias", "FUP 7 dias"...
+const STEP_NAME: Record<number, RegExp> = {
+  1:  /(^|\D)(24\s*h|24\s*horas|0?1\s*dia)(\D|$)/,
+  3:  /(^|\D)0?3\s*dias?(\D|$)/,
+  7:  /(^|\D)0?7\s*dias?(\D|$)/,
+  14: /(^|\D)14\s*dias?(\D|$)/,
+}
+
+// Etapas comuns ("normal") que na prática encerram a conversa: sem follow-up
+const NO_FOLLOWUP_NAME = /sem\s*interesse|desisti|descartad|perdid|nao\s*qualificad|desqualificad/
+
+/** Etapa do funil para o degrau: a escolhida nas configurações ou a achada pelo nome. */
+function followupColumn(step: number, columns: any[], chosen: Record<string, string>) {
+  const pick = chosen?.[String(step)]
+  if (pick === 'none') return null
+  if (pick) return columns.find(c => c.id === pick) ?? null
+  return columns.find(c => c.stage_type === 'normal' && STEP_NAME[step].test(plain(c.name))) ?? null
+}
 
 const AI_LIMITS: Record<string, number> = { starter: 150, pro: 600, agency: 2000 }
 
@@ -143,20 +168,31 @@ async function writeMessage(ai: OpenAI, args: {
 }
 
 async function runAgency(sb: any, ai: OpenAI, userId: string) {
-  const report = { sent: 0, skipped: 0, errors: [] as string[] }
+  const report = { sent: 0, skipped: 0, lost: 0, errors: [] as string[] }
   const sender = await agencySender(sb, userId)
   if (!sender) return { ...report, note: 'WhatsApp desconectado' }
 
-  const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }] = await Promise.all([
-    sb.from('crm_columns').select('id, stage_type, position').eq('user_id', userId).order('position'),
+  const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }, { data: settings }] = await Promise.all([
+    sb.from('crm_columns').select('id, name, stage_type, position').eq('user_id', userId).order('position'),
     sb.from('crm_offers').select('*').eq('user_id', userId).order('created_at'),
     sb.from('crm_leads').select('id, name, company, notes, whatsapp, column_id, followup_offer_id, followup_done, followup_last_at')
       .eq('user_id', userId).is('archived_at', null).eq('followup_paused', false).not('whatsapp', 'is', null),
     sb.from('profiles').select('agency_name, full_name').eq('id', userId).maybeSingle(),
+    sb.from('crm_settings').select('followup_columns').eq('user_id', userId).maybeSingle(),
   ])
   if (!offers?.length) return { ...report, note: 'sem briefing' }
 
   const stage = new Map((columns ?? []).map((c: any) => [c.id, c.stage_type]))
+  const colById = new Map((columns ?? []).map((c: any) => [c.id, c]))
+  const stepColumn = (step: number) => followupColumn(step, columns ?? [], settings?.followup_columns ?? {})
+
+  /** Leva o card para a etapa do degrau, só para frente no funil. */
+  async function moveTo(lead: any, target: any) {
+    const cur: any = colById.get(lead.column_id)
+    if (!target || target.id === lead.column_id || (cur && cur.position >= target.position)) return
+    await sb.from('crm_leads').update({ column_id: target.id }).eq('id', lead.id)
+    lead.column_id = target.id
+  }
   const lostColumn = (columns ?? []).find((c: any) => c.stage_type === 'perdido')
   const defaultOffer = offers.find((o: any) => o.is_default) ?? offers[0]
   const agency = prof?.agency_name || prof?.full_name || 'a agência'
@@ -169,15 +205,32 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   for (const lead of leads ?? []) {
     if (report.sent >= MAX_PER_AGENCY_RUN) break
     const st = stage.get(lead.column_id)
-    if (st === 'ganho' || st === 'perdido' || !phoneKey(lead.whatsapp)) continue
+    // Etapa fechada (ganho/perdido) ou de descarte ("Sem interesse"): nada de follow-up
+    const colName = plain((colById.get(lead.column_id) as any)?.name ?? '')
+    if (st === 'ganho' || st === 'perdido' || NO_FOLLOWUP_NAME.test(colName) || !phoneKey(lead.whatsapp)) continue
 
     const done: number[] = lead.followup_done ?? []
     const next = STEPS.find(d => !done.includes(d))
-    if (!next) continue
+    const lastStep = STEPS[STEPS.length - 1]
+    // Cadência inteira usada: só falta ver se o lead do último degrau vai para perdido
+    if (!next && !(done.includes(lastStep) && stepColumn(lastStep) && lostColumn)) continue
 
     const { data: conv } = await sb.from('crm_messages').select('direction, text, source, sent_at')
       .eq('lead_id', lead.id).order('sent_at', { ascending: false }).limit(40)
     const lastReal = (conv ?? []).find((m: any) => m.source !== 'followup')
+
+    if (!next) {
+      // Recebeu o de 14 dias, ficou na etapa dele e seguiu sem responder por
+      // mais LOST_AFTER_DAYS: a cadência acabou, vai para perdido
+      const lastFollowAt = lead.followup_last_at ? new Date(lead.followup_last_at).getTime() : 0
+      const silentSince = lastReal ? new Date(lastReal.sent_at).getTime() : 0
+      if (lastReal?.direction === 'out' && lastFollowAt > silentSince && (now - lastFollowAt) >= LOST_AFTER_DAYS * DAY
+          && lead.column_id === stepColumn(lastStep)?.id) {
+        await sb.from('crm_leads').update({ column_id: lostColumn.id, lost_reason: LOST_REASON }).eq('id', lead.id)
+        report.lost++
+      }
+      continue
+    }
     // Sem conversa gravada ou o lead falou por último: nada a fazer
     if (!lastReal || lastReal.direction !== 'out') { report.skipped++; continue }
 
@@ -237,8 +290,11 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
       meta: { sent_via: 'agency_whatsapp', followup_step: next },
     })
 
-    // Último degrau: a cadência acabou, o lead vai para perdido
-    if (next === STEPS[STEPS.length - 1] && lostColumn) {
+    // O card acompanha a cadência: vai para a etapa do degrau (ex.: "Follow-up 24h").
+    // Último degrau sem etapa própria no funil: vai direto para perdido.
+    const target = stepColumn(next)
+    if (target) await moveTo(lead, target)
+    else if (next === lastStep && lostColumn) {
       await sb.from('crm_leads').update({ column_id: lostColumn.id, lost_reason: LOST_REASON }).eq('id', lead.id)
     }
 

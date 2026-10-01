@@ -10,9 +10,10 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { useCrmSettings, useUpdateCrmSettings } from '@/hooks/useCrmSettings'
+import { useCrmColumns } from '@/hooks/useCrm'
 import { useAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import {
-  useCrmOffers, useSaveCrmOffer, useDeleteCrmOffer, FOLLOWUP_STEPS, FOLLOWUP_STEP_GOAL,
+  useCrmOffers, useSaveCrmOffer, useDeleteCrmOffer, FOLLOWUP_STEPS, FOLLOWUP_STEP_GOAL, autoFollowupColumn,
   type CrmOfferInput,
 } from '@/hooks/useCrmFollowup'
 import type { CrmOffer } from '@/types'
@@ -40,6 +41,9 @@ export function CrmFollowupSettings() {
   const remove = useDeleteCrmOffer()
 
   const [editing, setEditing] = useState<(CrmOfferInput & { id?: string }) | null>(null)
+
+  const { data: allColumns = [] } = useCrmColumns()
+  const columns = [...allColumns].sort((a, b) => a.position - b.position)
 
   const enabled = !!settings?.followup_enabled
   const connected = wa?.status === 'connected'
@@ -96,19 +100,40 @@ export function CrmFollowupSettings() {
         </p>
       )}
 
-      {/* A cadência */}
+      {/* A cadência e a etapa do funil de cada degrau */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {FOLLOWUP_STEPS.map(d => (
-          <div key={d} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
-            <div className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{d} dia{d > 1 ? 's' : ''}</div>
-            <div className="text-[11.5px] leading-snug" style={{ color: 'var(--sm-text-3)' }}>{FOLLOWUP_STEP_GOAL[d]}</div>
-          </div>
-        ))}
+        {FOLLOWUP_STEPS.map(d => {
+          const chosen = settings?.followup_columns?.[String(d)]
+          const auto = autoFollowupColumn(d, columns)
+          const value = chosen ?? auto?.id ?? 'none'
+          return (
+            <div key={d} className="rounded-lg border px-3 py-2 flex flex-col gap-1.5" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+              <div className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{d} dia{d > 1 ? 's' : ''}</div>
+              <div className="text-[11.5px] leading-snug flex-1" style={{ color: 'var(--sm-text-3)' }}>{FOLLOWUP_STEP_GOAL[d]}</div>
+              <select
+                aria-label={`Etapa do follow-up de ${d} dias`}
+                className="h-8 w-full min-w-0 rounded-md border px-2 text-[12px] [color-scheme:dark]"
+                style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}
+                value={value}
+                disabled={update.isPending}
+                onChange={e => update.mutate(
+                  { followup_columns: { ...(settings?.followup_columns ?? {}), [String(d)]: e.target.value } },
+                  { onError: (err: any) => toast(err.message ?? 'Erro ao salvar', 'error') },
+                )}
+              >
+                <option value="none">Não mover o card</option>
+                {columns.filter(c => c.stage_type === 'normal').map(c => <option key={c.id} value={c.id}>→ {c.name}</option>)}
+              </select>
+            </div>
+          )
+        })}
       </div>
       <ul className="text-[11.5px] space-y-1" style={{ color: 'var(--sm-text-4)' }}>
         <li>• Só dispara quando a última mensagem da conversa foi sua. Se o lead mandou a última, quem deve resposta é você.</li>
         <li>• Cada degrau é usado uma vez por lead. Se ele voltar a conversar e sumir de novo, o sistema espera o próximo degrau que ainda não foi usado.</li>
-        <li>• Sai das 8h às 20h, de segunda a sábado. Depois do de 14 dias, o lead vai para a etapa de perdido.</li>
+        <li>• Sai das 8h às 20h, de segunda a sábado. A cada follow-up o card vai para a etapa escolhida acima, só para frente: lead que já está mais adiante no funil não volta.</li>
+        <li>• Depois do de 14 dias, se o lead seguir sem responder por mais 7 dias, vai para a etapa de perdido.</li>
+        <li>• Leads em etapas fechadas ou de descarte (Ganho, Perdido, Sem interesse) nunca recebem follow-up.</li>
         <li>• Vale para as conversas a partir de agora: o sistema precisa ter visto a conversa para saber quem falou por último. Cada mensagem usa 1 crédito de IA.</li>
       </ul>
 
