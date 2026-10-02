@@ -11,7 +11,7 @@ import { Loader2, Target, Pencil, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/toast'
-import { useCrmColumns, useCrmLeads } from '@/hooks/useCrm'
+import { useCrmColumns, useCrmLeads, useUpdateCrmColumn } from '@/hooks/useCrm'
 import { useCrmStageMoves } from '@/hooks/useCrmActivities'
 import { useCrmSettings, useUpdateCrmSettings } from '@/hooks/useCrmSettings'
 import { useTeamMembers } from '@/hooks/useTeamMembers'
@@ -133,6 +133,25 @@ export function CrmReports() {
   }, [])
   const { data: moves = [] } = useCrmStageMoves(since)
   const { data: fupMsgs = [] } = useFollowupMessages(since)
+  const updateColumn = useUpdateCrmColumn()
+
+  // Previsão de vendas: valor em aberto de cada etapa x chance de fechar.
+  // Etapa sem chance definida: sugerida pela posição (10% na primeira, 80% na última).
+  const forecast = useMemo(() => {
+    // Etapas de descarte ("Sem interesse") ficam fora: ali não há venda a prever
+    const discard = /sem\s*interesse|desisti|descartad|perdid|desqualificad/i
+    const open = [...columns]
+      .filter(c => c.stage_type === 'normal' && !discard.test(c.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')))
+      .sort((a, b) => a.position - b.position)
+    const rows = open.map((c, i) => {
+      const suggested = open.length > 1 ? Math.round(10 + (70 * i) / (open.length - 1)) : 50
+      const prob = c.win_probability ?? suggested
+      const ls = leads.filter(l => !l.archived_at && l.column_id === c.id)
+      const value = ls.reduce((s, l) => s + (l.estimated_value ?? 0), 0)
+      return { col: c, prob, custom: c.win_probability != null, count: ls.length, value, weighted: (value * prob) / 100 }
+    })
+    return { rows, total: rows.reduce((s, x) => s + x.weighted, 0) }
+  }, [columns, leads])
 
   // Follow-up automático: quantos respondem a cada degrau e quanto vendeu
   const fup = useMemo(() => {
@@ -372,6 +391,36 @@ export function CrmReports() {
                     </p>
                   </>
                 )}
+              </Card>
+
+              <Card title="Previsão de vendas" hint="Valor em aberto de cada etapa multiplicado pela chance de fechar. Ajuste a % de cada etapa conforme a sua experiência.">
+                <div className="space-y-1.5">
+                  {forecast.rows.map(x => (
+                    <div key={x.col.id} className="flex items-center gap-2 text-[12.5px]">
+                      <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--sm-text-2)' }}>{x.col.name}</span>
+                      <span className="w-16 text-right tabular-nums" style={{ color: 'var(--sm-text-3)' }}>{x.count} lead(s)</span>
+                      <input
+                        type="number" min={0} max={100} inputMode="numeric"
+                        defaultValue={x.prob}
+                        key={`${x.col.id}-${x.prob}`}
+                        title={x.custom ? 'Chance definida por você' : 'Sugestão pela posição da etapa'}
+                        onBlur={e => {
+                          const v = Math.max(0, Math.min(100, Math.round(Number(e.target.value))))
+                          if (!Number.isFinite(v) || v === x.prob) return
+                          updateColumn.mutate({ id: x.col.id, win_probability: v }, { onError: (err: any) => toast(err.message, 'error') })
+                        }}
+                        className="w-14 h-7 rounded-md border px-1.5 text-right text-[12px] tabular-nums [color-scheme:dark]"
+                        style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: x.custom ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}
+                      />
+                      <span className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>%</span>
+                      <span className="w-24 text-right tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{money(x.weighted)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-baseline justify-between mt-3 pt-2 border-t text-[13px]" style={{ borderColor: 'var(--sm-border)' }}>
+                  <span style={{ color: 'var(--sm-text-2)' }}>Previsão de fechamento</span>
+                  <strong className="text-[16px]" style={{ color: '#22C55E' }}>{money(forecast.total)}</strong>
+                </div>
               </Card>
 
               <Card title="Funil agora" hint="Leads ativos em cada etapa, com o valor somado.">
