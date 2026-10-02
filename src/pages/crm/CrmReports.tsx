@@ -7,6 +7,7 @@
 // foi arquivado continua contando) e das movimentações de etapa do histórico.
 
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Loader2, Target, Pencil, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -140,6 +141,19 @@ export function CrmReports() {
   const { data: moves = [] } = useCrmStageMoves(since)
   const { data: fupMsgs = [] } = useFollowupMessages(since)
   const updateColumn = useUpdateCrmColumn()
+
+  // Pós-venda: clientes fechados com renovação nos próximos 60 dias, e os sem data
+  const renewals = useMemo(() => {
+    const won = new Set(columns.filter(c => c.stage_type === 'ganho').map(c => c.id))
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const closed = leads.filter(l => !l.archived_at && won.has(l.column_id))
+    const upcoming = closed
+      .filter(l => l.renewal_at)
+      .map(l => ({ lead: l, days: Math.round((new Date(l.renewal_at + 'T00:00:00').getTime() - today.getTime()) / 86_400_000) }))
+      .filter(x => x.days >= -7 && x.days <= 60)
+      .sort((a, b) => a.days - b.days)
+    return { upcoming, withoutDate: closed.filter(l => !l.renewal_at).length }
+  }, [leads, columns])
 
   // Comparativo por responsável (equipe toda, independe do filtro)
   const byMember = useMemo(() => {
@@ -487,6 +501,31 @@ export function CrmReports() {
                   <span style={{ color: 'var(--sm-text-2)' }}>Previsão de fechamento</span>
                   <strong className="text-[16px]" style={{ color: '#22C55E' }}>{money(forecast.total)}</strong>
                 </div>
+              </Card>
+
+              <Card title="Pós-venda: renovações" hint="Clientes fechados com renovação de contrato nos próximos 60 dias. Bom momento para mostrar resultados e oferecer algo a mais.">
+                {renewals.upcoming.length === 0 ? (
+                  <p className="text-[12px]" style={{ color: 'var(--sm-text-4)' }}>Nenhuma renovação nos próximos 60 dias.</p>
+                ) : (
+                  <ul className="space-y-1.5 text-[12.5px]">
+                    {renewals.upcoming.map(({ lead: l, days }) => (
+                      <li key={l.id} className="flex items-center gap-2">
+                        <Link to={`/crm?lead=${l.id}`} className="flex-1 min-w-0 truncate hover:underline" style={{ color: 'var(--sm-text-1)' }}>
+                          {l.name}{l.company ? ` (${l.company})` : ''}
+                        </Link>
+                        <span className="tabular-nums" style={{ color: 'var(--sm-text-3)' }}>{money(l.estimated_value ?? 0)}</span>
+                        <span className="w-24 text-right tabular-nums" style={{ color: days < 0 ? '#f87171' : days <= 7 ? '#F59E0B' : 'var(--sm-text-2)' }}>
+                          {days < 0 ? `venceu há ${-days}d` : days === 0 ? 'hoje' : `em ${days} dias`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {renewals.withoutDate > 0 && (
+                  <p className="text-[11.5px] mt-3" style={{ color: 'var(--sm-text-4)' }}>
+                    {renewals.withoutDate} cliente(s) fechado(s) sem data de renovação. Preencha na ficha para receber o aviso.
+                  </p>
+                )}
               </Card>
 
               <Card title="Funil agora" hint="Leads ativos em cada etapa, com o valor somado.">

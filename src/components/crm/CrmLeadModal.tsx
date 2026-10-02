@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import {
   Trash2, Loader2, UserPlus, MessageCircle, Mail, Instagram, Building2,
   CalendarClock, Wallet, Receipt, Flame, Tag, StickyNote, ArrowRightLeft, Archive, ArchiveRestore,
-  History, CheckSquare, FileText, XCircle, MessagesSquare, Video,
+  History, CheckSquare, FileText, XCircle, MessagesSquare, Video, RefreshCw,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -564,6 +564,21 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
             : 'O que foi conversado, objeções, o que ficou combinado...'}
         />
       </Field>
+
+      {/* Pós-venda: lembrete 30 e 7 dias antes da renovação, no sininho */}
+      {isWonColumn && (
+        <Field label="Renovação do contrato" icon={<RefreshCw className="w-3 h-3" />}>
+          <Input
+            type="date"
+            value={form.renewal_at ?? ''}
+            onChange={e => set('renewal_at', e.target.value || null)}
+            className="w-full min-w-0 appearance-none sm:w-[180px] text-left"
+          />
+          <p className="text-[11px] mt-1.5" style={{ color: 'var(--sm-text-4)' }}>
+            Você recebe um aviso 30 dias, 7 dias e no dia da renovação, para conversar sobre resultados e oferecer algo a mais.
+          </p>
+        </Field>
+      )}
 
       {/* Converter em cliente — só faz sentido em coluna de ganho */}
       {lead && isWonColumn && !lead.converted_client_id && onConvert && (
