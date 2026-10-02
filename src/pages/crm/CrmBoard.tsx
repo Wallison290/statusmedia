@@ -31,7 +31,7 @@ import { CrmHeader } from '@/components/crm/CrmHeader'
 import { CrmLostReasonDialog } from '@/components/crm/CrmLostReason'
 import { CrmAssistant } from '@/components/crm/CrmAssistant'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
+import { netValue, todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
 import { CRM_COLUMN_COLORS } from '@/data/crmTemplates'
 import type { CrmColumn, CrmLead, CrmStageType } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
@@ -138,6 +138,8 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
               <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md leading-none"
                     style={{ color: '#22C55E', background: 'rgba(34,197,94,0.12)' }}>
                 {money(lead.estimated_value)}
+                {/* Com custo informado, o líquido aparece ao lado */}
+                {!!lead.estimated_cost && <span className="font-normal opacity-80"> · líq. {money(netValue(lead))}</span>}
               </span>
             )}
             {lead.next_contact_at && (
@@ -570,6 +572,7 @@ export function CrmBoard() {
       openValue:  open.reduce((s, l) => s + (l.estimated_value ?? 0), 0),
       wonCount:   won.length,
       wonValue:   won.reduce((s, l) => s + (l.estimated_value ?? 0), 0),
+      wonNet:     won.reduce((s, l) => s + netValue(l), 0),
       conversion: closed > 0 ? Math.round((won.length / closed) * 100) : null,
       followups:  open.filter(l => l.next_contact_at && l.next_contact_at <= today).length,
     }
@@ -785,6 +788,7 @@ export function CrmBoard() {
                     style={{ background: 'rgba(34,197,94,0.10)', color: '#22C55E' }}>
                 <strong>{stats.wonCount}</strong> ganhos
                 {stats.wonValue > 0 && <> · {money(stats.wonValue)}</>}
+                {stats.wonNet !== stats.wonValue && stats.wonValue > 0 && <> (líq. {money(stats.wonNet)})</>}
               </span>
               {stats.conversion !== null && (
                 <span className="text-[11.5px] px-2 py-1 rounded-lg"

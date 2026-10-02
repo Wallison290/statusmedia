@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import {
   Trash2, Loader2, UserPlus, MessageCircle, Mail, Instagram, Building2,
-  CalendarClock, Wallet, Flame, Tag, StickyNote, ArrowRightLeft, Archive, ArchiveRestore,
+  CalendarClock, Wallet, Receipt, Flame, Tag, StickyNote, ArrowRightLeft, Archive, ArchiveRestore,
   History, CheckSquare, FileText, XCircle, MessagesSquare,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,13 +20,13 @@ import {
 } from '@/hooks/useCrm'
 import { useArchiveCrmLead } from '@/hooks/useCrmActivities'
 import { CRM_SOURCES } from '@/data/crmTemplates'
-import { todayISO } from '@/utils/crm'
+import { todayISO, netValue } from '@/utils/crm'
 import { LostReasonField } from './CrmLostReason'
 import { CrmLeadTimeline } from './CrmLeadTimeline'
 import { CrmLeadTasks } from './CrmLeadTasks'
 import { CrmLeadDocs } from './CrmLeadDocs'
 import { CrmWhatsappActions } from './CrmWhatsappActions'
-import { useHideValues } from '@/hooks/useHideValues'
+import { useHideValues, useMoney } from '@/hooks/useHideValues'
 import { CrmLeadConversation, CrmLeadFollowup } from './CrmLeadConversation'
 import type { CrmColumn, CrmLead, CrmTemperature } from '@/types'
 
@@ -82,6 +82,26 @@ function Field({ label, icon, children }: { label: string; icon?: React.ReactNod
   )
 }
 
+/** Campo de dinheiro. Olho do CRM fechado: vira pontinhos, mas continua editável. */
+function MoneyInput({ value, onChange, hidden }: { value: number | null | undefined; onChange: (v: number | null) => void; hidden: boolean }) {
+  return (
+    <Input
+      type={hidden ? 'password' : 'number'}
+      inputMode="decimal"
+      min={0}
+      step="0.01"
+      value={value ?? ''}
+      onChange={e => {
+        // Em modo escondido o campo é texto: vírgula vira ponto e letra é ignorada
+        const v = e.target.value.replace(',', '.')
+        if (v === '') onChange(null)
+        else if (Number.isFinite(Number(v))) onChange(Number(v))
+      }}
+      placeholder="0,00"
+    />
+  )
+}
+
 const selectClass =
   'flex h-9 w-full min-w-0 max-w-full rounded-md border border-[#1e293b] bg-[#182233] px-3 text-[13px] text-[#E2E8F0] ' +
   'focus:outline-none focus:ring-1 focus:ring-[#2563EB]/30 focus:border-[#2563EB]/50 [color-scheme:dark]'
@@ -90,6 +110,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   const { toast } = useToast()
   const { data: members = [] } = useTeamMembers()
   const hideValues = useHideValues()
+  const money = useMoney()
   const activeMembers = members.filter(m => m.is_active)
 
   const createLead = useCreateCrmLead()
@@ -122,6 +143,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           instagram:           lead.instagram,
           source:              lead.source,
           estimated_value:     lead.estimated_value,
+          estimated_cost:      lead.estimated_cost ?? null,
           temperature:         lead.temperature ?? 'morno',
           responsible_user_id: lead.responsible_user_id,
           next_contact_at:     lead.next_contact_at,
@@ -184,6 +206,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
       next_contact_at: form.next_contact_at || null,
       responsible_user_id: form.responsible_user_id || null,
       estimated_value: form.estimated_value ?? null,
+      estimated_cost:  form.estimated_cost ?? null,
       lost_reason: isLostColumn ? (form.lost_reason?.trim() || null) : null,
     }
 
@@ -271,8 +294,9 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
         </Field>
       </div>
 
-      {/* Negócio */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Negócio: origem, valor bruto e custos. O líquido é calculado embaixo. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="col-span-2 sm:col-span-1">
         <Field label="Origem" icon={<Tag className="w-3 h-3" />}>
           {/* Select nativo: o <datalist> não abre lista nenhuma no celular.
               Origem digitada à mão em leads antigos continua aparecendo. */}
@@ -288,24 +312,25 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
             )}
           </select>
         </Field>
-        <Field label="Valor estimado" icon={<Wallet className="w-3 h-3" />}>
-          {/* Olho do CRM fechado: o valor vira pontinhos, mas continua editável */}
-          <Input
-            type={hideValues ? 'password' : 'number'}
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            value={form.estimated_value ?? ''}
-            onChange={e => {
-              // Em modo escondido o campo é texto: vírgula vira ponto e letra é ignorada
-              const v = e.target.value.replace(',', '.')
-              if (v === '') set('estimated_value', null)
-              else if (Number.isFinite(Number(v))) set('estimated_value', Number(v))
-            }}
-            placeholder="0,00"
-          />
+        </div>
+        <Field label="Valor (bruto)" icon={<Wallet className="w-3 h-3" />}>
+          <MoneyInput hidden={hideValues} value={form.estimated_value} onChange={v => set('estimated_value', v)} />
+        </Field>
+        <Field label="Custos / taxas" icon={<Receipt className="w-3 h-3" />}>
+          <MoneyInput hidden={hideValues} value={form.estimated_cost} onChange={v => set('estimated_cost', v)} />
         </Field>
       </div>
+      {form.estimated_value != null && (
+        <p className="-mt-2 text-[11.5px] flex flex-wrap gap-x-3" style={{ color: 'var(--sm-text-3)' }}>
+          <span>
+            Líquido:{' '}
+            <strong style={{ color: netValue(form as CrmLead) < 0 ? '#f87171' : '#22C55E' }}>{money(netValue(form as CrmLead), true)}</strong>
+          </span>
+          {!!form.estimated_cost && form.estimated_value > 0 && !hideValues && (
+            <span>custos = {Math.round((form.estimated_cost / form.estimated_value) * 100)}% do valor</span>
+          )}
+        </p>
+      )}
 
       {/* Próximo contato: é o que entra no lembrete diário */}
       <Field label="Próximo contato" icon={<CalendarClock className="w-3 h-3" />}>

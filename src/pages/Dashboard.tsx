@@ -779,7 +779,9 @@ export function Dashboard() {
     },
     {
       label: 'Negócios fechados', short: 'Fechados', value: crm?.won ?? 0, href: '/crm/relatorios', color: '#22C55E',
-      note:  (crm?.won ?? 0) > 0 ? `${money(crm!.wonValue)} fechados no período` : 'nenhum fechamento ainda',
+      note:  (crm?.won ?? 0) > 0
+        ? `${money(crm!.wonValue)} bruto${crm!.wonNet !== crm!.wonValue ? ` · ${money(crm!.wonNet)} líquido` : ''}`
+        : 'nenhum fechamento ainda',
     },
   ]
 

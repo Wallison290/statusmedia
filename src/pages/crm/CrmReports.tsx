@@ -18,6 +18,7 @@ import { useTeamMembers } from '@/hooks/useTeamMembers'
 import { CrmHeader } from '@/components/crm/CrmHeader'
 import type { CrmLead } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
+import { netValue } from '@/utils/crm'
 
 type Period = 'mes' | 'mes_passado' | '90d' | 'ano'
 
@@ -201,6 +202,7 @@ export function CrmReports() {
       created: created.length,
       won: won.length,
       wonValue,
+      wonNet: won.reduce((s, l) => s + netValue(l), 0),
       lost: lost.length,
       conversion: pct(won.length, won.length + lost.length),
       ticket: won.length ? wonValue / won.length : null,
@@ -307,7 +309,8 @@ export function CrmReports() {
         ) : (
           <>
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-              <Tile label="Fechados" value={money(report.wonValue)} sub={`${report.won} cliente(s) no período`} />
+              <Tile label="Fechados" value={money(report.wonValue)}
+                    sub={`${report.wonNet !== report.wonValue ? `líquido ${money(report.wonNet)} · ` : ''}${report.won} cliente(s) no período`} />
               <Tile label="Conversão" value={report.conversion === null ? 'sem dados' : `${report.conversion}%`}
                     sub={`${report.won} ganho(s) de ${report.won + report.lost} fechado(s)`} />
               <Tile label="Ticket médio" value={report.ticket === null ? 'sem dados' : money(report.ticket)}

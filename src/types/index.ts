@@ -523,6 +523,7 @@ export interface CrmLead {
   instagram:           string | null
   source:              string | null
   estimated_value:     number | null
+  estimated_cost?:     number | null   // custos/taxas do serviço; líquido = valor - custo
   temperature:         CrmTemperature | null
   responsible_user_id: string | null
   next_contact_at:     string | null

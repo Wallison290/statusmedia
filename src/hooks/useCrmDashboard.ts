@@ -12,7 +12,8 @@ export interface CrmPeriodStats {
   followups:      number   // follow-ups automáticos enviados
   replied:        number   // leads que responderam no WhatsApp
   won:            number   // negócios fechados (etapa de ganho)
-  wonValue:       number
+  wonValue:       number   // bruto
+  wonNet:         number   // bruto menos custos/taxas
 }
 
 export function useCrmPeriodStats(start: Date, end: Date) {
@@ -41,7 +42,7 @@ export function useCrmPeriodStats(start: Date, end: Date) {
 
       const wonIds = (wonCols.data ?? []).map((c: any) => c.id)
       const won = wonIds.length
-        ? await sb.from('crm_leads').select('estimated_value')
+        ? await sb.from('crm_leads').select('estimated_value, estimated_cost')
             .eq('user_id', uid).in('column_id', wonIds).gte('closed_at', from).lte('closed_at', to)
         : { data: [] }
 
@@ -53,6 +54,7 @@ export function useCrmPeriodStats(start: Date, end: Date) {
         replied:   distinct(replies.data),
         won:       (won.data ?? []).length,
         wonValue:  (won.data ?? []).reduce((s: number, l: any) => s + Number(l.estimated_value ?? 0), 0),
+        wonNet:    (won.data ?? []).reduce((s: number, l: any) => s + Number(l.estimated_value ?? 0) - Number(l.estimated_cost ?? 0), 0),
       }
     },
   })

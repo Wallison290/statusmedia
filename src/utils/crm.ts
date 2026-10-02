@@ -4,6 +4,11 @@
 
 import type { CrmLead, CrmProposal, CrmProposalItem } from '@/types'
 
+/** Valor líquido do lead: valor estimado (bruto) menos custos/taxas. */
+export function netValue(l: { estimated_value: number | null; estimated_cost?: number | null }) {
+  return Number(l.estimated_value ?? 0) - Number(l.estimated_cost ?? 0)
+}
+
 export function fmtBRL(n: number, cents = false) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency', currency: 'BRL',
