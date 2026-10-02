@@ -15,6 +15,7 @@ import { CrmWhatsappConnect } from '@/components/crm/CrmWhatsappConnect'
 import { CrmBrandSettings } from '@/components/crm/CrmBrandSettings'
 import { CrmFollowupSettings } from '@/components/crm/CrmFollowupSettings'
 import { CrmWhatsappLabelSetting } from '@/components/crm/CrmWhatsappLabelSetting'
+import { CrmCustomFieldsSetting } from '@/components/crm/CrmCustomFieldsSetting'
 import { CRM_DEFAULT_MESSAGES, CRM_DEFAULT_CONTRACT, CRM_CONTRACT_VARIABLES } from '@/data/crmTemplates'
 import { captureLink, copyText } from '@/utils/crm'
 import type { CrmMessageTemplate } from '@/types'
@@ -100,6 +101,8 @@ export function CrmSettingsPage() {
         <CrmFollowupSettings />
 
         <CrmBrandSettings />
+
+        <CrmCustomFieldsSetting />
 
         {/* Captura */}
         <Section icon={Magnet} title="Formulário de captura"

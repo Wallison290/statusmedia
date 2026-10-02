@@ -138,8 +138,14 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
         )}
 
         {/* Rodapé: valor, próximo contato, responsável */}
-        {(waiting || meeting || lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
+        {(waiting || meeting || (lead.tags ?? []).length > 0 || lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {(lead.tags ?? []).slice(0, 3).map(t => (
+              <span key={t} className="text-[10.5px] px-1.5 py-0.5 rounded-md leading-none"
+                    style={{ color: 'var(--sm-text-3)', background: 'var(--sm-bg-alt)' }}>
+                #{t}
+              </span>
+            ))}
             {meeting && (
               <span className="flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md leading-none"
                     style={{ color: '#a78bfa', background: 'rgba(139,92,246,0.12)' }} title="Reunião marcada">
@@ -530,6 +536,7 @@ export function CrmBoard() {
 
   const [search, setSearch]           = useState('')
   const [filterMember, setFilterMember] = useState('')
+  const [filterTag, setFilterTag]       = useState('')
   const [dragging, setDragging]       = useState<CrmLead | null>(null)
   const [draggingCol, setDraggingCol] = useState<CrmColumn | null>(null)
   const [modalLead, setModalLead]     = useState<CrmLead | null>(null)
@@ -566,6 +573,7 @@ export function CrmBoard() {
     const term = search.trim().toLowerCase()
     const filtered = activeLeads.filter(l => {
       if (filterMember && l.responsible_user_id !== filterMember) return false
+      if (filterTag && !(l.tags ?? []).includes(filterTag)) return false
       if (quick === 'responderam' && !l.awaiting_reply_since) return false
       if (quick === 'retornos' && !(l.next_contact_at && l.next_contact_at <= today)) return false
       if (quick === 'quentes' && l.temperature !== 'quente') return false
@@ -574,7 +582,8 @@ export function CrmBoard() {
         l.name.toLowerCase().includes(term) ||
         (l.company  ?? '').toLowerCase().includes(term) ||
         (l.notes    ?? '').toLowerCase().includes(term) ||
-        (l.whatsapp ?? '').toLowerCase().includes(term)
+        (l.whatsapp ?? '').toLowerCase().includes(term) ||
+        (l.tags ?? []).some(t => t.toLowerCase().includes(term))
       )
     })
     const map = new Map<string, CrmLead[]>()
@@ -586,7 +595,13 @@ export function CrmBoard() {
       list.sort((a, b) => a.position - b.position || b.created_at.localeCompare(a.created_at))
     }
     return map
-  }, [activeLeads, columns, search, filterMember, quick, today])
+  }, [activeLeads, columns, search, filterMember, filterTag, quick, today])
+
+  // Todas as tags em uso, para o filtro
+  const allTags = useMemo(
+    () => [...new Set(activeLeads.flatMap(l => l.tags ?? []))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [activeLeads],
+  )
 
   // Números do topo: valor em aberto e taxa de conversão
   const stats = useMemo(() => {
@@ -871,6 +886,18 @@ export function CrmBoard() {
                 className="h-8"
               />
             </div>
+
+            {allTags.length > 0 && (
+              <select
+                value={filterTag}
+                onChange={e => setFilterTag(e.target.value)}
+                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark]"
+                style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: filterTag ? '#4F8EF7' : 'var(--sm-text-2)' }}
+              >
+                <option value="">Todas as tags</option>
+                {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
+              </select>
+            )}
 
             {members.filter(m => m.is_active).length > 0 && (
               <select

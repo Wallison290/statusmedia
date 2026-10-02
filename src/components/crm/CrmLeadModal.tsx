@@ -27,6 +27,7 @@ import { CrmLeadTasks } from './CrmLeadTasks'
 import { CrmLeadDocs } from './CrmLeadDocs'
 import { CrmWhatsappActions } from './CrmWhatsappActions'
 import { useHideValues, useMoney } from '@/hooks/useHideValues'
+import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { CrmLeadConversation, CrmLeadFollowup } from './CrmLeadConversation'
 import type { CrmColumn, CrmLead, CrmTemperature } from '@/types'
 
@@ -142,6 +143,10 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   // Mandou mensagem pelo CRM com o lead na primeira etapa: o contato foi feito,
   // então ao salvar ou fechar ele passa para a etapa seguinte do funil.
   const [sentFromCrm, setSentFromCrm] = useState(false)
+  // Tags digitadas como texto ("a, b"): o array vai no formulário
+  const [tagsText, setTagsText] = useState('')
+  const { data: crmSettings } = useCrmSettings()
+  const customFields = crmSettings?.custom_fields ?? []
 
   // Recarrega o formulário sempre que o modal abre — abrir outro lead não pode
   // herdar o que estava digitado no anterior.
@@ -150,6 +155,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
     setConfirmDelete(false)
     setPanel('conversa')
     setSentFromCrm(false)
+    setTagsText((lead?.tags ?? []).join(', '))
     setForm(lead
       ? {
           name:                lead.name,
@@ -498,6 +504,53 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
         <Field label="Por que perdemos este lead?" icon={<XCircle className="w-3 h-3" />}>
           <LostReasonField value={form.lost_reason ?? ''} onChange={v => set('lost_reason', v)} />
         </Field>
+      )}
+
+      {/* Tags: separadas por vírgula; viram filtro no funil */}
+      <Field label="Tags" icon={<Tag className="w-3 h-3" />}>
+        <Input
+          value={tagsText}
+          onChange={e => {
+            setTagsText(e.target.value)
+            set('tags', e.target.value.split(',').map(t => t.trim()).filter(Boolean))
+          }}
+          placeholder="Ex.: clínica, indicação, prioridade"
+        />
+      </Field>
+
+      {/* Campos que a agência criou em CRM › Configurações */}
+      {customFields.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {customFields.map(f => {
+            const v = form.custom?.[f.key]
+            const setCustom = (val: string | number | boolean | null) => set('custom', { ...(form.custom ?? {}), [f.key]: val })
+            return (
+              <Field key={f.key} label={f.label}>
+                {f.type === 'bool' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {([true, false] as const).map(opt => (
+                      <button key={String(opt)} type="button" onClick={() => setCustom(v === opt ? null : opt)}
+                              className="h-9 rounded-md border text-[12.5px] transition-colors"
+                              style={{
+                                borderColor: v === opt ? '#2563EB' : 'var(--sm-border)',
+                                background:  v === opt ? 'rgba(37,99,235,0.12)' : 'var(--sm-bg-input)',
+                                color:       v === opt ? '#4F8EF7' : 'var(--sm-text-3)',
+                              }}>
+                        {opt ? 'Sim' : 'Não'}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Input
+                    type={f.type === 'number' ? 'number' : 'text'}
+                    value={v == null ? '' : String(v)}
+                    onChange={e => setCustom(e.target.value === '' ? null : f.type === 'number' ? Number(e.target.value) : e.target.value)}
+                  />
+                )}
+              </Field>
+            )
+          })}
+        </div>
       )}
 
       {/* Resumo fixo. O dia a dia vai para o histórico, com data. */}
