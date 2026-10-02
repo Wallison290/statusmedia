@@ -119,7 +119,13 @@ export function CrmReports() {
   const { toast } = useToast()
   const [period, setPeriod] = useState<Period>('mes')
   const { data: columns = [] } = useCrmColumns()
-  const { data: leads = [], isLoading } = useCrmLeads()
+  const { data: allLeads = [], isLoading } = useCrmLeads()
+  // Visão por vendedor: com um responsável escolhido, todos os números da página são só dele
+  const [member, setMember] = useState('')
+  const leads = useMemo(
+    () => (member ? allLeads.filter(l => l.responsible_user_id === member) : allLeads),
+    [allLeads, member],
+  )
   const { data: members = [] } = useTeamMembers()
   const { data: settings } = useCrmSettings()
   const updateSettings = useUpdateCrmSettings()
@@ -134,6 +140,26 @@ export function CrmReports() {
   const { data: moves = [] } = useCrmStageMoves(since)
   const { data: fupMsgs = [] } = useFollowupMessages(since)
   const updateColumn = useUpdateCrmColumn()
+
+  // Comparativo por responsável (equipe toda, independe do filtro)
+  const byMember = useMemo(() => {
+    const [from, to] = [r[0].getTime(), r[1].getTime()]
+    const stage = new Map(columns.map(c => [c.id, c.stage_type]))
+    const inPeriod = (iso: string | null) => !!iso && new Date(iso).getTime() >= from && new Date(iso).getTime() <= to
+    const rows = [...members.filter(m => m.is_active).map(m => ({ id: m.id, name: m.name })), { id: '', name: 'Sem responsável' }]
+      .map(m => {
+        const ls = allLeads.filter(l => !l.archived_at && (l.responsible_user_id ?? '') === m.id)
+        const won = ls.filter(l => stage.get(l.column_id) === 'ganho' && inPeriod(l.closed_at))
+        return {
+          ...m,
+          open: ls.filter(l => stage.get(l.column_id) === 'normal').length,
+          won: won.length,
+          lost: ls.filter(l => stage.get(l.column_id) === 'perdido' && inPeriod(l.closed_at)).length,
+          value: won.reduce((s, l) => s + (l.estimated_value ?? 0), 0),
+        }
+      })
+    return rows.filter(x => x.open || x.won || x.lost)
+  }, [allLeads, columns, members, r[0].getTime(), r[1].getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Previsão de vendas: valor em aberto de cada etapa x chance de fechar.
   // Etapa sem chance definida: sugerida pela posição (10% na primeira, 80% na última).
@@ -362,6 +388,14 @@ export function CrmReports() {
               {p.label}
             </button>
           ))}
+          {members.filter(m => m.is_active).length > 0 && (
+            <select value={member} onChange={e => setMember(e.target.value)}
+                    className="h-7 rounded-lg border px-2 text-[12px] [color-scheme:dark] sm:ml-auto"
+                    style={{ background: 'var(--sm-bg-input)', borderColor: member ? '#2563EB' : 'var(--sm-border)', color: member ? '#4F8EF7' : 'var(--sm-text-2)' }}>
+              <option value="">Todos os responsáveis</option>
+              {members.filter(m => m.is_active).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          )}
         </div>
 
         {isLoading ? (
@@ -377,6 +411,38 @@ export function CrmReports() {
                     sub={report.cycle === null ? 'sem vendas no período' : `${report.cycle} dia(s) do cadastro ao fechamento`} />
               <Tile label="Na mesa agora" value={money(report.openValue)} sub={`${report.openCount} lead(s) em aberto · ${report.created} novo(s) no período`} />
             </div>
+
+            {/* Comparativo entre vendedores (sempre com a equipe toda) */}
+            {byMember.length > 1 && (
+              <Card title="Por responsável" hint="Leads em aberto agora, e ganhos e perdidos no período, de cada pessoa da equipe.">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12.5px]">
+                    <thead>
+                      <tr style={{ color: 'var(--sm-text-3)' }}>
+                        <th className="text-left font-medium py-1">Responsável</th>
+                        <th className="text-right font-medium py-1">Em aberto</th>
+                        <th className="text-right font-medium py-1">Ganhos</th>
+                        <th className="text-right font-medium py-1">Perdidos</th>
+                        <th className="text-right font-medium py-1">Conversão</th>
+                        <th className="text-right font-medium py-1">Fechado</th>
+                      </tr>
+                    </thead>
+                    <tbody style={{ color: 'var(--sm-text-2)' }}>
+                      {byMember.map(m => (
+                        <tr key={m.id} className="border-t" style={{ borderColor: 'var(--sm-border)' }}>
+                          <td className="py-1.5" style={{ color: 'var(--sm-text-1)' }}>{m.name}</td>
+                          <td className="py-1.5 text-right tabular-nums">{m.open}</td>
+                          <td className="py-1.5 text-right tabular-nums">{m.won}</td>
+                          <td className="py-1.5 text-right tabular-nums">{m.lost}</td>
+                          <td className="py-1.5 text-right tabular-nums">{m.won + m.lost ? `${Math.round((m.won / (m.won + m.lost)) * 100)}%` : '—'}</td>
+                          <td className="py-1.5 text-right tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{money(m.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
 
             <div className="grid gap-4 lg:grid-cols-2">
               <Card title="Follow-up automático" hint="Quantos leads respondem a cada degrau da cadência (até 7 dias depois do envio) e quanto foi vendido para quem recebeu follow-up.">
