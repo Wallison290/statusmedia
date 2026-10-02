@@ -18,6 +18,7 @@ import { CrmWhatsappLabelSetting } from '@/components/crm/CrmWhatsappLabelSettin
 import { CrmCustomFieldsSetting } from '@/components/crm/CrmCustomFieldsSetting'
 import { CRM_DEFAULT_MESSAGES, CRM_DEFAULT_CONTRACT, CRM_CONTRACT_VARIABLES } from '@/data/crmTemplates'
 import { captureLink, copyText } from '@/utils/crm'
+import { supabaseUrl } from '@/integrations/supabase/client'
 import type { CrmMessageTemplate } from '@/types'
 
 const selectClass =
@@ -87,6 +88,7 @@ export function CrmSettingsPage() {
   }
 
   const link = captureLink(settings.capture_token)
+  const webhookUrl = `${supabaseUrl}/functions/v1/crm-lead-webhook?token=${settings.capture_token}`
   const embed = `<iframe src="${link}?origem=site" style="width:100%;max-width:560px;height:720px;border:0" title="Fale com a gente"></iframe>`
 
   return (
@@ -161,6 +163,21 @@ export function CrmSettingsPage() {
                   capture_thanks: capture.thanks.trim() || null,
                 })}>Salvar formulário</Button>
               </div>
+
+              <details className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+                <summary className="cursor-pointer">Receber leads de anúncios do Meta, n8n, Make ou Zapier</summary>
+                <p className="mt-2 mb-1">
+                  Configure a ferramenta para enviar cada lead (POST, em JSON ou formulário) para este endereço. Campos reconhecidos:
+                  nome, whatsapp/telefone, email, empresa, origem e mensagem, inclusive no formato do Lead Ads do Meta.
+                  Mesmo número não vira card duplicado.
+                </p>
+                <div className="flex gap-2">
+                  <Input readOnly value={webhookUrl} className="h-8 text-[11px] font-mono flex-1 min-w-0" onFocus={e => e.target.select()} />
+                  <Button size="sm" variant="outline" onClick={async () => toast((await copyText(webhookUrl)) ? 'Endereço copiado' : 'Não consegui copiar', 'success')}>
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+              </details>
 
               <details className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
                 <summary className="cursor-pointer">Colocar o formulário dentro do seu site</summary>
