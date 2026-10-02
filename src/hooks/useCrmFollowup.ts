@@ -81,6 +81,27 @@ export function useDeleteCrmOffer() {
   })
 }
 
+/** Follow-ups e respostas desde `since`, para as métricas dos relatórios. */
+export function useFollowupMessages(since: string) {
+  const { user } = useAuth()
+  return useQuery<Pick<CrmMessage, 'lead_id' | 'direction' | 'source' | 'followup_step' | 'sent_at'>[]>({
+    queryKey: ['crm_followup_messages', user?.id, since],
+    enabled:  !!user,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('crm_messages')
+        .select('lead_id, direction, source, followup_step, sent_at')
+        .eq('user_id', user!.id)
+        .or('source.eq.followup,direction.eq.in')
+        .gte('sent_at', since)
+        .order('sent_at')
+        .limit(5000)
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
 export function useCrmMessages(leadId: string | undefined) {
   return useQuery<CrmMessage[]>({
     queryKey: ['crm_messages', leadId],

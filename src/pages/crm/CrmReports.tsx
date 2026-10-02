@@ -19,6 +19,7 @@ import { CrmHeader } from '@/components/crm/CrmHeader'
 import type { CrmLead } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
 import { netValue } from '@/utils/crm'
+import { useFollowupMessages, FOLLOWUP_STEPS } from '@/hooks/useCrmFollowup'
 
 type Period = 'mes' | 'mes_passado' | '90d' | 'ano'
 
@@ -131,6 +132,46 @@ export function CrmReports() {
     return (y < d90 ? y : d90).toISOString()
   }, [])
   const { data: moves = [] } = useCrmStageMoves(since)
+  const { data: fupMsgs = [] } = useFollowupMessages(since)
+
+  // Follow-up automático: quantos respondem a cada degrau e quanto vendeu
+  const fup = useMemo(() => {
+    const [from, to] = [r[0].getTime(), r[1].getTime()]
+    const byLead = new Map<string, typeof fupMsgs>()
+    for (const m of fupMsgs) {
+      if (!byLead.has(m.lead_id)) byLead.set(m.lead_id, [])
+      byLead.get(m.lead_id)!.push(m)
+    }
+    const steps = new Map<number, { sent: number; replied: number }>(FOLLOWUP_STEPS.map(s => [s, { sent: 0, replied: 0 }]))
+    for (const list of byLead.values()) {
+      list.forEach((m, i) => {
+        if (m.source !== 'followup' || !m.followup_step) return
+        const t = new Date(m.sent_at).getTime()
+        if (t < from || t > to) return
+        const e = steps.get(m.followup_step); if (!e) return
+        e.sent++
+        // Respondeu: mensagem do lead depois deste follow-up e antes do próximo (até 7 dias)
+        for (const n of list.slice(i + 1)) {
+          if (n.source === 'followup') break
+          if (n.direction === 'in' && new Date(n.sent_at).getTime() - t <= 7 * 86_400_000) { e.replied++; break }
+        }
+      })
+    }
+    // Vendas com follow-up: ganhos no período que receberam follow-up antes de fechar
+    const wonStage = new Set(columns.filter(c => c.stage_type === 'ganho').map(c => c.id))
+    const won = leads.filter(l => wonStage.has(l.column_id) && l.closed_at
+      && new Date(l.closed_at).getTime() >= from && new Date(l.closed_at).getTime() <= to
+      && (byLead.get(l.id) ?? []).some(m => m.source === 'followup' && m.sent_at < l.closed_at!))
+    return {
+      rows: FOLLOWUP_STEPS.map(s => {
+        const e = steps.get(s)!
+        return { label: `${s} dia${s > 1 ? 's' : ''}`, value: e.sent ? Math.round((e.replied / e.sent) * 100) : 0, note: `${e.replied} de ${e.sent}` }
+      }),
+      sent: [...steps.values()].reduce((a, e) => a + e.sent, 0),
+      wonCount: won.length,
+      wonValue: won.reduce((a, l) => a + (l.estimated_value ?? 0), 0),
+    }
+  }, [fupMsgs, leads, columns, r[0].getTime(), r[1].getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [editGoal, setEditGoal] = useState(false)
   const [goalValue, setGoalValue] = useState('')
@@ -319,6 +360,20 @@ export function CrmReports() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
+              <Card title="Follow-up automático" hint="Quantos leads respondem a cada degrau da cadência (até 7 dias depois do envio) e quanto foi vendido para quem recebeu follow-up.">
+                {fup.sent === 0 ? (
+                  <p className="text-[12px]" style={{ color: 'var(--sm-text-4)' }}>Nenhum follow-up automático enviado no período.</p>
+                ) : (
+                  <>
+                    <Bars rows={fup.rows} format={n => `${n}%`} />
+                    <p className="text-[12px] mt-3" style={{ color: 'var(--sm-text-2)' }}>
+                      {fup.sent} follow-up(s) no período · <strong style={{ color: 'var(--sm-text-1)' }}>{fup.wonCount}</strong> venda(s) de leads que receberam follow-up
+                      {fup.wonValue > 0 && <> · {money(fup.wonValue)}</>}
+                    </p>
+                  </>
+                )}
+              </Card>
+
               <Card title="Funil agora" hint="Leads ativos em cada etapa, com o valor somado.">
                 <Bars rows={report.funnel} format={n => `${n}`} />
               </Card>
