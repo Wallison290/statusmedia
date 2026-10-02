@@ -507,6 +507,7 @@ export interface CrmColumn {
   color:      string
   position:   number
   stage_type: CrmStageType
+  win_probability?: number | null   // 0-100: previsão de vendas
   created_at: string
   updated_at: string
 }
@@ -524,6 +525,13 @@ export interface CrmLead {
   source:              string | null
   estimated_value:     number | null
   estimated_cost?:     number | null   // custos/taxas do serviço; líquido = valor - custo
+  awaiting_reply_since?: string | null  // o lead respondeu e espera a agência
+  opted_out_at?:       string | null    // pediu para não receber mais mensagens
+  meeting_at?:         string | null
+  meeting_reminded_at?: string | null
+  tags?:               string[]
+  custom?:             Record<string, string | number | boolean | null>
+  renewal_at?:         string | null    // pós-venda: data de renovação do contrato
   temperature:         CrmTemperature | null
   responsible_user_id: string | null
   next_contact_at:     string | null
@@ -659,6 +667,13 @@ export interface CrmMessageTemplate {
   text:  string
 }
 
+/** Campo personalizado do lead, definido pela agência. */
+export interface CrmCustomField {
+  key:   string
+  label: string
+  type:  'text' | 'number' | 'bool'
+}
+
 export interface CrmSettings {
   user_id:             string
   daily_digest:        boolean
@@ -676,6 +691,8 @@ export interface CrmSettings {
   brand_color:         string | null   // #RRGGBB: cor da agência nas páginas do cliente
   brand_logo_url:      string | null
   followup_enabled?:   boolean
+  meeting_reminder?:   boolean
+  custom_fields?:      CrmCustomField[]
   followup_columns?:   Record<string, string>  // degrau -> etapa do funil ("none" = não mover)
   wa_first_contact_label?:      string | null   // id da etiqueta do WhatsApp Business
   wa_first_contact_label_name?: string | null

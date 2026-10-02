@@ -62,6 +62,27 @@ export function CrmLeadFollowup({ lead }: { lead: CrmLead }) {
   const { data: offers = [] } = useCrmOffers()
   const updateLead = useUpdateCrmLead()
 
+  // Pediu para parar: aviso fixo, com a opção de desfazer se foi engano
+  if (lead.opted_out_at) {
+    return (
+      <div className="rounded-xl border px-2.5 py-2 text-[12px] space-y-1" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(248,113,113,0.06)' }}>
+        <p style={{ color: '#f87171' }}>
+          Pediu para não receber mais mensagens em {new Date(lead.opted_out_at).toLocaleDateString('pt-BR')}. O follow-up automático está desligado para este lead.
+        </p>
+        <button type="button" className="text-[11.5px] underline" style={{ color: 'var(--sm-text-3)' }}
+                onClick={() => {
+                  if (!window.confirm('Foi engano? O follow-up automático volta a valer para este lead.')) return
+                  updateLead.mutate({ id: lead.id, opted_out_at: null, followup_paused: false }, {
+                    onSuccess: () => toast('Follow-up liberado de novo', 'success'),
+                    onError:   (e: any) => toast(e.message, 'error'),
+                  })
+                }}>
+          Foi engano, liberar de novo
+        </button>
+      </div>
+    )
+  }
+
   if (!settings?.followup_enabled || !lead.whatsapp) return null
 
   const done = lead.followup_done ?? []

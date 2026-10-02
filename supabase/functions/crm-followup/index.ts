@@ -189,7 +189,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     sb.from('crm_columns').select('id, name, stage_type, position').eq('user_id', userId).order('position'),
     sb.from('crm_offers').select('*').eq('user_id', userId).order('created_at'),
     sb.from('crm_leads').select('id, name, company, notes, whatsapp, column_id, followup_offer_id, followup_done, followup_last_at')
-      .eq('user_id', userId).is('archived_at', null).eq('followup_paused', false).not('whatsapp', 'is', null),
+      .eq('user_id', userId).is('archived_at', null).eq('followup_paused', false).is('opted_out_at', null).not('whatsapp', 'is', null),
     sb.from('profiles').select('agency_name, full_name').eq('id', userId).maybeSingle(),
     sb.from('crm_settings').select('followup_columns').eq('user_id', userId).maybeSingle(),
     sb.from('crm_contracts').select('lead_id').eq('user_id', userId).eq('status', 'assinado').not('lead_id', 'is', null),

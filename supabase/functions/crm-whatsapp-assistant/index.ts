@@ -102,7 +102,7 @@ async function storeConversation(sb: any, instId: string, body: any) {
 
   const { data: inst } = await sb.from('whatsapp_instances').select('user_id').eq('id', instId).maybeSingle()
   if (!inst?.user_id) return
-  const { data: leads } = await sb.from('crm_leads').select('id, whatsapp, archived_at')
+  const { data: leads } = await sb.from('crm_leads').select('id, name, whatsapp, archived_at, awaiting_reply_since, opted_out_at')
     .eq('user_id', inst.user_id).not('whatsapp', 'is', null)
   const matches = (leads ?? []).filter((l: any) => phoneKey(l.whatsapp) === key)
   // Mesmo número em mais de um card: fica no que está ativo
@@ -121,13 +121,70 @@ async function storeConversation(sb: any, instId: string, body: any) {
   const sentAt = ts ? new Date(ts).toISOString() : new Date().toISOString()
   const waId = m?.messageid ?? m?.id ?? m?.key?.id ?? null
 
+  const direction = (m?.fromMe ?? m?.key?.fromMe) ? 'out' : 'in'
   const { error } = await sb.from('crm_messages').insert({
     user_id: inst.user_id, lead_id: lead.id,
-    direction: (m?.fromMe ?? m?.key?.fromMe) ? 'out' : 'in',
-    text, source: 'whatsapp', wa_id: waId ? String(waId) : null, sent_at: sentAt,
+    direction, text, source: 'whatsapp', wa_id: waId ? String(waId) : null, sent_at: sentAt,
   })
-  // 23505 = a UazAPI reenviou a mesma mensagem: já está gravada
-  if (error && error.code !== '23505') console.error('crm-whatsapp-assistant: conversa não gravada', error.message)
+  // 23505 = a UazAPI reenviou a mesma mensagem: já está gravada (e já tratada)
+  if (error) {
+    if (error.code !== '23505') console.error('crm-whatsapp-assistant: conversa não gravada', error.message)
+    return
+  }
+
+  // A agência respondeu (pelo celular): sai da fila de "esperando resposta"
+  if (direction === 'out') {
+    if (lead.awaiting_reply_since) await sb.from('crm_leads').update({ awaiting_reply_since: null }).eq('id', lead.id)
+    return
+  }
+
+  // Lead pediu para parar: pausa o follow-up, vai para "Sem interesse" e avisa
+  if (!lead.opted_out_at && OPT_OUT.test(plainText(text))) {
+    await optOut(sb, inst.user_id, lead, text)
+    return
+  }
+
+  // Lead respondeu: entra na fila "sua vez" e a agência é avisada uma vez por rodada
+  if (!lead.awaiting_reply_since) {
+    await sb.from('crm_leads').update({ awaiting_reply_since: sentAt }).eq('id', lead.id)
+    await sb.rpc('crm_notify', {
+      p_user: inst.user_id, p_type: 'CRM_REPLY',
+      p_title: `${lead.name} respondeu no WhatsApp`,
+      p_message: text.slice(0, 200),
+      p_lead: lead.id,
+    })
+  }
+}
+
+// ─── Opt-out: o lead pediu para não receber mais mensagens ────────────────────
+// Frases claras de recusa. "Agora não" ou "depois vejo" NÃO entram: isso é
+// objeção, não pedido para parar.
+const OPT_OUT = /\b(nao (tenho|tem) (mais )?interesse|sem interesse|nao me interessa|nao quero (mais )?(receber|mensage|contato|nada)|par(e|a|ar|em) de (me )?(mandar|enviar)|nao (me )?(mande|envie|mandem|enviem) mais|(me )?(tira|tire|remove|remova|exclua|exclui)( meu (numero|contato))?( da (sua )?lista)|descadastr|nao insista|nao entre (mais )?em contato)/
+
+const plainText = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+async function optOut(sb: any, userId: string, lead: any, text: string) {
+  const { data: columns } = await sb.from('crm_columns').select('id, name, stage_type, position').eq('user_id', userId).order('position')
+  const target = (columns ?? []).find((c: any) => /sem\s*interesse/.test(plainText(c.name)))
+    ?? (columns ?? []).find((c: any) => c.stage_type === 'perdido')
+  const patch: Record<string, unknown> = {
+    opted_out_at: new Date().toISOString(), followup_paused: true, awaiting_reply_since: null,
+  }
+  if (target) {
+    patch.column_id = target.id
+    if (target.stage_type === 'perdido') patch.lost_reason = 'Pediu para não receber mais mensagens'
+  }
+  await sb.from('crm_leads').update(patch).eq('id', lead.id)
+  await sb.from('crm_lead_activities').insert({
+    user_id: userId, lead_id: lead.id, kind: 'nota',
+    content: `Pediu para não receber mais mensagens: "${text.slice(0, 300)}". Follow-up automático pausado${target ? ` e lead movido para "${target.name}"` : ''}.`,
+  })
+  await sb.rpc('crm_notify', {
+    p_user: userId, p_type: 'CRM_OPT_OUT',
+    p_title: `${lead.name} pediu para não receber mais mensagens`,
+    p_message: `Follow-up pausado${target ? ` e lead movido para "${target.name}"` : ''}. Mensagem: "${text.slice(0, 160)}"`,
+    p_lead: lead.id,
+  })
 }
 
 // ─── Créditos de IA (mesma regra do ai-chat) ──────────────────────────────────

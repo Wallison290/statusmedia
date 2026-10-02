@@ -53,6 +53,14 @@ const STAGE_LABEL: Record<CrmStageType, string> = {
 // A partir de quantos dias na mesma etapa o card ganha o selo de "parado"
 const STALE_DAYS = 7
 
+/** "12min", "3h", "2d": há quanto tempo o lead espera resposta. */
+function waitingFor(iso: string) {
+  const min = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000))
+  if (min < 60) return `${min}min`
+  if (min < 1440) return `${Math.floor(min / 60)}h`
+  return `${Math.floor(min / 1440)}d`
+}
+
 function daysSince(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
 }
@@ -77,6 +85,7 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
   // Parado só conta no meio do funil: ganho e perdido já terminaram
   const stage = columns.find(c => c.id === lead.column_id)?.stage_type
   const idle  = stage === 'normal' && lead.stage_entered_at ? daysSince(lead.stage_entered_at) : 0
+  const waiting = lead.awaiting_reply_since ? waitingFor(lead.awaiting_reply_since) : null
 
   return (
     <div
@@ -124,8 +133,16 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
         )}
 
         {/* Rodapé: valor, próximo contato, responsável */}
-        {(lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
+        {(waiting || lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {/* O lead respondeu e está esperando: é a vez da agência */}
+            {waiting && (
+              <span className="flex items-center gap-1 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md leading-none"
+                    style={{ color: '#fff', background: '#2563EB' }}
+                    title="O lead respondeu no WhatsApp e está esperando você">
+                <MessageCircle className="w-2.5 h-2.5" /> respondeu há {waiting}
+              </span>
+            )}
             {idle >= STALE_DAYS && (
               <span className="flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded-md leading-none"
                     style={{ color: '#F5A623', background: 'rgba(245,166,35,0.12)' }}
@@ -510,7 +527,7 @@ export function CrmBoard() {
   const [pickerOpen, setPickerOpen]   = useState(false)
   const [deleting, setDeleting]       = useState<CrmColumn | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string>('')
-  const [quick, setQuick]             = useState<'todos' | 'retornos' | 'quentes'>('todos')
+  const [quick, setQuick]             = useState<'todos' | 'responderam' | 'retornos' | 'quentes'>('todos')
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [assistantOpen, setAssistantOpen] = useState(false)
   // Movimento para etapa de perda fica em espera até a pessoa dizer o motivo
@@ -538,6 +555,7 @@ export function CrmBoard() {
     const term = search.trim().toLowerCase()
     const filtered = activeLeads.filter(l => {
       if (filterMember && l.responsible_user_id !== filterMember) return false
+      if (quick === 'responderam' && !l.awaiting_reply_since) return false
       if (quick === 'retornos' && !(l.next_contact_at && l.next_contact_at <= today)) return false
       if (quick === 'quentes' && l.temperature !== 'quente') return false
       if (!term) return true
@@ -575,6 +593,7 @@ export function CrmBoard() {
       wonNet:     won.reduce((s, l) => s + netValue(l), 0),
       conversion: closed > 0 ? Math.round((won.length / closed) * 100) : null,
       followups:  open.filter(l => l.next_contact_at && l.next_contact_at <= today).length,
+      waiting:    open.filter(l => l.awaiting_reply_since).length,
     }
   }, [activeLeads, columns, today])
 
@@ -801,6 +820,7 @@ export function CrmBoard() {
             <div className="flex items-center gap-1 flex-wrap">
               {([
                 ['todos',    'Todos'],
+                ['responderam', `Responderam${stats.waiting ? ` (${stats.waiting})` : ''}`],
                 ['retornos', `Retornos de hoje${stats.followups ? ` (${stats.followups})` : ''}`],
                 ['quentes',  'Quentes'],
               ] as const).map(([id, label]) => (

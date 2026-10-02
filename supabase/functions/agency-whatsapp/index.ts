@@ -293,6 +293,9 @@ Deno.serve(async (req) => {
         }, 502)
       }
 
+      // A agência respondeu: o lead sai da fila "esperando resposta"
+      await sb.from('crm_leads').update({ awaiting_reply_since: null }).eq('id', lead.id)
+
       // Entra na conversa do lead: o follow-up automático conta a partir daqui
       await sb.from('crm_messages').insert({
         user_id: user.id, lead_id: lead.id, direction: 'out', text, source: 'sistema',
