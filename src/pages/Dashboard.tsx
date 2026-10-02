@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, MotionConfig } from 'framer-motion'
-import { CalendarDays, ArrowUpRight, ArrowRight } from 'lucide-react'
+import { CalendarDays, ArrowUpRight, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCrmPeriodStats } from '@/hooks/useCrmDashboard'
+import { useMoney } from '@/hooks/useHideValues'
 import { DashboardHero } from '@/components/dashboard/DashboardHero'
 import { useDashboardGreeting } from '@/hooks/useDashboardGreeting'
 import { supabase } from '@/integrations/supabase/client'
@@ -593,6 +595,18 @@ export function Dashboard() {
     [periodMode, customRange],
   )
 
+  // ── Cards do período: conteúdo ou CRM (a seta alterna; fica lembrado) ─────
+  const [kpiView, setKpiView] = useState<'conteudo' | 'crm'>(() => {
+    try { return localStorage.getItem('sm_dash_kpi_view') === 'crm' ? 'crm' : 'conteudo' } catch { return 'conteudo' }
+  })
+  const toggleKpiView = () => setKpiView(v => {
+    const next = v === 'crm' ? 'conteudo' : 'crm'
+    try { localStorage.setItem('sm_dash_kpi_view', next) } catch { /* modo privado */ }
+    return next
+  })
+  const { data: crm, isLoading: crmLoading } = useCrmPeriodStats(range.start, range.end)
+  const money = useMoney()
+
   // ── User name ─────────────────────────────────────────────────────────────
   const userName = (
     user?.user_metadata?.full_name?.split(' ')[0] ||
@@ -750,6 +764,25 @@ export function Dashboard() {
     },
   ]
 
+  const crmKpis: Kpi[] = [
+    {
+      label: 'Leads novos', short: 'Novos', value: crm?.newLeads ?? 0, href: '/crm', color: '#2563EB',
+      note:  (crm?.newLeads ?? 0) > 0 ? 'entraram no funil no período' : 'nenhum lead novo no período',
+    },
+    {
+      label: 'Contatos feitos', short: 'Contatos', value: crm?.contacted ?? 0, href: '/crm', color: '#8B5CF6',
+      note:  'leads que receberam mensagem pelo CRM',
+    },
+    {
+      label: 'Follow-ups automáticos', short: 'Follow-ups', value: crm?.followups ?? 0, href: '/crm', color: '#F59E0B',
+      note:  `${crm?.replied ?? 0} lead(s) responderam no WhatsApp`,
+    },
+    {
+      label: 'Negócios fechados', short: 'Fechados', value: crm?.won ?? 0, href: '/crm/relatorios', color: '#22C55E',
+      note:  (crm?.won ?? 0) > 0 ? `${money(crm!.wonValue)} fechados no período` : 'nenhum fechamento ainda',
+    },
+  ]
+
   const opsRows = [
     { label: 'Aprovados no período', value: stats.period_approved, color: '#22C55E', href: '/planner' },
     { label: 'Tarefas em aberto',    value: stats.pending_tasks,   color: '#3B82F6', href: '/tasks'   },
@@ -775,16 +808,43 @@ export function Dashboard() {
           {/* ── 01 · O período ─────────────────────────────────────────────── */}
           <section className="mt-10 sm:mt-12">
             <SectionHead n="01" title="O período" aside={<span className="capitalize">{rangeLabel(periodMode, range)}</span>}>
-              <PeriodPicker
-                mode={periodMode}
-                range={range}
-                customRange={customRange}
-                onMode={m => setPeriodMode(m)}
-                onCustomRange={r => setCustomRange(r)}
-              />
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Seta: troca os cards entre o conteúdo e o andamento do CRM */}
+                <button
+                  type="button"
+                  onClick={toggleKpiView}
+                  aria-label={kpiView === 'crm' ? 'Ver métricas de conteúdo' : 'Ver métricas do CRM'}
+                  className="group flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-[var(--sm-border)] bg-[var(--sm-bg-card)] text-[12px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-colors"
+                >
+                  {kpiView === 'crm' ? (
+                    <><ChevronLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-0.5" /> Conteúdo</>
+                  ) : (
+                    <>CRM <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5" /></>
+                  )}
+                </button>
+                <PeriodPicker
+                  mode={periodMode}
+                  range={range}
+                  customRange={customRange}
+                  onMode={m => setPeriodMode(m)}
+                  onCustomRange={r => setCustomRange(r)}
+                />
+              </div>
             </SectionHead>
             <Reveal>
-              <KpiStrip items={kpis} loading={loading} />
+              <p className="mb-2.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)]">
+                {kpiView === 'crm' ? 'Andamento do CRM' : 'Conteúdo e Instagram'}
+              </p>
+              <motion.div
+                key={kpiView}
+                initial={{ opacity: 0, x: kpiView === 'crm' ? 24 : -24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {kpiView === 'crm'
+                  ? <KpiStrip items={crmKpis} loading={crmLoading} />
+                  : <KpiStrip items={kpis} loading={loading} />}
+              </motion.div>
             </Reveal>
           </section>
 
