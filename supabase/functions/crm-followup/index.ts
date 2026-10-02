@@ -1,6 +1,7 @@
 // ── Edge Function: crm-followup ───────────────────────────────────────────────
-// Follow-up automático do CRM (migration 080). Roda de hora em hora pelo
+// Follow-up automático do CRM (migrations 080 e 083). Roda a cada minuto pelo
 // pg_cron e só envia das 8h às 20h, de segunda a sábado (horário de Brasília).
+// Fila: uma mensagem por vez, com 5 a 15 minutos sorteados entre um envio e outro.
 //
 // Regra, lead a lead, nas agências que ligaram o follow-up:
 //   1. A última mensagem REAL da conversa precisa ser da agência. Se o lead
@@ -35,8 +36,15 @@ const OPENAI_API_KEY   = Deno.env.get('OPENAI_API_KEY') ?? ''
 const STEPS = [1, 3, 7, 14]
 const DAY = 86_400_000
 
-// Freios: por varredura e os mesmos do envio manual (agency-whatsapp)
-const MAX_PER_AGENCY_RUN = 15
+// Fila: a varredura roda a cada minuto e manda UMA mensagem por agência.
+// Entre um envio e o próximo, um intervalo sorteado nesta faixa (minutos),
+// com segundos quebrados, para não sair tudo no mesmo minuto nem em hora redonda.
+const GAP_MIN_MINUTES = 5
+const GAP_MAX_MINUTES = 15
+const nextGapSeconds = () =>
+  Math.round((GAP_MIN_MINUTES + Math.random() * (GAP_MAX_MINUTES - GAP_MIN_MINUTES)) * 60)
+
+// Freios: os mesmos do envio manual (agency-whatsapp)
 const MAX_PER_HOUR = 60
 const MAX_PER_DAY  = 300
 const LOST_REASON  = 'Sem resposta depois da cadência de follow-up'
@@ -79,8 +87,6 @@ const STEP_GOAL: Record<number, string> = {
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
-
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 /** 8h às 20h, segunda a sábado, em Brasília. */
 function inBusinessHours(now = new Date()) {
@@ -170,6 +176,12 @@ async function writeMessage(ai: OpenAI, args: {
 
 async function runAgency(sb: any, ai: OpenAI, userId: string) {
   const report = { sent: 0, skipped: 0, lost: 0, errors: [] as string[] }
+  // Ainda não é a vez desta agência na fila: sai sem consultar mais nada
+  const { data: queue } = await sb.from('crm_settings').select('followup_next_send_at').eq('user_id', userId).maybeSingle()
+  if (queue?.followup_next_send_at && new Date(queue.followup_next_send_at).getTime() > Date.now()) {
+    return { ...report, note: `próximo envio liberado às ${queue.followup_next_send_at}` }
+  }
+
   const sender = await agencySender(sb, userId)
   if (!sender) return { ...report, note: 'WhatsApp desconectado' }
 
@@ -207,7 +219,6 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     .gte('created_at', new Date(since).toISOString())).count ?? 0
 
   for (const lead of leads ?? []) {
-    if (report.sent >= MAX_PER_AGENCY_RUN) break
     const st = stage.get(lead.column_id)
     // Etapa fechada (ganho/perdido) ou de descarte ("Sem interesse"): nada de follow-up
     const colName = plain((colById.get(lead.column_id) as any)?.name ?? '')
@@ -255,11 +266,19 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
 
     const offer = offers.find((o: any) => o.id === lead.followup_offer_id) ?? defaultOffer
 
+    // Reserva a vez na fila (e já sorteia o intervalo até o próximo envio)
+    const { data: slot } = await sb.rpc('crm_followup_take_slot', { p_user: userId, p_gap_seconds: nextGapSeconds() })
+    if (!slot) break
+    const giveBack = async () => {
+      await sb.rpc('crm_followup_release', { p_lead: lead.id, p_step: next })
+      await sb.rpc('crm_followup_release_slot', { p_user: userId })
+    }
+
     const { data: claimed } = await sb.rpc('crm_followup_claim', { p_lead: lead.id, p_step: next })
-    if (!claimed) continue
+    if (!claimed) { await sb.rpc('crm_followup_release_slot', { p_user: userId }); break }
 
     if (!(await consumeCredit(sb, userId))) {
-      await sb.rpc('crm_followup_release', { p_lead: lead.id, p_step: next })
+      await giveBack()
       report.errors.push('sem créditos de IA ou assinatura inativa')
       break
     }
@@ -271,16 +290,16 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
       console.error('crm-followup: IA', err)
     }
     if (!text) {
-      await sb.rpc('crm_followup_release', { p_lead: lead.id, p_step: next })
+      await giveBack()
       report.errors.push(`IA sem resposta (${lead.id.slice(0, 8)})`)
-      continue
+      break
     }
 
     const sent = await sendVia(sender, lead.whatsapp, text)
     if (!sent.ok) {
-      await sb.rpc('crm_followup_release', { p_lead: lead.id, p_step: next })
+      await giveBack()
       report.errors.push(`envio falhou (${lead.id.slice(0, 8)}): ${sent.error ?? ''}`.slice(0, 200))
-      break   // provavelmente desconectou: tenta na próxima hora
+      break   // provavelmente desconectou: tenta de novo na próxima varredura
     }
 
     const label = `Follow-up de ${next} dia${next > 1 ? 's' : ''}`
@@ -303,7 +322,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     }
 
     report.sent++
-    await sleep(2500 + Math.random() * 2500)   // não dispara tudo no mesmo segundo
+    break   // uma mensagem por vez: a próxima sai depois do intervalo sorteado
   }
   return report
 }
