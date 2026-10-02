@@ -138,6 +138,15 @@ export function CrmFollowupSettings() {
         <li>• Vale para as conversas a partir de agora: o sistema precisa ter visto a conversa para saber quem falou por último. Cada mensagem usa 1 crédito de IA.</li>
       </ul>
 
+      <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
+        <input type="checkbox" checked={settings?.meeting_reminder ?? true} disabled={update.isPending}
+               onChange={e => update.mutate({ meeting_reminder: e.target.checked }, {
+                 onSuccess: () => toast(e.target.checked ? 'Lembrete de reunião ligado' : 'Lembrete de reunião desligado', 'success'),
+                 onError:   (err: any) => toast(err.message ?? 'Erro ao salvar', 'error'),
+               })} />
+        Lembrar o lead da reunião pelo WhatsApp 24h antes
+      </label>
+
       {/* Briefings */}
       <div className="space-y-2">
         <div className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--sm-text-3)' }}>O que você está vendendo</div>

@@ -86,6 +86,10 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
   const stage = columns.find(c => c.id === lead.column_id)?.stage_type
   const idle  = stage === 'normal' && lead.stage_entered_at ? daysSince(lead.stage_entered_at) : 0
   const waiting = lead.awaiting_reply_since ? waitingFor(lead.awaiting_reply_since) : null
+  // Reunião que ainda vai acontecer: "03/10 14:00"
+  const meeting = lead.meeting_at && new Date(lead.meeting_at).getTime() > Date.now()
+    ? new Date(lead.meeting_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')
+    : null
 
   return (
     <div
@@ -133,8 +137,14 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
         )}
 
         {/* Rodapé: valor, próximo contato, responsável */}
-        {(waiting || lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
+        {(waiting || meeting || lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {meeting && (
+              <span className="flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md leading-none"
+                    style={{ color: '#a78bfa', background: 'rgba(139,92,246,0.12)' }} title="Reunião marcada">
+                <CalendarClock className="w-2.5 h-2.5" /> {meeting}
+              </span>
+            )}
             {/* O lead respondeu e está esperando: é a vez da agência */}
             {waiting && (
               <span className="flex items-center gap-1 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md leading-none"

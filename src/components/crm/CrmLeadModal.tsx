@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import {
   Trash2, Loader2, UserPlus, MessageCircle, Mail, Instagram, Building2,
   CalendarClock, Wallet, Receipt, Flame, Tag, StickyNote, ArrowRightLeft, Archive, ArchiveRestore,
-  History, CheckSquare, FileText, XCircle, MessagesSquare,
+  History, CheckSquare, FileText, XCircle, MessagesSquare, Video,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -82,6 +82,23 @@ function Field({ label, icon, children }: { label: string; icon?: React.ReactNod
   )
 }
 
+/** ISO → valor do <input type="datetime-local"> no fuso do navegador. */
+function toLocalInput(iso: string | null | undefined) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/** Link "criar evento" do Google Agenda, já preenchido (1 hora de reunião). */
+function googleCalendarUrl(name: string, company: string | null | undefined, iso: string) {
+  const start = new Date(iso)
+  const end = new Date(start.getTime() + 3600e3)
+  const g = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const title = `Reunião: ${name}${company ? ` (${company})` : ''}`
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${g(start)}/${g(end)}`
+}
+
 /** Campo de dinheiro. Olho do CRM fechado: vira pontinhos, mas continua editável. */
 function MoneyInput({ value, onChange, hidden }: { value: number | null | undefined; onChange: (v: number | null) => void; hidden: boolean }) {
   return (
@@ -144,6 +161,10 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           source:              lead.source,
           estimated_value:     lead.estimated_value,
           estimated_cost:      lead.estimated_cost ?? null,
+          meeting_at:          lead.meeting_at ?? null,
+          renewal_at:          lead.renewal_at ?? null,
+          tags:                lead.tags ?? [],
+          custom:              lead.custom ?? {},
           temperature:         lead.temperature ?? 'morno',
           responsible_user_id: lead.responsible_user_id,
           next_contact_at:     lead.next_contact_at,
@@ -192,10 +213,24 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
 
     const moved = advancedColumn(form.column_id)
 
+    // Reunião marcada ou remarcada: o lembrete do WhatsApp vale para a data nova,
+    // e o card avança para a etapa de reunião (só para frente no funil)
+    const meetingAt = form.meeting_at || null
+    const meetingChanged = meetingAt !== (lead?.meeting_at ?? null)
+    const baseColumnId = moved?.id ?? form.column_id
+    const basePosition = columns.find(c => c.id === baseColumnId)?.position ?? 0
+    const meetingColumn = meetingChanged && meetingAt
+      ? ordered.find(c => c.stage_type === 'normal' && /reuni/i.test(c.name) && c.position > basePosition)
+      : undefined
+
     // Campos de texto vazios viram null para não poluir o card com string vazia
     const payload = {
       ...form,
-      column_id: moved?.id ?? form.column_id,
+      column_id: meetingColumn?.id ?? baseColumnId,
+      meeting_at: meetingAt,
+      ...(meetingChanged ? { meeting_reminded_at: null } : {}),
+      renewal_at: form.renewal_at || null,
+      tags: (form.tags ?? []).map(t => t.trim()).filter(Boolean),
       name,
       company:   form.company?.trim()   || null,
       whatsapp:  form.whatsapp?.trim()  || null,
@@ -213,7 +248,8 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
     try {
       if (lead) {
         await updateLead.mutateAsync({ id: lead.id, ...payload })
-        toast(moved ? `Lead atualizado e movido para "${moved.name}"` : 'Lead atualizado', 'success')
+        const to = meetingColumn ?? moved
+        toast(to ? `Lead atualizado e movido para "${to.name}"` : 'Lead atualizado', 'success')
       } else {
         await createLead.mutateAsync(payload as CrmLeadInput)
         toast('Lead cadastrado', 'success')
@@ -331,6 +367,36 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           )}
         </p>
       )}
+
+      {/* Reunião: lembrete automático no WhatsApp do lead 24h antes */}
+      <Field label="Reunião" icon={<Video className="w-3 h-3" />}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            type="datetime-local"
+            value={toLocalInput(form.meeting_at)}
+            onChange={e => set('meeting_at', e.target.value ? new Date(e.target.value).toISOString() : null)}
+            className="w-full min-w-0 appearance-none sm:w-[220px] text-left"
+          />
+          {form.meeting_at && (
+            <div className="flex items-center gap-3 text-[11.5px]">
+              <a href={googleCalendarUrl(form.name || 'Lead', form.company, form.meeting_at)} target="_blank" rel="noopener noreferrer"
+                 className="underline" style={{ color: '#4F8EF7' }}>
+                Adicionar ao Google Agenda
+              </a>
+              <button type="button" onClick={() => set('meeting_at', null)} className="underline" style={{ color: 'var(--sm-text-4)' }}>
+                limpar
+              </button>
+            </div>
+          )}
+        </div>
+        {form.meeting_at && (
+          <p className="text-[11px] mt-1.5" style={{ color: 'var(--sm-text-4)' }}>
+            {lead?.meeting_reminded_at && form.meeting_at === lead.meeting_at
+              ? 'Lembrete já enviado para o lead.'
+              : 'O lead recebe um lembrete no WhatsApp 24h antes. Ao salvar, o card vai para a etapa de reunião.'}
+          </p>
+        )}
+      </Field>
 
       {/* Próximo contato: é o que entra no lembrete diário */}
       <Field label="Próximo contato" icon={<CalendarClock className="w-3 h-3" />}>

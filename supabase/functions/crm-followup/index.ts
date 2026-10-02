@@ -327,6 +327,57 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   return report
 }
 
+// ── Lembrete de reunião ───────────────────────────────────────────────────────
+// 24h antes da reunião marcada na ficha, o lead recebe uma confirmação pelo
+// WhatsApp da agência. Uma vez por reunião (meeting_reminded_at); remarcar
+// a reunião na ficha zera o lembrete. Desliga em crm_settings.meeting_reminder.
+async function runMeetingReminders(sb: any) {
+  const now = Date.now()
+  const { data: leads } = await sb.from('crm_leads')
+    .select('id, user_id, name, whatsapp, meeting_at')
+    .is('archived_at', null).is('meeting_reminded_at', null).is('opted_out_at', null)
+    .not('whatsapp', 'is', null).not('meeting_at', 'is', null)
+    .gt('meeting_at', new Date(now + 2 * 3600e3).toISOString())     // falta mais de 2h
+    .lte('meeting_at', new Date(now + 24 * 3600e3).toISOString())   // e no máximo 24h
+  let sent = 0
+  const settingsCache = new Map<string, boolean>()
+  for (const lead of leads ?? []) {
+    if (!settingsCache.has(lead.user_id)) {
+      const { data: s } = await sb.from('crm_settings').select('meeting_reminder').eq('user_id', lead.user_id).maybeSingle()
+      settingsCache.set(lead.user_id, s?.meeting_reminder ?? true)
+    }
+    if (!settingsCache.get(lead.user_id)) continue
+    const sender = await agencySender(sb, lead.user_id)
+    if (!sender) continue
+
+    // Marca antes de enviar: duas varreduras não mandam o lembrete duas vezes
+    const { data: marked } = await sb.from('crm_leads').update({ meeting_reminded_at: new Date().toISOString() })
+      .eq('id', lead.id).is('meeting_reminded_at', null).select('id')
+    if (!marked?.length) continue
+
+    const when = new Date(lead.meeting_at)
+    const fmt = (o: Intl.DateTimeFormatOptions) => when.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', ...o })
+    const today = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    const day = fmt({ day: '2-digit', month: '2-digit' }) === today.slice(0, 5) ? 'hoje' : `amanhã (${fmt({ day: '2-digit', month: '2-digit' })})`
+    const first = String(lead.name ?? '').trim().split(/\s+/)[0] ?? ''
+    const text = `Oi, ${first}! Passando para confirmar nossa reunião ${day} às ${fmt({ hour: '2-digit', minute: '2-digit' })}. Tudo certo por aí?`
+
+    const r = await sendVia(sender, lead.whatsapp, text)
+    if (!r.ok) {
+      await sb.from('crm_leads').update({ meeting_reminded_at: null }).eq('id', lead.id)
+      continue
+    }
+    await sb.from('crm_messages').insert({ user_id: lead.user_id, lead_id: lead.id, direction: 'out', text, source: 'sistema', wa_id: r.id ?? null })
+    await sb.from('crm_lead_activities').insert({
+      user_id: lead.user_id, lead_id: lead.id, kind: 'whatsapp',
+      content: `Lembrete de reunião (automático): "${text}"`,
+      meta: { sent_via: 'agency_whatsapp', meeting_reminder: true },
+    })
+    sent++
+  }
+  return sent
+}
+
 Deno.serve(async (req) => {
   const auth   = req.headers.get('Authorization') ?? ''
   const secret = req.headers.get('X-Cron-Secret') ?? ''
@@ -342,8 +393,16 @@ Deno.serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE) as any
   const ai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
+  // Lembretes de reunião vêm antes da fila do follow-up: têm hora certa
+  let reminders = 0
+  try {
+    reminders = await runMeetingReminders(sb)
+  } catch (err) {
+    console.error('crm-followup: lembretes de reunião', err)
+  }
+
   const { data: agencies } = await sb.from('crm_settings').select('user_id').eq('followup_enabled', true)
-  const results: Record<string, unknown> = {}
+  const results: Record<string, unknown> = { reminders }
   for (const a of agencies ?? []) {
     try {
       results[a.user_id.slice(0, 8)] = await runAgency(sb, ai, a.user_id)
