@@ -35,6 +35,7 @@ import { netValue, todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
 import { CRM_COLUMN_COLORS } from '@/data/crmTemplates'
 import type { CrmColumn, CrmLead, CrmStageType } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
+import { CrmImportExport } from '@/components/crm/CrmImportExport'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -774,6 +775,7 @@ export function CrmBoard() {
             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
               <LayoutTemplate className="w-3.5 h-3.5" /> Modelos
             </Button>
+            <CrmImportExport leads={leads} columns={columns} />
             <Button size="sm" onClick={() => openNewLead(columns[0].id)}>
               <Plus className="w-3.5 h-3.5" /> Novo lead
             </Button>
