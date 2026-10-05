@@ -73,7 +73,7 @@ async function registrarFalha(file: File, info: { stage: string; message: string
       file_size: file.size,
       online: typeof navigator !== 'undefined' ? navigator.onLine : null,
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 300) : null,
-      page: typeof location !== 'undefined' ? location.pathname : null,
+      page: typeof location !== 'undefined' ? location.origin + location.pathname : null,
       recovered: info.recovered ?? false,
     })
   } catch { /* registro é só diagnóstico */ }
