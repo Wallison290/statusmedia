@@ -57,61 +57,100 @@ class FalhaDeRede extends Error {
   constructor() { super('Falha de rede ao enviar o arquivo.') }
 }
 
-/** Envia direto ao R2 usando uma URL assinada gerada pela Edge Function. */
-async function enviarParaR2(file: File, onProgress?: (pct: number) => void): Promise<string> {
+/** Registra uma falha de upload (ver migration 086). Nunca atrapalha o envio. */
+async function registrarFalha(file: File, info: { stage: string; message: string; http_status?: number | null; attempt?: number; recovered?: boolean }) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await (supabase as any).from('upload_errors').insert({
+      user_id: user.id,
+      stage: info.stage,
+      message: info.message.slice(0, 500),
+      http_status: info.http_status ?? null,
+      attempt: info.attempt ?? null,
+      file_name: file.name.slice(0, 200),
+      file_type: file.type || null,
+      file_size: file.size,
+      online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 300) : null,
+      page: typeof location !== 'undefined' ? location.pathname : null,
+      recovered: info.recovered ?? false,
+    })
+  } catch { /* registro é só diagnóstico */ }
+}
+
+/** Pede ao servidor a URL assinada do R2 (uma nova a cada tentativa). */
+async function prepararR2(file: File) {
   const { data, error } = await supabase.functions.invoke('r2-upload-url', {
     body: { fileName: file.name, contentType: file.type, sizeBytes: file.size },
   })
-  if (error) throw new Error('Não foi possível preparar o envio do vídeo.')
-  if (data?.error) throw new Error(data.error)
+  if (error) {
+    // A função devolve { error } com status de erro: pega o motivo real
+    const ctx = (error as any).context
+    const status: number | null = ctx?.status ?? null
+    const detail = await ctx?.json?.().then((j: any) => j?.error).catch(() => null)
+    throw Object.assign(new Error(detail ?? error.message ?? 'Não foi possível preparar o envio.'), { stage: 'preparar', status })
+  }
+  if (data?.error) throw Object.assign(new Error(data.error), { stage: 'preparar', status: null })
+  return data as { uploadUrl: string; publicUrl: string }
+}
 
-  const { uploadUrl, publicUrl } = data as { uploadUrl: string; publicUrl: string }
-
-  // XMLHttpRequest em vez de fetch: é o único jeito de ter barra de progresso
-  // em upload, e arquivo grande sem progresso parece travado.
-  const put = () => new Promise<void>((resolve, reject) => {
+/** PUT direto no R2 com barra de progresso e tempo máximo (rede parada não trava a tela). */
+function enviarPut(url: string, file: File, onProgress?: (pct: number) => void) {
+  return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('PUT', uploadUrl, true)
+    xhr.open('PUT', url, true)
     xhr.setRequestHeader('Content-Type', file.type)
+    // 1 minuto + 1 segundo a cada 200 KB: 6 MB têm ~90 s, 500 MB ~45 min
+    xhr.timeout = 60_000 + Math.ceil(file.size / 200_000) * 1000
 
     xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100))
-      }
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100))
     }
     xhr.onload = () =>
       xhr.status >= 200 && xhr.status < 300
         ? resolve()
-        : reject(new Error(`Falha no envio (${xhr.status}).`))
-    xhr.onerror = () => reject(new FalhaDeRede())
+        : reject(Object.assign(new Error(`Cloudflare recusou o envio (${xhr.status}).`), { stage: 'enviar', status: xhr.status }))
+    xhr.onerror   = () => reject(Object.assign(new FalhaDeRede(), { stage: 'enviar', status: 0 }))
+    xhr.ontimeout = () => reject(Object.assign(new Error('O envio demorou demais e foi interrompido.'), { stage: 'enviar', status: 0 }))
     xhr.send(file)
   })
+}
 
-  // Queda de conexão no meio do envio (Wi-Fi oscilando, 4G) deixava o post
-  // salvo sem a imagem. Tenta de novo sozinho antes de desistir; a URL
-  // assinada vale 1 hora, então serve para as novas tentativas.
-  for (let tentativa = 1; ; tentativa++) {
+/**
+ * Envia ao R2. Cada tentativa pede uma URL nova (se a anterior foi recusada,
+ * a próxima não repete o mesmo erro) e espera um pouco mais que a anterior.
+ */
+async function enviarParaR2(file: File, onProgress?: (pct: number) => void): Promise<string> {
+  let ultimo: any = null
+  for (let tentativa = 1; tentativa <= TENTATIVAS_R2; tentativa++) {
     try {
-      await put()
-      break
-    } catch (err) {
-      if (!(err instanceof FalhaDeRede) || tentativa >= TENTATIVAS_R2) {
-        throw err instanceof FalhaDeRede
-          ? new Error(`Falha de rede ao enviar o arquivo (${TENTATIVAS_R2} tentativas). Confira a internet e anexe de novo.`)
-          : err
-      }
+      const { uploadUrl, publicUrl } = await prepararR2(file)
+      await enviarPut(uploadUrl, file, onProgress)
+      return publicUrl
+    } catch (err: any) {
+      ultimo = err
+      await registrarFalha(file, { stage: err?.stage ?? 'enviar', message: err?.message ?? String(err), http_status: err?.status ?? null, attempt: tentativa })
       onProgress?.(0)
-      await new Promise(r => setTimeout(r, 1500 * tentativa))
+      if (tentativa < TENTATIVAS_R2) await new Promise(r => setTimeout(r, 1500 * tentativa))
     }
   }
+  throw ultimo ?? new Error('Falha ao enviar o arquivo.')
+}
 
-  return publicUrl
+async function enviarParaSupabase(bucket: string, path: string, file: File, onProgress?: (pct: number) => void) {
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type || undefined })
+  if (error) throw error
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+  onProgress?.(100)
+  return data.publicUrl
 }
 
 /**
  * Ponto único de upload do sistema.
  *
  * @param bucket  bucket do Supabase usado quando o arquivo NÃO vai para o R2
+ *                (e como reserva quando o R2 falha)
  * @param path    caminho dentro desse bucket
  */
 export async function uploadArquivo(
@@ -121,14 +160,30 @@ export async function uploadArquivo(
   onProgress?: (pct: number) => void,
 ): Promise<ResultadoUpload> {
   if (precisaDoR2(file)) {
-    const url = await enviarParaR2(file, onProgress)
-    return { url, destino: 'r2' }
+    try {
+      const url = await enviarParaR2(file, onProgress)
+      return { url, destino: 'r2' }
+    } catch (err: any) {
+      // Reserva: o R2 falhou em todas as tentativas. Arquivo que cabe no
+      // Supabase vai por lá, para o post não ficar sem a mídia.
+      if (file.size > LIMITE_SUPABASE) {
+        throw new Error(`${err?.message ?? 'Falha ao enviar.'} Confira a internet e anexe de novo.`)
+      }
+      try {
+        const url = await enviarParaSupabase(bucket, path, file, onProgress)
+        await registrarFalha(file, { stage: 'enviar', message: `R2 falhou (${err?.message ?? ''}); salvo pela reserva no Supabase`, recovered: true })
+        return { url, destino: 'supabase' }
+      } catch (err2: any) {
+        await registrarFalha(file, { stage: 'supabase', message: err2?.message ?? String(err2) })
+        throw new Error(`${err?.message ?? 'Falha ao enviar.'} A reserva também falhou: ${err2?.message ?? ''}`)
+      }
+    }
   }
 
-  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false })
-  if (error) throw error
-
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-  onProgress?.(100)
-  return { url: data.publicUrl, destino: 'supabase' }
+  try {
+    return { url: await enviarParaSupabase(bucket, path, file, onProgress), destino: 'supabase' }
+  } catch (err: any) {
+    await registrarFalha(file, { stage: 'supabase', message: err?.message ?? String(err) })
+    throw err
+  }
 }

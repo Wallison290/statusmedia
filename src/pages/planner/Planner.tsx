@@ -1960,6 +1960,13 @@ export function Planner() {
 
   // ── Salvar: cria ou atualiza ───────────────────────────────────────────────
 
+  // Liga o arquivo enviado ao post. Se falhar, avisa: antes o post aparecia
+  // salvo sem a mídia e sem explicação nenhuma.
+  const insertAttachment = async (row: Record<string, unknown>) => {
+    const { error } = await (supabase as any).from('planner_attachments').insert(row)
+    if (error) toast(`O arquivo "${row.file_name}" subiu, mas não consegui ligar ao post: ${error.message}`, 'error')
+  }
+
   const handleSave = async (sendToClient: boolean = false) => {
     if (!form.title.trim() || !user) return
 
@@ -2018,7 +2025,7 @@ export function Planner() {
           } catch (e) {
             toast(`Erro ao enviar "${file.name}": ${(e as Error).message}`, 'error'); continue
           }
-          await (supabase as any).from('planner_attachments').insert({
+          await insertAttachment({
             planner_id: editingItem.id, user_id: user.id,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
@@ -2050,7 +2057,7 @@ export function Planner() {
             toast(`Erro ao enviar "${file.name}": ${(e as Error).message}`, 'error')
             continue
           }
-          await supabase.from('planner_attachments').insert({
+          await insertAttachment({
             planner_id: editingItem.id, user_id: user.id,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
@@ -2098,7 +2105,7 @@ export function Planner() {
           } catch (e) {
             toast(`Erro ao enviar "${file.name}": ${(e as Error).message}`, 'error'); continue
           }
-          await (supabase as any).from('planner_attachments').insert({
+          await insertAttachment({
             planner_id: created.id, user_id: user.id,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
@@ -2108,7 +2115,7 @@ export function Planner() {
         // Vincular mídia do arsenal como anexo
         if (linkedAsset?.media_url) {
           const ext = linkedAsset.media_url.split('.').pop()?.split('?')[0] || 'file'
-          await supabase.from('planner_attachments').insert({
+          await insertAttachment({
             planner_id: created.id,
             user_id: user.id,
             file_name: `${linkedAsset.title}.${ext}`,
@@ -2129,7 +2136,7 @@ export function Planner() {
             toast(`Erro ao enviar "${file.name}": ${(e as Error).message}`, 'error')
             continue
           }
-          await supabase.from('planner_attachments').insert({
+          await insertAttachment({
             planner_id: created.id, user_id: user.id,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
