@@ -32,34 +32,26 @@ export function useClientPayments(clientId: string | null) {
 export function useCreatePayment() {
   const qc = useQueryClient()
   return useMutation({
+    // Desde a migration 090 o pagamento passa pelo livro de lançamentos: dá
+    // baixa na parcela da mensalidade daquele mês (ou cria um recebimento pago)
+    // e o banco grava client_payments + clients.last_payment_date como antes.
     mutationFn: async ({
-      client_id, user_id, amount, payment_date, reference_month, notes,
+      client_id, amount, payment_date, reference_month, notes,
     }: Omit<ClientPayment, 'id' | 'status' | 'created_at'>) => {
-      // 1. Insert payment record
-      const { data, error } = await supabase
-        .from('client_payments')
-        .insert({ client_id, user_id, amount, payment_date, reference_month, notes: notes || null, status: 'pago' })
-        .select()
-        .single()
+      const { data: entryId, error } = await (supabase as any).rpc('fin_register_client_payment', {
+        p_client: client_id, p_amount: amount, p_paid_at: payment_date,
+        p_reference: reference_month, p_notes: notes || null,
+      })
       if (error) throw error
-
-      // 2. Update client: last_payment_date, financial_status, clear manual override
-      const { error: clientErr } = await supabase
-        .from('clients')
-        .update({
-          last_payment_date: payment_date,
-          financial_status: 'ativo',
-          manual_status_override: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', client_id)
-      if (clientErr) throw clientErr
-
-      return data as ClientPayment
+      const { data } = await supabase.from('client_payments').select('*')
+        .eq('entry_id' as any, entryId).maybeSingle()
+      return (data ?? { client_id }) as ClientPayment
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['client_payments', data.client_id] })
       qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['fin_entries'] })
+      qc.invalidateQueries({ queryKey: ['fin_accounts'] })
     },
   })
 }

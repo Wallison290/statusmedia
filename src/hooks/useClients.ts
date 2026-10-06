@@ -103,42 +103,50 @@ export function useDeleteClient() {
 export function useRegisterPayment() {
   const qc = useQueryClient()
   return useMutation({
+    // Botão rápido do perfil do cliente. Desde a migration 090 passa pelo livro
+    // de lançamentos: dá baixa na mensalidade em aberto mais antiga do cliente
+    // (até o fim deste mês) ou, se não houver, registra o recebimento deste mês.
+    // O banco atualiza client_payments e clients.last_payment_date como antes.
     mutationFn: async (id: string) => {
-      const today = new Date().toISOString().split('T')[0]
-      const { data, error } = await supabase
-        .from('clients')
-        .update({
-          last_payment_date: today,
-          financial_status: 'ativo',
-          manual_status_override: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
+      const now = new Date()
+      const iso = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const today = iso(now)
+      const monthEndISO = iso(new Date(now.getFullYear(), now.getMonth() + 1, 0))
 
-      // Also register in client_payments so the portal history is updated
-      if (data.valor_mensal != null) {
-        const { data: { user } } = await supabase.auth.getUser()
-        const agencyId = user ? await resolveAgencyId(user.id) : null
-        if (user) {
-          const now = new Date()
-          const refMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-          await supabase
-            .from('client_payments')
-            .insert({
-              client_id: id,
-              user_id: agencyId!,
-              amount: data.valor_mensal,
-              payment_date: today,
-              reference_month: refMonth,
-              status: 'pago',
-              notes: null,
-            })
-        }
+      const { data: client, error: cErr } = await supabase.from('clients').select('*').eq('id', id).single()
+      if (cErr) throw cErr
+
+      if (!client.valor_mensal) {
+        // Sem mensalidade cadastrada: só marca o pagamento no cliente (como antes)
+        const { data, error } = await supabase.from('clients').update({
+          last_payment_date: today, financial_status: 'ativo', manual_status_override: false,
+          updated_at: new Date().toISOString(),
+        }).eq('id', id).select().single()
+        if (error) throw error
+        return data as Client
       }
 
+      const { data: open } = await (supabase as any).from('fin_entries')
+        .select('id, amount, recurrence_id').eq('client_id', id).eq('type', 'receita').eq('status', 'aberto')
+        .not('recurrence_id', 'is', null).lte('due_date', monthEndISO)
+        .order('due_date').limit(1)
+
+      if (open?.[0]) {
+        const { error } = await (supabase as any).rpc('fin_settle', {
+          p_entry: open[0].id, p_paid_at: today, p_amount: open[0].amount, p_account: null, p_notes: null,
+        })
+        if (error) throw error
+      } else {
+        const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+        const { error } = await (supabase as any).rpc('fin_register_client_payment', {
+          p_client: id, p_amount: client.valor_mensal, p_paid_at: today,
+          p_reference: `${MONTHS[now.getMonth()]} ${now.getFullYear()}`, p_notes: null,
+        })
+        if (error) throw error
+      }
+
+      const { data } = await supabase.from('clients').select('*').eq('id', id).single()
       return data as Client
     },
     onSuccess: (data) => {
@@ -146,6 +154,8 @@ export function useRegisterPayment() {
       qc.invalidateQueries({ queryKey: ['clients', data.id] })
       qc.invalidateQueries({ queryKey: ['client_payments', data.id] })
       qc.invalidateQueries({ queryKey: ['portal-payments'] })
+      qc.invalidateQueries({ queryKey: ['fin_entries'] })
+      qc.invalidateQueries({ queryKey: ['fin_accounts'] })
     },
   })
 }

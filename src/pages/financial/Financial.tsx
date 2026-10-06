@@ -592,7 +592,9 @@ function ClientRow({ client, onOpenPayment, onOpenHistory }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export function Financial() {
+// Aba "Clientes" do Financeiro: a mensalidade de cada cliente e a situação
+// (em dia, vence em breve, atrasado). A página com as abas é FinancePage.
+export function ClientBillingTab() {
   const { data: allClients = [], isLoading } = useClients()
   const { toast } = useToast()
 
@@ -676,8 +678,8 @@ export function Financial() {
   }, [withStatus])
 
   return (
-    <div className="min-h-full bg-[#0B1020]">
-      <div className="p-4 md:p-6 space-y-6">
+    <div>
+      <div className="space-y-6">
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">

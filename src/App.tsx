@@ -35,7 +35,7 @@ const FeedOrganizer     = lazy(() => import('@/pages/feed/FeedOrganizer').then(m
 const Planner           = lazy(() => import('@/pages/planner/Planner').then(m => ({ default: m.Planner })))
 const Tasks             = lazy(() => import('@/pages/tasks/Tasks').then(m => ({ default: m.Tasks })))
 const Library           = lazy(() => import('@/pages/library/Library').then(m => ({ default: m.Library })))
-const Financial         = lazy(() => import('@/pages/financial/Financial').then(m => ({ default: m.Financial })))
+const Financial         = lazy(() => import('@/pages/financial/FinancePage').then(m => ({ default: m.FinancePage })))
 const Notes             = lazy(() => import('@/pages/notes/Notes').then(m => ({ default: m.Notes })))
 const AIPage            = lazy(() => import('@/pages/ai/AIPage').then(m => ({ default: m.AIPage })))
 const AIHub             = lazy(() => import('@/pages/ai/AIHub').then(m => ({ default: m.AIHub })))
