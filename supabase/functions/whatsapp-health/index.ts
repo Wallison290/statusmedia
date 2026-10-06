@@ -148,9 +148,9 @@ function downEmail(detail: string, since: string): string {
         <code style="background:#f3f4f6;padding:6px 8px;display:inline-block;border-radius:4px;word-break:break-all">${detail}</code>
       </p>
       <p style="margin:0 0 20px">
-        <a href="${APP_URL}" style="background:#111827;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px">Abrir o StatusMedia</a>
+        <a href="${APP_URL}" style="display:inline-block;background-color:#2563EB;color:#FFFFFF !important;padding:12px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:bold"><span style="color:#FFFFFF !important">Abrir o StatusMedia</span></a>
       </p>
-      <p style="color:#9ca3af;font-size:12px;margin:0">
+      <p style="color:#4B5563;font-size:12px;margin:0">
         Reconecte a instância no painel da UazAPI (leitura do QR Code). Assim que
         ela voltar, você recebe um e-mail de confirmação.
       </p>
@@ -169,7 +169,7 @@ function upEmail(downSince: string | null): string {
         normalmente de novo.
       </p>
       ${howLong}
-      <p style="color:#9ca3af;font-size:12px;margin:0">
+      <p style="color:#4B5563;font-size:12px;margin:0">
         Vale conferir o planejamento: mensagens que falharam durante a queda não
         são reenviadas sozinhas.
       </p>

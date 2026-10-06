@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Confirme seu e-mail</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F3F4F6;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3F4F6" style="background-color:#F3F4F6;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF"
+             style="max-width:560px;background-color:#FFFFFF;border:1px solid #E5E7EB;border-radius:14px;">
+        <tr>
+          <td style="padding:28px 32px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#2563EB;">
+            StatusMedia
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 32px 32px;">
+            <h1 style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:24px;line-height:32px;color:#111827;">Confirme seu e-mail</h1>
+
+            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:24px;color:#1F2937;">Falta só um passo para começar a usar o StatusMedia.</p>
+            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:24px;color:#1F2937;">Clique no botão abaixo para confirmar seu e-mail e entrar na plataforma.</p>
+            
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;">
+  <tr>
+    <td bgcolor="#2563EB" style="background-color:#2563EB;border-radius:10px;">
+      <a href="{{ .ConfirmationURL }}" target="_blank"
+         style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;line-height:20px;color:#FFFFFF !important;text-decoration:none;border-radius:10px;background-color:#2563EB;">
+        <span style="color:#FFFFFF !important;">Confirmar e-mail</span>
+      </a>
+    </td>
+  </tr>
+</table>
+            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:24px;color:#1F2937;"><span style="font-size:14px;color:#4B5563;">Se você não criou uma conta no StatusMedia, ignore este e-mail.</span></p>
+            <p style="margin:24px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#4B5563;">
+              Se o botão não funcionar, copie e cole este link no navegador:<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#1D4ED8;word-break:break-all;">{{ .ConfirmationURL }}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6B7280;">
+        StatusMedia · statusmedia.com.br
+      </p>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

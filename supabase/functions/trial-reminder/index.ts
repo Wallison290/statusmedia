@@ -137,15 +137,15 @@ function buildReminderEmail(name: string, hoursLeft: number, plansUrl: string): 
 <body style="margin:0;padding:0;background:#0f0f0f;font-family:'Segoe UI',Arial,sans-serif;">
 
 <!-- Wrapper -->
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0f0f0f;padding:40px 16px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0f0f0f" style="background:#0f0f0f;padding:40px 16px;">
 <tr><td align="center">
 
 <!-- Card -->
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;background:#1a1a1a;border-radius:16px;border:1px solid #2a2a2a;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1a1a1a" style="max-width:580px;background:#1a1a1a;border-radius:16px;border:1px solid #2a2a2a;overflow:hidden;">
 
   <!-- Header -->
   <tr>
-    <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:36px 40px;text-align:center;">
+    <td style="background-color:#5b3be8;background-image:linear-gradient(135deg,#7c3aed,#4f46e5);padding:36px 40px;text-align:center;">
       <p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;">StatusMedia</p>
       <h1 style="margin:0;font-size:28px;font-weight:700;color:#ffffff;line-height:1.3;">
         ⏰ Seu acesso gratuito<br/>${timeText}
@@ -191,7 +191,7 @@ function buildReminderEmail(name: string, hoursLeft: number, plansUrl: string): 
         <tr>
           <td align="center">
             <a href="${escapeHtml(plansUrl)}"
-               style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#ffffff;
+               style="display:inline-block;background-color:#5b3be8;background-image:linear-gradient(135deg,#7c3aed,#4f46e5);color:#ffffff !important;
                       text-decoration:none;font-size:16px;font-weight:700;padding:16px 40px;
                       border-radius:10px;letter-spacing:0.3px;">
               Ver Planos e Assinar Agora →
@@ -231,7 +231,7 @@ function buildReminderEmail(name: string, hoursLeft: number, plansUrl: string): 
         </tr>
       </table>
 
-      <p style="margin:0 0 28px;font-size:14px;color:#6b7280;line-height:1.6;text-align:center;">
+      <p style="margin:0 0 28px;font-size:14px;color:#9ca3af;line-height:1.6;text-align:center;">
         Cancele quando quiser. Sem fidelidade. Sem burocracia.
       </p>
 
@@ -255,12 +255,12 @@ function buildReminderEmail(name: string, hoursLeft: number, plansUrl: string): 
   <!-- Footer -->
   <tr>
     <td style="background:#111111;padding:24px 40px;border-top:1px solid #2a2a2a;text-align:center;">
-      <p style="margin:0 0 8px;font-size:13px;color:#4b5563;">
+      <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">
         StatusMedia — Plataforma de gestão para agências digitais
       </p>
-      <p style="margin:0;font-size:12px;color:#374151;">
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
         Você recebeu este email porque criou uma conta no StatusMedia.<br/>
-        <a href="${escapeHtml(plansUrl)}" style="color:#7c3aed;text-decoration:none;">Acessar plataforma</a>
+        <a href="${escapeHtml(plansUrl)}" style="color:#a78bfa;text-decoration:none;">Acessar plataforma</a>
       </p>
     </td>
   </tr>

@@ -114,8 +114,8 @@ export function PartnersPanel() {
           <h3 className="text-[15px] font-bold text-[#F8FAFC]">Sócios da agência</h3>
           <p className="text-[13px] text-[#94a3b8] leading-relaxed">
             O sócio entra com <strong className="text-[#E2E8F0]">login próprio</strong> e tem acesso completo ao
-            sistema: clientes, planejamento, Instagram, CRM, financeiro, relatórios, equipe e assinatura — os
-            mesmos poderes do dono. Para só delegar tarefas a um colaborador, use a aba Membros.
+            sistema: clientes, planejamento, Instagram, CRM, financeiro, relatórios, equipe e assinatura. Tem
+            os mesmos poderes do dono. Para só delegar tarefas a um colaborador, use a aba Membros.
           </p>
         </div>
       </div>
