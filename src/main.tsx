@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App.tsx'
+import { initReviewLocale } from './lib/reviewLocale'
 
 Sentry.init({
   dsn: 'https://38594d8cc1cbe9ba9d676377fdf62010@o4511718172590080.ingest.us.sentry.io/4511718220365824',
@@ -35,6 +36,9 @@ window.addEventListener('vite:preloadError', () => {
     return insertBefore.call(this, node, ref) as T
   }
 })()
+
+// Interface em inglês para o App Review da Meta (?lang=en). Desligado por padrão.
+initReviewLocale()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

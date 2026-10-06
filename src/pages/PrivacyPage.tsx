@@ -79,6 +79,14 @@ export function PrivacyPage() {
             <p className="mt-3">
               Adotamos medidas técnicas e organizacionais para proteger seus dados contra acesso não autorizado, alteração, divulgação ou destruição.
             </p>
+            <p className="mt-3">
+              Para operar a plataforma, contamos com os seguintes prestadores de serviço (operadores), que tratam dados apenas em nosso nome e para as finalidades abaixo:
+            </p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li><strong>Supabase Inc.</strong> (Estados Unidos e Brasil): banco de dados, autenticação e funções de servidor. Armazena os dados da conta, os tokens de acesso e as métricas do Instagram.</li>
+              <li><strong>OpenAI, L.L.C.</strong> (Estados Unidos): geração do resumo escrito do relatório mensal, somente quando você clica em "Gerar com IA". Enviamos apenas números agregados do mês (seguidores, alcance, impressões, engajamento, visitas ao perfil, interações, desempenho das principais publicações e percentuais demográficos agregados). Não enviamos nome de usuário, identificadores da conta, tokens de acesso nem conteúdo das publicações. Pela política da OpenAI para a API, esses dados não são usados para treinar modelos.</li>
+              <li><strong>Vercel Inc.</strong> (Estados Unidos): hospedagem do site e da aplicação web.</li>
+            </ul>
           </section>
 
           <section>

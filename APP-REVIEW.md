@@ -124,12 +124,24 @@ conta conectada — use uma conta de teste descartável.
 
 ## 4. Gravação — regras da Meta
 
+> **Reprovação de 2026-09-07 (as três permissões):** "Screencast não alinhado
+> com detalhes do caso de uso". A Meta aprovou o caso de uso; faltou no vídeo
+> o **fluxo de login completo da Meta**, o **usuário concedendo a permissão** e
+> a **experiência completa** do caso de uso, com a **interface em inglês**.
+
 - 1080p ou mais, monitor com no máximo 1440px de largura.
 - **Sem áudio** no arquivo final.
-- Começar **deslogado** do StatusMedia e do Instagram.
+- Gravar a **tela do computador** (OBS), nunca o celular filmando o monitor.
+- Começar **deslogado** do StatusMedia e do Instagram. Antes de cada vídeo:
+  remover o StatusMedia em Instagram → Configurações → Apps e sites,
+  desconectar a conta no StatusMedia e abrir uma janela anônima. Sem isso a
+  tela de login e a de permissões do Instagram não aparecem.
 - Navegar com o mouse, com cursor aumentado; evitar atalhos de teclado.
-- Interface em português exige **legenda em inglês em cada passo** explicando
-  o que cada botão faz.
+- **Interface em inglês:** abrir o site com `?lang=en`
+  (`https://www.statusmedia.com.br/?lang=en`). O modo fica salvo no navegador,
+  inclusive na volta do OAuth; `?lang=pt` desliga. A tradução é por dicionário
+  em `src/lib/reviewLocale.ts`: texto novo nas telas do fluxo precisa entrar
+  lá. Mesmo assim, legendar cada passo em inglês.
 - **Um arquivo por permissão.** Permissão que não aparece sendo concedida e
   usada é reprovada.
 - Mostrar sempre a tela de consentimento do Instagram *e* o resultado do dado
@@ -203,7 +215,8 @@ from the Instagram app into a spreadsheet every month, for every client.
 Cole no campo de instruções da submissão, em inglês:
 
 ```
-1. Open https://statusmedia.com.br and click "Entrar" (Sign in).
+1. Open https://www.statusmedia.com.br/?lang=en (the ?lang=en parameter
+   switches the interface to English) and click "Sign in".
 2. Sign in with the test credentials provided below.
    Email: <e-mail da conta de teste>
    Password: <senha>
