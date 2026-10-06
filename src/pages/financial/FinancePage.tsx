@@ -12,11 +12,13 @@ import { OverdueTab } from './OverdueTab'
 import { RecurrencesTab } from './RecurrencesTab'
 import { SettingsTab } from './SettingsTab'
 import { HistoryTab } from './HistoryTab'
+import { BillingTab } from './BillingTab'
 
 const TABS = [
   { id: 'visao',          label: 'Visão geral' },
   { id: 'lancamentos',    label: 'Lançamentos' },
   { id: 'inadimplencia',  label: 'Inadimplência' },
+  { id: 'cobranca',       label: 'Cobrança automática' },
   { id: 'clientes',       label: 'Clientes' },
   { id: 'recorrencias',   label: 'Recorrências' },
   { id: 'configuracoes',  label: 'Contas e categorias' },
@@ -56,6 +58,7 @@ export function FinancePage() {
             {tab === 'visao' && <OverviewTab goTo={goTo} />}
             {tab === 'lancamentos' && <EntriesTab />}
             {tab === 'inadimplencia' && <OverdueTab />}
+            {tab === 'cobranca' && <BillingTab />}
             {tab === 'clientes' && <ClientBillingTab />}
             {tab === 'recorrencias' && <RecurrencesTab />}
             {tab === 'configuracoes' && <SettingsTab />}

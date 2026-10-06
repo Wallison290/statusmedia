@@ -33,6 +33,7 @@ export interface FinEntry {
   recurrence_id: string | null; contract_id: string | null
   installment: number | null; installments: number | null
   notes: string | null; created_by: string | null; updated_by: string | null
+  billing_paused?: boolean
   created_at: string; updated_at: string
   clients?: { company_name: string } | null
 }
@@ -432,5 +433,118 @@ export function useCreateTransfer() {
       if (error) throw error
     },
     onSuccess: invalidate,
+  })
+}
+
+// ── Cobrança automática (Fase 2 — migration 091) ─────────────────────────────
+
+export interface BillingSettings {
+  user_id: string; enabled: boolean
+  pix_key: string | null; pix_key_type: 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria' | null
+  receiver_name: string | null; receiver_city: string | null; bank_details: string | null
+  channel_whatsapp: boolean; channel_email: boolean
+  stages: number[]; send_hour: number
+  template_before: string | null; template_due: string | null; template_after: string | null
+}
+export interface BillingLog {
+  id: number; entry_id: string; client_id: string | null; stage: number
+  channel: 'whatsapp' | 'email'; status: 'enviado' | 'falhou' | 'pulado'
+  attempts: number; error: string | null; manual: boolean; sent_at: string
+  clients?: { company_name: string } | null
+}
+
+export function useBillingSettings() {
+  const { agencyId } = useAuth()
+  return useQuery<BillingSettings | null>({
+    queryKey: ['fin_billing_settings', agencyId],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      const { data, error } = await db().from('fin_billing_settings').select('*').eq('user_id', agencyId).maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSaveBillingSettings() {
+  const { agencyId } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: Omit<BillingSettings, 'user_id'>) => {
+      const { error } = await db().from('fin_billing_settings')
+        .upsert({ ...s, user_id: agencyId, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['fin_billing_settings'] })
+      qc.invalidateQueries({ queryKey: ['fin_audit'] })
+    },
+  })
+}
+
+export function useBillingLog(limit = 60) {
+  const { agencyId } = useAuth()
+  return useQuery<BillingLog[]>({
+    queryKey: ['fin_billing_log', agencyId, limit],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      const { data, error } = await db().from('fin_billing_log')
+        .select('*, clients(company_name)').eq('user_id', agencyId)
+        .neq('status', 'pulado').order('sent_at', { ascending: false }).limit(limit)
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+async function callBilling<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('fin-billing-reminders', { body })
+  if (error) {
+    let msg = error.message
+    try { const j = await (error as any).context?.json(); msg = j?.error ?? msg } catch { /* sem corpo */ }
+    throw new Error(msg)
+  }
+  return data as T
+}
+
+export function useBillingPreview() {
+  return useMutation({
+    mutationFn: (p: { client_id?: string; draft?: Partial<BillingSettings> }) =>
+      callBilling<{ ok: boolean; text: string; pix: string | null; defaults: { before: string; due: string; after: string } }>(
+        { action: 'preview', ...p }),
+  })
+}
+
+export function useSendBillingNow() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (client_id: string) => {
+      const r = await callBilling<{ ok: boolean; error?: string }>({ action: 'send_now', client_id })
+      if (!r.ok) throw new Error(r.error ?? 'Não foi possível enviar.')
+      return r
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['fin_billing_log'] }),
+  })
+}
+
+export function useToggleClientAutoBilling() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await db().from('clients').update({ auto_billing: value }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  })
+}
+
+export function useToggleEntryBillingPause() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, paused }: { id: string; paused: boolean }) => {
+      const { error } = await db().from('fin_entries').update({ billing_paused: paused }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['fin_entries'] }),
   })
 }

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { MessageCircle, Check } from 'lucide-react'
-import { supabase } from '@/integrations/supabase/client'
+import { MessageCircle, Check, BellOff, Bell } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
-import { useFinOpenUntil, todayISO, fmtBRL, fmtDateBR, daysBetween, type FinEntry } from '@/hooks/useFinance'
+import {
+  useFinOpenUntil, useSendBillingNow, useToggleEntryBillingPause,
+  todayISO, fmtBRL, fmtDateBR, daysBetween, type FinEntry,
+} from '@/hooks/useFinance'
 import { Card, SectionTitle, EmptyState } from './finUi'
 import { SettleModal } from './EntryModals'
 
@@ -32,6 +34,8 @@ export function OverdueTab() {
   const { data: open = [], isLoading } = useFinOpenUntil(yesterday)
   const [settling, setSettling] = useState<FinEntry | null>(null)
   const [charging, setCharging] = useState<string | null>(null)
+  const sendNow = useSendBillingNow()
+  const togglePause = useToggleEntryBillingPause()
 
   const receivables = useMemo(() => group(open.filter(e => e.type === 'receita')), [open])
   const payables = useMemo(() => open.filter(e => e.type === 'despesa'), [open])
@@ -41,9 +45,9 @@ export function OverdueTab() {
     if (!d.clientId) return
     setCharging(d.key)
     try {
-      const { data, error } = await supabase.functions.invoke('charge-client-whatsapp', { body: { client_id: d.clientId } })
-      if (error || (data as any)?.ok === false) throw new Error((data as any)?.error ?? error?.message ?? 'Falha no envio')
-      toast(`Cobrança enviada para ${d.name} pelo WhatsApp da agência.`, 'success')
+      // Mesma mensagem da cobrança automática: total do cliente + Pix Copia e Cola
+      await sendNow.mutateAsync(d.clientId)
+      toast(`Cobrança enviada para ${d.name}.`, 'success')
     } catch (err: any) {
       toast(err.message ?? 'Não foi possível enviar.', 'error')
     } finally {
@@ -89,6 +93,12 @@ export function OverdueTab() {
                       <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--sm-text-2)' }}>{e.description}</span>
                       <span className="whitespace-nowrap" style={{ color: 'var(--sm-text-3)' }}>venceu {fmtDateBR(e.due_date)}</span>
                       <span className="font-semibold tabular-nums whitespace-nowrap" style={{ color: 'var(--sm-text-1)' }}>{fmtBRL(e.amount)}</span>
+                      <button onClick={() => togglePause.mutate({ id: e.id, paused: !e.billing_paused })}
+                        title={e.billing_paused ? 'Retomar cobrança automática desta parcela' : 'Pausar cobrança automática desta parcela'}
+                        aria-label={e.billing_paused ? 'Retomar cobrança automática' : 'Pausar cobrança automática'}
+                        className="w-7 h-7 rounded-md flex items-center justify-center" style={{ color: e.billing_paused ? '#F59E0B' : 'var(--sm-text-4)' }}>
+                        {e.billing_paused ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+                      </button>
                       <button onClick={() => setSettling(e)} title="Registrar recebimento" aria-label="Registrar recebimento"
                         className="w-7 h-7 rounded-md flex items-center justify-center" style={{ color: '#22C55E' }}>
                         <Check className="w-4 h-4" />
@@ -101,7 +111,7 @@ export function OverdueTab() {
           })}
         </Card>
         <p className="text-[11.5px] mt-2" style={{ color: 'var(--sm-text-4)' }}>
-          A mensagem de cobrança sai pelo WhatsApp conectado da agência, com o valor e o vencimento do cliente.
+          A cobrança sai pelos canais da aba Cobrança automática, com o total do cliente e o Pix Copia e Cola. O sino pausa a cobrança automática de uma parcela (ex.: acordo combinado).
         </p>
       </section>
 
