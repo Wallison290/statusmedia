@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
+import { useAuth } from '@/hooks/useAuth'
 import type { ChecklistItem, ClientDocument, ClientBriefing, BriefingData, ClientStatus, Profile } from '@/types'
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
@@ -200,17 +201,30 @@ export function useUpsertBriefing() {
 
 // ─── Membros da equipe ────────────────────────────────────────────────────────
 
+// Pessoas com login na agência (dono e sócios) — o campo clients.responsible_user_id
+// aponta para auth.users, então colaboradores sem login ficam de fora. As linhas
+// vêm de team_members (kind owner/partner), mantidas pelo banco (migration 089).
 export function useTeamMembers() {
+  const { agencyId } = useAuth()
   return useQuery({
-    queryKey: ['team-members'],
+    queryKey: ['team-members', agencyId],
+    enabled: !!agencyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, avatar_url')
-        .eq('role', 'agency')
-        .order('full_name')
+      const { data, error } = await (supabase as any)
+        .from('team_members')
+        .select('member_user_id, name, email, avatar_url')
+        .eq('user_id', agencyId!)
+        .in('kind', ['owner', 'partner'])
+        .eq('is_active', true)
+        .order('kind')
+        .order('name')
       if (error) throw error
-      return data as Pick<Profile, 'id' | 'full_name' | 'email' | 'avatar_url'>[]
+      return (data ?? []).map((m: any) => ({
+        id: m.member_user_id as string,
+        full_name: m.name as string,
+        email: m.email as string,
+        avatar_url: m.avatar_url as string | null,
+      })) as Pick<Profile, 'id' | 'full_name' | 'email' | 'avatar_url'>[]
     },
   })
 }

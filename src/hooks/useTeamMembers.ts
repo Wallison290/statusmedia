@@ -15,6 +15,10 @@ export interface TeamMember {
   avatar_url:   string | null
   portal_token: string
   is_active:    boolean
+  // collaborator = cadastrado na aba Equipe; owner/partner = dono e sócios,
+  // criados e mantidos pelo banco (migration 089) para aparecerem como responsáveis
+  kind:           'collaborator' | 'owner' | 'partner'
+  member_user_id: string | null
   created_at:   string
   updated_at:   string
 }

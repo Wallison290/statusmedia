@@ -1992,7 +1992,9 @@ export function TeamPage() {
   const { data: subData } = useSubscription()
 
   const maxTeamMembers  = subData?.plan.maxTeamMembers ?? 1
-  const activeMembers   = members.filter(m => m.is_active).length
+  // Dono e sócios (kind owner/partner) são responsáveis automáticos criados
+  // pelo banco (migration 089): não contam no limite nem viram cartão aqui.
+  const activeMembers   = members.filter(m => m.is_active && m.kind === 'collaborator').length
   const teamLimitReached = maxTeamMembers !== -1 && activeMembers >= maxTeamMembers
 
   const [tab,              setTab]         = useState<ActiveTab>('membros')
@@ -2032,6 +2034,7 @@ export function TeamPage() {
 
   const [memberSearch, setMemberSearch] = useState('')
   const visibleMembers = activeMembersWithCount.filter(({ member }) =>
+    member.kind === 'collaborator' &&
     member.name.toLowerCase().includes(memberSearch.trim().toLowerCase())
   )
 
@@ -2104,7 +2107,7 @@ export function TeamPage() {
 
             {loadingMembers ? (
               <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[#94a3b8]" /></div>
-            ) : activeMembersWithCount.length === 0 ? (
+            ) : activeMembersWithCount.every(({ member }) => member.kind !== 'collaborator') ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Users className="w-10 h-10 text-[#CBD5E1]" />
                 <p className="text-[14px] font-medium text-[#94a3b8]">Nenhum membro ainda</p>

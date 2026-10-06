@@ -75,6 +75,8 @@ export function PartnersPanel() {
         : `Convite enviado para ${email}.`, 'success')
       setName(''); setEmail('')
       qc.invalidateQueries({ queryKey: key })
+      // o sócio vira responsável (team_members) pelo trigger da migration 089
+      qc.invalidateQueries({ queryKey: ['team_members'] })
     },
     onError: (err: Error) => toast(err.message, 'error'),
   })
@@ -87,7 +89,11 @@ export function PartnersPanel() {
 
   const remove = useMutation({
     mutationFn: (p: Partner) => callPartners({ action: 'remove', partner_id: p.id }),
-    onSuccess: (_, p) => { toast(`${p.name || p.email} não é mais sócio.`, 'success'); qc.invalidateQueries({ queryKey: key }) },
+    onSuccess: (_, p) => {
+      toast(`${p.name || p.email} não é mais sócio.`, 'success')
+      qc.invalidateQueries({ queryKey: key })
+      qc.invalidateQueries({ queryKey: ['team_members'] })
+    },
     onError: (err: Error) => toast(err.message, 'error'),
     onSettled: () => setRemoving(null),
   })
