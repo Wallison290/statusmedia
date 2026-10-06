@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
 import { isConfigured } from '@/integrations/supabase/client'
 import { Setup } from '@/pages/Setup'
+import { BrandMark } from '@/components/BrandMark'
 
 // Cada página é um chunk separado — só baixa o JS da rota que o usuário realmente abre.
 const Login             = lazy(() => import('@/pages/auth/Login').then(m => ({ default: m.Login })))
@@ -63,15 +64,18 @@ const qc = new QueryClient({
 // ── Loading screen ────────────────────────────────────────────────────────────
 
 function LoadingScreen() {
+  // Segue o tema salvo (o data-theme do <html> ainda não existe neste ponto),
+  // para não piscar um fundo claro para quem usa o tema escuro e vice-versa.
+  let light = false
+  try { light = localStorage.getItem('statusbrand-theme') === 'light' } catch { /* sem storage */ }
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center animate-pulse">
-          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
-            <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <p className="text-[#94a3b8] text-sm">Carregando...</p>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ background: light ? '#f1f5f9' : '#0B1020' }}
+    >
+      <div className="flex flex-col items-center gap-3">
+        <BrandMark size={56} className="animate-pulse" />
+        <p className="text-sm" style={{ color: light ? '#64748b' : '#94a3b8' }}>Carregando...</p>
       </div>
     </div>
   )

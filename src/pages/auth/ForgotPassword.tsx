@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Zap, Mail, ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Mail, ArrowLeft, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
+import { AuthField } from '@/components/auth/AuthField'
+import { AuthCardPage, AuthButton } from '@/components/auth/AuthCardPage'
+import { traduzirErroAuth } from '@/lib/authErrors'
 
 export function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -17,48 +17,43 @@ export function ForgotPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await resetPassword(email)
+    const { error } = await resetPassword(email.trim().toLowerCase())
     setLoading(false)
-    if (error) toast(error.message, 'error')
+    if (error) toast(traduzirErroAuth(error.message), 'error')
     else setSent(true)
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0c11] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-        <div className="rounded-2xl border border-white/10 bg-[#0d0f14]/90 backdrop-blur-xl p-8 shadow-2xl">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-4">
-              <Zap className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Recuperar senha</h1>
-            <p className="text-sm text-gray-400 mt-1 text-center">
-              {sent ? 'Email enviado! Verifique sua caixa de entrada.' : 'Informe seu email para receber o link de redefinição.'}
-            </p>
-          </div>
-
-          {!sent && (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Email"
-                type="email"
-                placeholder="voce@statusmedia.com.br"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                icon={<Mail className="w-4 h-4" />}
-                required
-              />
-              <Button type="submit" variant="premium" size="lg" className="w-full" disabled={loading}>
-                {loading ? 'Enviando...' : 'Enviar link'}
-              </Button>
-            </form>
-          )}
-
-          <Link to="/login" className="flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-white mt-6">
-            <ArrowLeft className="w-4 h-4" /> Voltar ao login
+    <AuthCardPage
+      title="Recuperar senha"
+      subtitle={sent
+        ? 'E-mail enviado! Verifique sua caixa de entrada para criar uma nova senha.'
+        : 'Informe seu e-mail para receber o link de redefinição.'}
+      footer={
+        <p className="text-center mt-3">
+          <Link to="/login" className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#29457a] hover:text-[#16284d]">
+            <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
           </Link>
-        </div>
-      </motion.div>
-    </div>
+        </p>
+      }
+    >
+      {!sent && (
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <AuthField
+            label="Email"
+            type="email"
+            placeholder="voce@suaagencia.com.br"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            icon={<Mail className="w-4 h-4" />}
+            required
+            autoComplete="email"
+          />
+          <AuthButton type="submit" disabled={loading}>
+            {loading ? 'Enviando...' : <><span>Enviar link</span><ArrowRight className="w-4 h-4" /></>}
+          </AuthButton>
+        </form>
+      )}
+    </AuthCardPage>
   )
 }

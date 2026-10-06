@@ -179,11 +179,11 @@ export function CrmImportExport({ leads, columns }: Props) {
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={exportCsv} disabled={!leads.length} title="Baixar planilha com os leads">
-        <Download className="w-3.5 h-3.5" /> Exportar
+      <Button size="sm" variant="outline" onClick={exportCsv} disabled={!leads.length} title="Baixar planilha com os leads" aria-label="Exportar leads">
+        <Download className="w-3.5 h-3.5" /> <span className="max-md:hidden">Exportar</span>
       </Button>
-      <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} title="Subir planilha de leads (CSV)">
-        <Upload className="w-3.5 h-3.5" /> Importar
+      <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} title="Subir planilha de leads (CSV)" aria-label="Importar leads">
+        <Upload className="w-3.5 h-3.5" /> <span className="max-md:hidden">Importar</span>
       </Button>
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
              onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = '' }} />

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
-import { Zap, Database, Key, Terminal, CheckCircle2, ExternalLink, Copy, Check } from 'lucide-react'
+import { Database, Key, Terminal, CheckCircle2, ExternalLink, Copy, Check } from 'lucide-react'
+import { BrandMark } from '@/components/BrandMark'
 import { useState } from 'react'
 import { copyToClipboard } from '@/utils/formatters'
 
@@ -70,8 +71,8 @@ export function Setup() {
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-2xl shadow-blue-500/25 mb-4">
-            <Zap className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-4">
+            <BrandMark size={64} />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">StatusMedia</h1>
           <p className="text-gray-400">Configure o sistema em 4 passos simples</p>

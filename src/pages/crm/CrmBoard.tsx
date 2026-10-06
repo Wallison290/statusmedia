@@ -784,14 +784,15 @@ export function CrmBoard() {
           : `${activeLeads.length} ${activeLeads.length === 1 ? 'lead' : 'leads'} · ${columns.length} ${columns.length === 1 ? 'etapa' : 'etapas'}`}
         actions={columns.length > 0 && (
           <>
-            <Button size="sm" variant="outline" onClick={() => setAssistantOpen(true)}>
-              <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} /> Perguntar à IA
+            {/* No celular as ações secundárias viram só ícone, para caberem numa linha */}
+            <Button size="sm" variant="outline" onClick={() => setAssistantOpen(true)} title="Perguntar à IA" aria-label="Perguntar à IA">
+              <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} /> <span className="max-md:hidden">Perguntar à IA</span>
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
-              <LayoutTemplate className="w-3.5 h-3.5" /> Modelos
+            <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)} title="Modelos" aria-label="Modelos">
+              <LayoutTemplate className="w-3.5 h-3.5" /> <span className="max-md:hidden">Modelos</span>
             </Button>
             <CrmImportExport leads={leads} columns={columns} />
-            <Button size="sm" onClick={() => openNewLead(columns[0].id)}>
+            <Button size="sm" onClick={() => openNewLead(columns[0].id)} className="max-md:ml-auto">
               <Plus className="w-3.5 h-3.5" /> Novo lead
             </Button>
           </>
@@ -822,9 +823,12 @@ export function CrmBoard() {
         </div>
       ) : (
         <>
-          {/* Barra de números + filtros */}
-          <div className="px-4 sm:px-6 pt-3 pb-2 flex flex-wrap items-center gap-2 flex-shrink-0">
-            <div className="flex items-center gap-2 flex-wrap">
+          {/* Barra de números + filtros. No celular são só duas linhas: uma faixa
+              que desliza para o lado (números e filtros rápidos) e a busca — o
+              resto da altura fica para os cartões do funil. */}
+          <div className="px-4 sm:px-6 pt-3 max-md:pt-2 pb-2 flex flex-wrap items-center gap-2 flex-shrink-0">
+            <div className="max-md:w-[calc(100%+2rem)] max-md:-mx-4 max-md:px-4 max-md:overflow-x-auto scrollbar-none flex items-center gap-2 max-md:flex-nowrap md:flex-wrap">
+            <div className="flex items-center gap-2 max-md:flex-nowrap md:flex-wrap max-md:flex-shrink-0 [&>span]:whitespace-nowrap">
               <span className="text-[11.5px] px-2 py-1 rounded-lg"
                     style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
                 <strong style={{ color: 'var(--sm-text-1)' }}>{stats.openCount}</strong> em aberto
@@ -844,7 +848,7 @@ export function CrmBoard() {
               )}
             </div>
 
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-1 max-md:flex-nowrap md:flex-wrap max-md:flex-shrink-0 [&>button]:whitespace-nowrap">
               {([
                 ['todos',    'Todos'],
                 ['responderam', `Responderam${stats.waiting ? ` (${stats.waiting})` : ''}`],
@@ -874,10 +878,11 @@ export function CrmBoard() {
                 </button>
               )}
             </div>
+            </div>
 
-            <div className="flex-1" />
+            <div className="flex-1 max-md:hidden" />
 
-            <div className="w-full sm:w-56">
+            <div className="max-md:flex-1 max-md:min-w-0 sm:w-56">
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -891,7 +896,7 @@ export function CrmBoard() {
               <select
                 value={filterTag}
                 onChange={e => setFilterTag(e.target.value)}
-                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark]"
+                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark] max-md:w-24 max-md:flex-shrink-0"
                 style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: filterTag ? '#4F8EF7' : 'var(--sm-text-2)' }}
               >
                 <option value="">Todas as tags</option>
@@ -903,7 +908,7 @@ export function CrmBoard() {
               <select
                 value={filterMember}
                 onChange={e => setFilterMember(e.target.value)}
-                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark]"
+                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark] max-md:w-24 max-md:flex-shrink-0"
                 style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}
               >
                 <option value="">Todos os responsáveis</option>
