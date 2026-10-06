@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       const name  = String(body.name ?? '').trim()
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'E-mail inválido.' }, 400)
       if (email === String(owner.email ?? '').toLowerCase()) {
-        return json({ error: 'Esse é o e-mail do dono da agência.' }, 400)
+        return json({ error: 'Essa pessoa já é sócia da agência.' }, 400)
       }
 
       const { data: existingId } = await sb.rpc('find_user_id_by_email', { p_email: email })

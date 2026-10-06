@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, Crown, Mail, Loader2, Lock, RotateCw, Trash2, AlertCircle, Send } from 'lucide-react'
+import { ShieldCheck, Mail, Loader2, Lock, RotateCw, Trash2, AlertCircle, Send } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
@@ -120,8 +120,8 @@ export function PartnersPanel() {
           <h3 className="text-[15px] font-bold text-[#F8FAFC]">Sócios da agência</h3>
           <p className="text-[13px] text-[#94a3b8] leading-relaxed">
             O sócio entra com <strong className="text-[#E2E8F0]">login próprio</strong> e tem acesso completo ao
-            sistema: clientes, planejamento, Instagram, CRM, financeiro, relatórios, equipe e assinatura. Tem
-            os mesmos poderes do dono. Para só delegar tarefas a um colaborador, use a aba Membros.
+            sistema: clientes, planejamento, Instagram, CRM, financeiro, relatórios, equipe e assinatura. Todos os
+            sócios têm os mesmos poderes. Para só delegar tarefas a um colaborador, use a aba Membros.
           </p>
         </div>
       </div>
@@ -182,9 +182,9 @@ export function PartnersPanel() {
       <div className="bg-[#111827] rounded-2xl border border-[#1e293b] divide-y divide-[#1e293b]">
         <Row
           letter={initial(data.owner.name, data.owner.email)}
-          title={data.owner.name || data.owner.email || 'Dono'}
+          title={data.owner.name || data.owner.email || 'Sócio'}
           subtitle={data.owner.email}
-          tag={<span className="flex items-center gap-1 text-[10px] font-semibold text-amber-300"><Crown className="w-3 h-3" /> Dono</span>}
+          tag={<span className="text-[10px] font-semibold text-emerald-400">Sócio</span>}
           you={data.me === data.owner.id}
         />
         {data.partners.map(p => {
