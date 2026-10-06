@@ -1,0 +1,29 @@
+# Configuração do Supabase versionada no repo.
+#
+# Só declara o que queremos controlar daqui: os modelos de e-mail do Auth.
+# `supabase config push` envia apenas as propriedades declaradas — o resto
+# (site_url, URLs de retorno, provedores…) continua como está no painel.
+# Antes de aplicar: `supabase config push` sem --yes mostra a diferença e não
+# grava nada.
+
+project_id = "hhmcicccxhkfmmryatxi"
+
+[auth.email.template.invite]
+subject = "Seu acesso ao StatusMedia"
+content_path = "./supabase/email-templates/convite.html"
+
+[auth.email.template.recovery]
+subject = "Redefinir sua senha no StatusMedia"
+content_path = "./supabase/email-templates/redefinir-senha.html"
+
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail no StatusMedia"
+content_path = "./supabase/email-templates/confirmar-cadastro.html"
+
+[auth.email.template.magic_link]
+subject = "Seu link de acesso ao StatusMedia"
+content_path = "./supabase/email-templates/link-magico.html"
+
+[auth.email.template.email_change]
+subject = "Confirme seu novo e-mail no StatusMedia"
+content_path = "./supabase/email-templates/troca-de-email.html"
