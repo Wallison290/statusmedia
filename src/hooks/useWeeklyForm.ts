@@ -129,7 +129,7 @@ export function useWeeklyFormConfig(clientId: string) {
 
 export function useUpsertWeeklyFormConfig() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async (payload: {
       clientId: string
@@ -160,7 +160,7 @@ export function useUpsertWeeklyFormConfig() {
           .from('weekly_form_configs')
           .insert({
             client_id: payload.clientId,
-            user_id: user!.id,
+            user_id: agencyId!,
             day_of_week: payload.dayOfWeek,
             is_active: payload.isActive,
             custom_questions: payload.customQuestions ?? null,

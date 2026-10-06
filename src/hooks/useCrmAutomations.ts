@@ -8,16 +8,16 @@ import { useAuth } from './useAuth'
 import type { CrmAutomation } from '@/types'
 
 export function useCrmAutomations() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<CrmAutomation[]>({
-    queryKey: ['crm_automations', user?.id],
+    queryKey: ['crm_automations', agencyId],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_automations')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('created_at')
       if (error) throw error
       return data ?? []
@@ -30,13 +30,13 @@ export type CrmAutomationInput = Pick<CrmAutomation,
 
 export function useSaveCrmAutomation() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async ({ id, ...a }: Partial<CrmAutomationInput> & { id?: string }) => {
       const q = id
         ? (supabase as any).from('crm_automations').update(a).eq('id', id)
-        : (supabase as any).from('crm_automations').insert({ ...a, user_id: user!.id })
+        : (supabase as any).from('crm_automations').insert({ ...a, user_id: agencyId! })
       const { error } = await q
       if (error) throw error
     },

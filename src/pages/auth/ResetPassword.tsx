@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Zap, Lock, Eye, EyeOff, Check } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -16,6 +16,8 @@ export function ResetPassword() {
   const [loading, setLoading]     = useState(false)
   const [done, setDone]           = useState(false)
   const [validSession, setValid]  = useState(false)
+  // Sócio convidado pela aba Equipe chega aqui para criar a primeira senha
+  const isPartnerInvite = useSearchParams()[0].get('convite') === 'socio'
 
   // Supabase injeta o token de recovery na hash da URL automaticamente
   useEffect(() => {
@@ -39,7 +41,9 @@ export function ResetPassword() {
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error } = await supabase.auth.updateUser(
+      isPartnerInvite ? { password, data: { needs_partner_password: false } } : { password },
+    )
     setLoading(false)
     if (error) {
       toast(error.message, 'error')
@@ -58,12 +62,14 @@ export function ResetPassword() {
               {done ? <Check className="w-6 h-6 text-white" /> : <Zap className="w-6 h-6 text-white" />}
             </div>
             <h1 className="text-2xl font-bold text-white">
-              {done ? 'Senha alterada!' : 'Nova senha'}
+              {done ? (isPartnerInvite ? 'Tudo pronto!' : 'Senha alterada!') : (isPartnerInvite ? 'Crie sua senha' : 'Nova senha')}
             </h1>
             <p className="text-sm text-gray-400 mt-1 text-center">
               {done
                 ? 'Redirecionando para o sistema...'
-                : 'Digite a nova senha para sua conta.'}
+                : isPartnerInvite
+                  ? 'Você foi convidado como sócio da agência. Crie uma senha para entrar.'
+                  : 'Digite a nova senha para sua conta.'}
             </p>
           </div>
 
@@ -103,7 +109,7 @@ export function ResetPassword() {
                 className="w-full"
                 disabled={loading || !validSession}
               >
-                {loading ? 'Salvando...' : 'Salvar nova senha'}
+                {loading ? 'Salvando...' : isPartnerInvite ? 'Criar senha e entrar' : 'Salvar nova senha'}
               </Button>
               {!validSession && (
                 <p className="text-[12px] text-amber-400 text-center">

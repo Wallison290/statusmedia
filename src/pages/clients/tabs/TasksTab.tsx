@@ -488,7 +488,7 @@ function TaskViewModal({
 // ─── TasksTab ─────────────────────────────────────────────────────────────────
 
 export function TasksTab({ clientId }: { clientId: string }) {
-  const { user }                         = useAuth()
+  const { user, agencyId }                         = useAuth()
   const { data: tasks = [] }             = useTasks(clientId)
   const { data: allMembers = [] }        = useTeamMembers()
   const activeMembers                    = allMembers.filter(m => m.is_active)
@@ -522,7 +522,7 @@ export function TasksTab({ clientId }: { clientId: string }) {
     if (!form.title.trim() || !user) return
     try {
       await (createTask.mutateAsync as any)({
-        user_id:     user.id,
+        user_id:     agencyId!,
         title:       form.title.trim(),
         description: form.description || null,
         due_date:    form.due_date    || null,

@@ -561,7 +561,7 @@ function ConnectInstagramModal({
   onOpenChange: (open: boolean) => void
   accounts: InstagramAccount[]
 }) {
-  const { user }                          = useAuth()
+  const { user, agencyId }                          = useAuth()
   const { data: clients = [], isLoading } = useClients()
   const { data: subData }                 = useSubscription()
   const { toast }                         = useToast()
@@ -590,7 +590,7 @@ function ConnectInstagramModal({
       )
       return
     }
-    window.location.href = buildInstagramOAuthUrl(user.id, clientId)
+    window.location.href = buildInstagramOAuthUrl(agencyId!, clientId)
   }
 
   return (

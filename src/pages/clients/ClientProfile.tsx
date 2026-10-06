@@ -1083,7 +1083,7 @@ function TabBar({
 export function ClientProfile() {
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: client, isLoading } = useClient(id!)
   const { data: dna } = useBrandDNA(id!)
   const { data: tasks } = useTasks(id)
@@ -1278,7 +1278,7 @@ export function ClientProfile() {
 
       if (assetFile) {
         const ext = assetFile.name.split('.').pop() || 'bin'
-        const path = `${user.id}/${id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const path = `${agencyId!}/${id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
         const { url } = await uploadArquivo('content-assets', path, assetFile)
         media_url = url
       }
@@ -1298,7 +1298,7 @@ export function ClientProfile() {
         toast('Conteúdo atualizado!', 'success')
       } else {
         await createAsset.mutateAsync({
-          user_id: user.id,
+          user_id: agencyId!,
           client_id: id,
           ...payload,
         })
@@ -1791,7 +1791,7 @@ export function ClientProfile() {
 
           {/* ── Instagram ────────────────────────────────────────────────── */}
           <TabsContent value="instagram">
-            {user && <ClientInstagramTab clientId={id!} userId={user.id} />}
+            {user && <ClientInstagramTab clientId={id!} userId={agencyId!} />}
           </TabsContent>
 
           {/* ── Solicitações e Ideias ─────────────────────────────────────── */}

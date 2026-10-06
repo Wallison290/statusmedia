@@ -1151,7 +1151,7 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
 type ViewTab = 'semanal' | 'timeline' | 'calendario' | 'lista'
 
 export function Tasks() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: tasks = [] } = useTasks()
   const { data: clients = [] } = useClients()
   const { data: allMembers = [] } = useTeamMembers()
@@ -1222,7 +1222,7 @@ export function Tasks() {
     if (!form.title.trim() || !user) return
     try {
       await (createTask.mutateAsync as any)({
-        user_id: user.id, title: form.title.trim(), description: form.description || null,
+        user_id: agencyId!, title: form.title.trim(), description: form.description || null,
         due_date: form.due_date || null, due_time: form.due_time || null,
         priority: form.priority, status: form.status, assignee: form.assignee || null,
         assignee_id: form.assignee_id || null, client_id: form.client_id || null,

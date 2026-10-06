@@ -94,7 +94,7 @@ export interface SaveTemplateInput {
 
 export function useSaveTemplate() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async (input: SaveTemplateInput): Promise<string> => {
       if (!user) throw new Error('Não autenticado')
@@ -108,7 +108,7 @@ export function useSaveTemplate() {
         await (supabase as any).from('task_template_items').delete().eq('template_id', templateId)
       } else {
         const { data, error } = await (supabase as any).from('task_templates')
-          .insert({ user_id: user.id, name: input.name, description: input.description, emoji: input.emoji, category: input.category, is_system: false })
+          .insert({ user_id: agencyId!, name: input.name, description: input.description, emoji: input.emoji, category: input.category, is_system: false })
           .select().single()
         if (error) throw error
         templateId = data.id
@@ -156,7 +156,7 @@ export interface ApplyTemplateInput {
 
 export function useApplyTaskTemplate() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async (input: ApplyTemplateInput): Promise<number> => {
@@ -175,7 +175,7 @@ export function useApplyTaskTemplate() {
       if (input.mode === 'checklist') {
         const checklist = list.map(it => `- [ ] ${it.title}`).join('\n')
         const { error: e2 } = await (supabase as any).from('tasks').insert({
-          user_id: user.id, client_id: input.clientId,
+          user_id: agencyId!, client_id: input.clientId,
           title: input.templateName, description: checklist,
           due_date: null, due_time: null,
           priority: 'media', status: 'a_fazer',
@@ -199,7 +199,7 @@ export function useApplyTaskTemplate() {
           due_time = `${String(hour).padStart(2, '0')}:00`
         }
         return {
-          user_id:     user.id,
+          user_id:     agencyId!,
           client_id:   input.clientId,
           title:       it.title,
           description: it.description,

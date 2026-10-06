@@ -18,14 +18,14 @@ export interface StorageUsageData {
 }
 
 export function useStorageUsage() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: subData } = useSubscription()
 
   const planId  = (subData?.subscription.plan ?? 'starter') as PlanId
   const limitGB = PLAN_STORAGE_GB[planId] ?? 10
 
   const query = useQuery<{ usedBytes: number; usedGB: number } | null>({
-    queryKey: ['storage_usage', user?.id],
+    queryKey: ['storage_usage', agencyId],
     enabled: !!user,
     staleTime: 60_000, // 1 minuto
     queryFn: async () => {

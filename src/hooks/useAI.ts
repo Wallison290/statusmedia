@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { callProxy, streamChat, type ImageSize } from '@/lib/aiProxy'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 // ── System prompt ──────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `Você é a StatusIA — o assistente de IA do sistema StatusMedia, construído sobre o SocialForge v3. Você é um time completo de marketing digital com 13 especialidades e 48 agentes especializados.
@@ -144,11 +145,12 @@ export function useCreateSession() {
   return useMutation({
     mutationFn: async (title: string = 'Nova conversa') => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (!user) throw new Error('Não autenticado')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from('ai_sessions')
-        .insert({ user_id: user.id, title })
+        .insert({ user_id: agencyId!, title })
         .select()
         .single()
       if (error) throw error
@@ -351,12 +353,13 @@ export function useAIChat(sessionId: string | null) {
     // Cria sessão se não existe
     if (!activeSessionId) {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (!user) return
       const title = (content || 'Imagem').slice(0, 60) + ((content || 'Imagem').length > 60 ? '…' : '')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: session, error } = await (supabase as any)
         .from('ai_sessions')
-        .insert({ user_id: user.id, title, squad_id: squadContext })
+        .insert({ user_id: agencyId!, title, squad_id: squadContext })
         .select()
         .single()
       if (error || !session) return
@@ -479,15 +482,16 @@ ${squadPrompt}`
     // Extração de memória em background (cliente + agência)
     if (aiResponse && !aiResponse.startsWith('❌')) {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (user) {
         if (clientId) {
-          extractMemoriesBackground(content || 'análise de imagem', aiResponse, clientId, user.id, (keys) => {
+          extractMemoriesBackground(content || 'análise de imagem', aiResponse, clientId, agencyId!, (keys) => {
             setMemoriesSaved(keys)
             qc.invalidateQueries({ queryKey: ['ai_client_memory', clientId] })
             qc.invalidateQueries({ queryKey: ['ai_client_context', clientId] })
           })
         }
-        extractUserMemoriesBackground(content || 'análise de imagem', aiResponse, user.id, (keys) => {
+        extractUserMemoriesBackground(content || 'análise de imagem', aiResponse, agencyId!, (keys) => {
           setUserMemoriesSaved(keys)
           qc.invalidateQueries({ queryKey: ['ai_user_memory'] })
         })

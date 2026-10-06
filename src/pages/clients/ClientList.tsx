@@ -92,7 +92,7 @@ export function ClientList() {
   const { toast }    = useToast()
   const navigate     = useNavigate()
   const queryClient  = useQueryClient()
-  const { user }     = useAuth()
+  const { user, agencyId }     = useAuth()
   const { isDark }   = useTheme()
 
   const [search, setSearch]         = useState('')
@@ -183,7 +183,7 @@ export function ClientList() {
     setSaving(clientId)
     try {
       const ext  = file.name.split('.').pop() || 'jpg'
-      const path = `${user?.id}/banner_${clientId}.${ext}`
+      const path = `${agencyId}/banner_${clientId}.${ext}`
       const { error: upErr } = await supabase.storage
         .from('client-logos')
         .upload(path, file, { upsert: true })

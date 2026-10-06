@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendForAgency } from '../_shared/whatsapp.ts'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -80,6 +81,8 @@ Deno.serve(async (req) => {
     })
     const { data: { user }, error: authErr } = await anonClient.auth.getUser()
     if (authErr || !user) throw new Error('Token inválido.')
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(user.id)
 
     // Busca o cliente com os dados necessários
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE)
@@ -89,7 +92,7 @@ Deno.serve(async (req) => {
       .from('clients')
       .select('company_name, responsible_name, whatsapp, dia_vencimento, valor_mensal')
       .eq('id', client_id)
-      .eq('user_id', user.id)
+      .eq('user_id', agencyId)
       .single()
 
     if (clientErr || !client) throw new Error('Cliente não encontrado.')
@@ -97,7 +100,7 @@ Deno.serve(async (req) => {
 
     const message = buildChargeMessage({ ...client, contact_name: client.responsible_name })
     // Sai pelo WhatsApp conectado da agência
-    const result = await sendForAgency(supabase, user.id, client.whatsapp, message)
+    const result = await sendForAgency(supabase, agencyId, client.whatsapp, message)
     if (!result.ok) throw new Error(result.error)
 
     return new Response(JSON.stringify({ ok: true }), {

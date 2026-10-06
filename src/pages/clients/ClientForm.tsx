@@ -48,7 +48,7 @@ export function ClientForm() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fromLeadId = searchParams.get('from_lead')
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const { data: existingClient } = useClient(id || '')
   const { data: allClients = [] } = useClients()
@@ -90,7 +90,7 @@ export function ClientForm() {
       const { allowed, message } = await checkStorageLimit(file.size)
       if (!allowed) { toast(message ?? 'Limite de armazenamento atingido.', 'error'); return }
       const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${user.id}/${Date.now()}.${ext}`
+      const path = `${agencyId!}/${Date.now()}.${ext}`
       const { error } = await supabase.storage
         .from('client-logos')
         .upload(path, file, { upsert: true })
@@ -144,7 +144,7 @@ export function ClientForm() {
         await updateClient.mutateAsync({ id: id!, ...form })
         toast('Cliente atualizado!', 'success')
       } else {
-        const created = await createClient.mutateAsync({ ...form, user_id: user.id })
+        const created = await createClient.mutateAsync({ ...form, user_id: agencyId! })
 
         // Veio de um lead do CRM: fecha o ciclo marcando a conversão, para o
         // card parar de oferecer "converter em cliente".

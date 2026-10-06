@@ -3,6 +3,7 @@
 // contornando a limitação da REST API que não expõe o schema storage.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -30,10 +31,12 @@ Deno.serve(async (req) => {
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     const { data: { user }, error: authErr } = await sb.auth.getUser(authHeader.replace('Bearer ', ''))
     if (authErr || !user) return json({ error: 'Não autorizado' }, 401)
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(user.id)
 
     // Chama função SQL SECURITY DEFINER que acessa storage.objects
     const { data, error } = await sb.rpc('get_user_storage_bytes', {
-      p_user_id: user.id,
+      p_user_id: agencyId,
     })
 
     if (error) {

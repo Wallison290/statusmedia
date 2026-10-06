@@ -357,7 +357,7 @@ function AttachmentItem({
 function AddAttachmentModal({
   reportId, open, onClose,
 }: { reportId: string; open: boolean; onClose: () => void }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const add = useAddReportAttachment()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -379,7 +379,7 @@ function AddAttachmentModal({
         const { allowed, message } = await checkStorageLimit(file.size)
         if (!allowed) { toast(message ?? 'Limite de armazenamento atingido.', 'error'); setUploading(false); return }
         const ext = file.name.split('.').pop() || 'bin'
-        const path = `${user.id}/${reportId}/${Date.now()}.${ext}`
+        const path = `${agencyId!}/${reportId}/${Date.now()}.${ext}`
         const { error: upErr } = await supabase.storage.from('report-attachments').upload(path, file)
         if (upErr) throw upErr
         const { data: { publicUrl } } = supabase.storage.from('report-attachments').getPublicUrl(path)

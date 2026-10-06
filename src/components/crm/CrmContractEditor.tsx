@@ -47,7 +47,7 @@ const selectClass =
 export function CrmContractEditor({ open, onClose, contract, leads, proposals, defaultLeadId, defaultProposalId }: Props) {
   const money = useMoney()
   const { toast } = useToast()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const { data: settings } = useCrmSettings()
   const save = useSaveCrmContract()
   const { data: wa } = useAgencyWhatsapp()

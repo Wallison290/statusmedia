@@ -85,7 +85,7 @@ interface Props {
 
 export function CrmImportExport({ leads, columns }: Props) {
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const ordered = [...columns].sort((a, b) => a.position - b.position)
@@ -163,7 +163,7 @@ export function CrmImportExport({ leads, columns }: Props) {
     setImporting(true)
     try {
       for (let i = 0; i < preview.fresh.length; i += 200) {
-        const batch = preview.fresh.slice(i, i + 200).map(l => ({ ...l, user_id: user.id, column_id: targetCol, temperature: 'morno' }))
+        const batch = preview.fresh.slice(i, i + 200).map(l => ({ ...l, user_id: agencyId!, column_id: targetCol, temperature: 'morno' }))
         const { error } = await (supabase as any).from('crm_leads').insert(batch)
         if (error) throw error
       }

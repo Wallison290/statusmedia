@@ -15,6 +15,7 @@
 
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -58,6 +59,8 @@ Deno.serve(async (req) => {
     )
     const { data: { user }, error: authError } = await sb.auth.getUser()
     if (authError || !user) return json({ error: 'Não autenticado.' }, 401)
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(user.id)
 
     // ── Validação do pedido ────────────────────────────────────────────────
     const { fileName, contentType, sizeBytes } = await req.json()
@@ -76,7 +79,7 @@ Deno.serve(async (req) => {
 
     // ── Caminho: separa por usuário e evita colisão de nome ────────────────
     const limpo = String(fileName).replace(/[^\w.\-]/g, '_').slice(-80)
-    const key = `${user.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${limpo}`
+    const key = `${agencyId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${limpo}`
 
     // ── Assina o PUT ───────────────────────────────────────────────────────
     const client = new AwsClient({

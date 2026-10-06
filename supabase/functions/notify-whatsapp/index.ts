@@ -15,6 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendForAgency } from '../_shared/whatsapp.ts'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -284,6 +285,8 @@ Deno.serve(async (req) => {
           status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
         })
       }
+      // Sócio age como o dono da agência (migration 088)
+      const agencyId = await agencyIdFor(user.id)
       const { client_id, type, group_jids } = body as { client_id: string; type: string; group_jids?: string[] }
       if (!client_id || !type || !CLIENT_NOTIFY_TYPES_MANUAL.has(type)) {
         return new Response(JSON.stringify({ ok: false, error: 'Parâmetros inválidos' }), {
@@ -293,7 +296,7 @@ Deno.serve(async (req) => {
       const { data: agencyProfile } = await supabase
         .from('profiles')
         .select('role, full_name, agency_name')
-        .eq('id', user.id)
+        .eq('id', agencyId)
         .maybeSingle()
       if (!agencyProfile || (agencyProfile as any).role !== 'agency') {
         return new Response(JSON.stringify({ ok: false, error: 'Apenas agências podem notificar' }), {
@@ -302,7 +305,7 @@ Deno.serve(async (req) => {
       }
       const fakeNotif: NotificationRow = {
         id: crypto.randomUUID(),
-        user_id: user.id,
+        user_id: agencyId,
         client_id,
         type,
         title: '',
@@ -321,7 +324,7 @@ Deno.serve(async (req) => {
         const groupMsg = buildClientMessage(fakeNotif, agencyName) +
           (clientName ? `\n\n_Cliente: ${clientName}_` : '')
         for (const jid of group_jids) {
-          await sendForAgency(supabase, user.id, jid, groupMsg).catch(() => {})
+          await sendForAgency(supabase, agencyId, jid, groupMsg).catch(() => {})
         }
       }
 
@@ -339,6 +342,8 @@ Deno.serve(async (req) => {
       if (!user) return new Response(JSON.stringify({ ok: false, error: 'Não autorizado' }), {
         status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
       })
+      // Sócio age como o dono da agência (migration 088)
+      const agencyId = await agencyIdFor(user.id)
       const { type, group_jids } = body as { type: string; group_jids: string[] }
       if (!Array.isArray(group_jids) || group_jids.length === 0) {
         return new Response(JSON.stringify({ ok: false, error: 'Nenhum grupo selecionado' }), {
@@ -346,14 +351,14 @@ Deno.serve(async (req) => {
         })
       }
       const { data: agencyProfile } = await supabase.from('profiles')
-        .select('full_name, agency_name').eq('id', user.id).maybeSingle()
+        .select('full_name, agency_name').eq('id', agencyId).maybeSingle()
       const agencyName = (agencyProfile as any)?.agency_name || (agencyProfile as any)?.full_name || 'Agência'
       const fakeNotif: NotificationRow = {
-        id: crypto.randomUUID(), user_id: user.id, client_id: null,
+        id: crypto.randomUUID(), user_id: agencyId, client_id: null,
         type, title: '', message: '', link: null, created_at: new Date().toISOString(),
       }
       const msg = buildClientMessage(fakeNotif, agencyName)
-      for (const jid of group_jids) { await sendForAgency(supabase, user.id, jid, msg).catch(() => {}) }
+      for (const jid of group_jids) { await sendForAgency(supabase, agencyId, jid, msg).catch(() => {}) }
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })

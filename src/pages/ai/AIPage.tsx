@@ -26,6 +26,7 @@ import {
   type AISession,
   type AIMessage,
 } from '@/hooks/useAI'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 // ─── Redimensiona e converte imagem para base64 ───────────────────────────────
 async function resizeAndEncode(file: File, maxPx = 1024): Promise<string> {
@@ -849,11 +850,13 @@ ${subAgentContext}`
       const exportMonthStr = `${baseYear}-${String(baseMonth + 1).padStart(2, '0')}`
 
       const { data: { user } } = await supabase.auth.getUser()
+
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (!user) throw new Error('Não autenticado')
 
       // Monta os itens para inserção em massa
       const items = extracted.map(p => ({
-        user_id:         user.id,
+        user_id:         agencyId!,
         client_id:       activeClientId,
         title:           p.title,
         notes:           p.notes,

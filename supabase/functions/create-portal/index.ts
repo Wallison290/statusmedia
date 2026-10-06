@@ -2,6 +2,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@14'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const STRIPE_SECRET_KEY   = Deno.env.get('STRIPE_SECRET_KEY') ?? ''
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
@@ -33,13 +34,15 @@ Deno.serve(async (req) => {
       status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }
+  // Sócio age como o dono da agência (migration 088)
+  const agencyId = await agencyIdFor(user.id)
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: sub } = await (sb as any)
     .from('subscriptions')
     .select('stripe_customer_id')
-    .eq('user_id', user.id)
+    .eq('user_id', agencyId)
     .maybeSingle()
 
   if (!sub?.stripe_customer_id) {

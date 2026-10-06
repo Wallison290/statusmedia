@@ -22,12 +22,12 @@ export function useClientReports(clientId: string) {
 
 export function useCreateReport() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async (payload: { client_id: string; month: number; year: number }) => {
       const { data, error } = await supabase
         .from('client_reports')
-        .insert({ ...payload, user_id: user!.id })
+        .insert({ ...payload, user_id: agencyId! })
         .select()
         .single()
       if (error) throw error
@@ -67,7 +67,7 @@ export function useDeleteReport() {
 
 export function useAddReportAttachment() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async (payload: {
       report_id: string
@@ -80,7 +80,7 @@ export function useAddReportAttachment() {
     }) => {
       const { error } = await supabase
         .from('report_attachments')
-        .insert({ ...payload, user_id: user!.id })
+        .insert({ ...payload, user_id: agencyId! })
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['client-reports'] }),

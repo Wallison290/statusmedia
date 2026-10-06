@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from './useAuth'
 import type { Note, NoteChecklistItem, NoteType, NoteOrigin } from '@/types'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 const db = () => (supabase.from('notes') as any)
 
@@ -54,9 +55,10 @@ export function useCreateNote() {
   return useMutation({
     mutationFn: async (payload: CreateNotePayload) => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       const { data, error } = await db()
         .insert({
-          user_id:   user!.id,
+          user_id:   agencyId!,
           title:     payload.title,
           content:   payload.content   ?? null,
           checklist: payload.checklist ?? [],
@@ -118,7 +120,7 @@ function useIsPortalClient() {
 }
 
 export function usePortalNotes() {
-  const { profile } = useAuth()
+  const { profile, agencyId } = useAuth()
   const isClient = useIsPortalClient()
 
   return useQuery<Note[]>({

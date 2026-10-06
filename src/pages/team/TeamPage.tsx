@@ -6,9 +6,10 @@ import {
   Users, ClipboardList, ChevronDown, Plus,
   Calendar, Flag, Building2,
   Link as LinkIcon, Image, Film, FileText as FileIcon, Folder,
-  Search, Filter,
+  Search, Filter, ShieldCheck,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { PartnersPanel } from './PartnersPanel'
 import { useClients } from '@/hooks/useClients'
 import { supabase } from '@/integrations/supabase/client'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -1980,7 +1981,7 @@ function DeleteConfirm({ name, onConfirm, onCancel }: {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
-type ActiveTab = 'membros' | 'board' | 'carga'
+type ActiveTab = 'membros' | 'board' | 'carga' | 'socios'
 
 export function TeamPage() {
   const { toast } = useToast()
@@ -2040,12 +2041,13 @@ export function TeamPage() {
 
         {/* Tabs + Novo membro */}
         <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex gap-1 bg-[#182233] p-1 rounded-xl w-fit border border-[#1e293b]">
+        <div className="flex gap-1 bg-[#182233] p-1 rounded-xl w-fit max-w-full overflow-x-auto border border-[#1e293b]">
           {/* short: rótulo do celular, para as três abas caberem na largura */}
           {([
             ['membros', Users,         'Membros',           'Membros'],
             ['board',   ClipboardList, 'Board de tarefas',  'Board'],
             ['carga',   AlertCircle,   'Carga de trabalho', 'Carga'],
+            ['socios',  ShieldCheck,   'Sócios',            'Sócios'],
           ] as const).map(([t, Icon, label, short]) => (
             <button
               key={t}
@@ -2061,7 +2063,7 @@ export function TeamPage() {
           ))}
         </div>
 
-          <button
+          {tab !== 'socios' && <button
             onClick={() => {
               if (teamLimitReached) {
                 toast(`Limite do plano atingido (${maxTeamMembers} membro${maxTeamMembers === 1 ? '' : 's'}). Faça upgrade para adicionar mais.`, 'error')
@@ -2078,7 +2080,7 @@ export function TeamPage() {
           >
             <UserPlus className="w-4 h-4" /> Novo membro
             {teamLimitReached && <span className="text-[10px] ml-1 opacity-70">({activeMembers}/{maxTeamMembers})</span>}
-          </button>
+          </button>}
         </div>
 
         {/* ── Tab: Membros ── */}
@@ -2184,6 +2186,9 @@ export function TeamPage() {
             )}
           </div>
         )}
+
+        {/* ── Tab: Sócios ── */}
+        {tab === 'socios' && <PartnersPanel />}
 
         {/* ── Tab: Carga ── */}
         {tab === 'carga' && (

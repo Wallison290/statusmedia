@@ -20,7 +20,7 @@ export const DEFAULT_PREFS: WhatsappPrefs = {
  * verificação (via edge functions) e salvar opt-in + preferências (em profiles).
  */
 export function useWhatsappSettings() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, agencyProfile: profile, refreshProfile, agencyId } = useAuth()
   const [busy, setBusy] = useState(false)
 
   async function invokeVerify(body: object) {
@@ -69,7 +69,7 @@ export function useWhatsappSettings() {
       const { error } = await (supabase as any)
         .from('profiles')
         .update({ whatsapp_opt_in: value, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
+        .eq('id', agencyId!)
       if (error) throw error
       await refreshProfile?.()
     } finally {
@@ -85,7 +85,7 @@ export function useWhatsappSettings() {
       const { error } = await (supabase as any)
         .from('profiles')
         .update({ whatsapp_prefs: prefs, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
+        .eq('id', agencyId!)
       if (error) throw error
       await refreshProfile?.()
     } finally {

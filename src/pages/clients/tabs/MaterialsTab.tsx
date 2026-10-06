@@ -691,7 +691,7 @@ function FolderNameModal({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function MaterialsTab({ clientId }: { clientId: string }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: materials = [] } = useClientMaterials(clientId)
   const updateMaterial = useUpdateMaterial()
   const deleteMaterial = useDeleteMaterial()
@@ -887,7 +887,7 @@ export function MaterialsTab({ clientId }: { clientId: string }) {
           editing={editing}
           prefillFolder={prefillFolder}
           clientId={clientId}
-          userId={user?.id ?? ''}
+          userId={agencyId ?? ''}
         />
         <FolderNameModal
           open={folderModalOpen}
@@ -1021,7 +1021,7 @@ export function MaterialsTab({ clientId }: { clientId: string }) {
         editing={editing}
         prefillFolder={prefillFolder}
         clientId={clientId}
-        userId={user?.id ?? ''}
+        userId={agencyId ?? ''}
       />
       <FolderNameModal
         open={folderModalOpen}

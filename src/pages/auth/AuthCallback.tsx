@@ -53,6 +53,12 @@ export function AuthCallback() {
         return
       }
 
+      // 1b. Sócio convidado pela aba Equipe que ainda não criou senha
+      if (meta.needs_partner_password === true) {
+        navigate('/reset-password?convite=socio', { replace: true })
+        return
+      }
+
       // 2. Reset de senha → tela de redefinir senha
       // (o evento PASSWORD_RECOVERY é tratado abaixo, mas aqui como fallback)
       // navigate('/reset-password') — não necessário: o evento cuida disso

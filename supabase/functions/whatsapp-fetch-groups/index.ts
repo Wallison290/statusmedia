@@ -12,6 +12,7 @@ const CORS = {
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { agencySender, NOT_CONNECTED } from '../_shared/whatsapp.ts'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 
 function json(body: unknown) {
@@ -56,7 +57,9 @@ Deno.serve(async (req) => {
     const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
     const { data: { user } } = await sb.auth.getUser(jwt)
     if (!user) return json({ ok: false, error: 'Não autenticado.' })
-    const agency = await agencySender(sb, user.id)
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(user.id)
+    const agency = await agencySender(sb, agencyId)
     if (!agency) return json({ ok: false, error: NOT_CONNECTED })
     callBase = agency.base
     callToken = agency.token

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 /**
  * Envia um arquivo e devolve a URL pública dele.
@@ -61,9 +62,10 @@ class FalhaDeRede extends Error {
 async function registrarFalha(file: File, info: { stage: string; message: string; http_status?: number | null; attempt?: number; recovered?: boolean }) {
   try {
     const { data: { user } } = await supabase.auth.getUser()
+    const agencyId = user ? await resolveAgencyId(user.id) : null
     if (!user) return
     await (supabase as any).from('upload_errors').insert({
-      user_id: user.id,
+      user_id: agencyId!,
       stage: info.stage,
       message: info.message.slice(0, 500),
       http_status: info.http_status ?? null,

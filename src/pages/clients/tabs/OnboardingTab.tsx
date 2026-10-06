@@ -269,7 +269,7 @@ function ResponsibleSection({ client }: { client: Client }) {
 // ─── Seção: Documentos ────────────────────────────────────────────────────────
 
 function DocumentsSection({ clientId }: { clientId: string }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: docs = [] } = useClientDocuments(clientId)
   const addDoc = useAddDocument()
   const deleteDoc = useDeleteDocument()
@@ -284,13 +284,13 @@ function DocumentsSection({ clientId }: { clientId: string }) {
     setUploading(true)
     try {
       const ext = file.name.split('.').pop() || 'bin'
-      const path = `${user.id}/${clientId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const path = `${agencyId!}/${clientId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { error: upErr } = await supabase.storage.from('client-documents').upload(path, file)
       if (upErr) throw upErr
       const { data: { publicUrl } } = supabase.storage.from('client-documents').getPublicUrl(path)
       await addDoc.mutateAsync({
         client_id: clientId,
-        user_id: user.id,
+        user_id: agencyId!,
         name: file.name,
         file_url: publicUrl,
         file_type: file.type || 'application/octet-stream',

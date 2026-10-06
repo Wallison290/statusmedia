@@ -30,16 +30,16 @@ export function useCrmActivities(leadId: string | null | undefined) {
  * usa para calcular quanto tempo, em média, um lead fica em cada etapa.
  */
 export function useCrmStageMoves(sinceISO: string) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<CrmActivity[]>({
-    queryKey: ['crm_stage_moves', user?.id, sinceISO],
+    queryKey: ['crm_stage_moves', agencyId, sinceISO],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_lead_activities')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .in('kind', ['etapa', 'ganho', 'perdido', 'reaberto'])
         .gte('created_at', sinceISO)
         .order('created_at')
@@ -52,13 +52,13 @@ export function useCrmStageMoves(sinceISO: string) {
 
 export function useAddCrmActivity() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async (a: { lead_id: string; kind: CrmManualActivityKind; content: string; meta?: Record<string, any> }) => {
       const { error } = await (supabase as any)
         .from('crm_lead_activities')
-        .insert({ ...a, meta: a.meta ?? {}, user_id: user!.id })
+        .insert({ ...a, meta: a.meta ?? {}, user_id: agencyId! })
       if (error) throw error
     },
     onSuccess: (_d, a) => qc.invalidateQueries({ queryKey: ['crm_activities', a.lead_id] }),
@@ -102,7 +102,7 @@ export function useArchiveCrmLead() {
  */
 export function useCreateLeadTask() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async (t: {
@@ -110,7 +110,7 @@ export function useCreateLeadTask() {
       assignee_id: string | null; assignee: string | null; priority?: Task['priority']
     }) => {
       const { error } = await (supabase as any).from('tasks').insert({
-        user_id:     user!.id,
+        user_id:     agencyId!,
         crm_lead_id: t.lead_id,
         title:       t.title,
         due_date:    t.due_date,

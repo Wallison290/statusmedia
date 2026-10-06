@@ -514,7 +514,7 @@ function AssetPickerDialog({ open, onClose, clientId, onSelect, onUpload, onSele
 type AppView = 'gallery' | 'editor'
 
 export function FeedOrganizer() {
-  const { user }  = useAuth()
+  const { user, agencyId }  = useAuth()
   const { toast } = useToast()
   const { data: clients } = useClients()
   const { data: allVersions } = useFeeds()
@@ -649,7 +649,7 @@ export function FeedOrganizer() {
       const { allowed, message } = await checkStorageLimit(file.size)
       if (!allowed) { toast(message ?? 'Limite de armazenamento atingido.', 'error'); setIsUploading(false); return }
       const ext  = file.name.split('.').pop() || 'jpg'
-      const path = `${user.id}/feed/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const path = `${agencyId!}/feed/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { url } = await uploadArquivo('content-assets', path, file)
       updatePosts([...posts, { id: crypto.randomUUID(), image_url: url }])
       toast('Imagem adicionada!', 'success')

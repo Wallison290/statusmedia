@@ -32,9 +32,9 @@ async function call<T = AgencyWhatsappState>(body: Record<string, unknown>): Pro
 }
 
 export function useAgencyWhatsapp(opts: { poll?: boolean } = {}) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery<AgencyWhatsappState>({
-    queryKey: ['agency_whatsapp', user?.id],
+    queryKey: ['agency_whatsapp', agencyId],
     enabled:  !!user,
     queryFn:  () => call({ action: 'status' }),
     // Enquanto espera a leitura do QR, confere a cada 3s (o QR também se renova)
@@ -46,10 +46,10 @@ export function useAgencyWhatsapp(opts: { poll?: boolean } = {}) {
 
 export function useConnectAgencyWhatsapp() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: () => call({ action: 'connect' }),
-    onSuccess: (data) => qc.setQueryData(['agency_whatsapp', user?.id], { ...data, hasInstance: true, available: true }),
+    onSuccess: (data) => qc.setQueryData(['agency_whatsapp', agencyId], { ...data, hasInstance: true, available: true }),
   })
 }
 
@@ -76,9 +76,9 @@ export function useSendAgencyWhatsapp() {
 
 /** Etiquetas do WhatsApp Business da agência (vazio se não for Business). */
 export function useAgencyWhatsappLabels(enabled: boolean) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery<{ id: string; name: string; color: string | null }[]>({
-    queryKey: ['agency_whatsapp_labels', user?.id],
+    queryKey: ['agency_whatsapp_labels', agencyId],
     enabled:  !!user && enabled,
     queryFn:  async () => (await call<{ labels: { id: string; name: string; color: string | null }[] }>({ action: 'labels' })).labels,
     staleTime: 5 * 60_000,

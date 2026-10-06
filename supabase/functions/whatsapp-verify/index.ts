@@ -13,6 +13,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendForAgency } from '../_shared/whatsapp.ts'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -50,6 +51,8 @@ Deno.serve(async (req) => {
     })
     const { data: { user }, error: userErr } = await userClient.auth.getUser()
     if (userErr || !user) return json({ error: 'Não autenticado' }, 401)
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(user.id)
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE)
     const { action, phone, code } = await req.json()
@@ -72,11 +75,11 @@ Deno.serve(async (req) => {
           whatsapp_verify_attempts: 0,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id)
+        .eq('id', agencyId)
       if (upErr) throw upErr
 
       const sent = await sendForAgency(
-        admin, user.id, phone,
+        admin, agencyId, phone,
         `*StatusMedia* 🔐\nSeu código de verificação é *${verifyCode}*.\nEle expira em 10 minutos.`,
       )
       if (!sent.ok) {
@@ -95,7 +98,7 @@ Deno.serve(async (req) => {
       const { data: prof } = await admin
         .from('profiles')
         .select('whatsapp_verify_code, whatsapp_verify_expires, whatsapp_verify_attempts')
-        .eq('id', user.id)
+        .eq('id', agencyId)
         .maybeSingle()
 
       const pr = prof as any
@@ -111,7 +114,7 @@ Deno.serve(async (req) => {
         await admin
           .from('profiles')
           .update({ whatsapp_verify_attempts: (pr.whatsapp_verify_attempts ?? 0) + 1 })
-          .eq('id', user.id)
+          .eq('id', agencyId)
         return json({ error: 'Código incorreto' }, 400)
       }
 
@@ -126,7 +129,7 @@ Deno.serve(async (req) => {
           whatsapp_verify_attempts: 0,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id)
+        .eq('id', agencyId)
 
       return json({ ok: true, verified: true })
     }

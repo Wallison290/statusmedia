@@ -69,7 +69,7 @@ function snapshot(leads: CrmLead[], columns: CrmColumn[], memberOf: Props['membe
 
 export function CrmAssistant({ open, onClose, leads, columns, memberOf }: Props) {
   const { toast } = useToast()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput]       = useState('')
   const [busy, setBusy]         = useState(false)

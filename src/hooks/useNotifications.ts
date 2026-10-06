@@ -39,14 +39,14 @@ export interface Notification {
 }
 
 export function useNotifications() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery({
-    queryKey: ['notifications', user?.id],
+    queryKey: ['notifications', agencyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('created_at', { ascending: false })
         .limit(50)
       if (error) throw error
@@ -59,13 +59,13 @@ export function useNotifications() {
 
 export function useMarkNotificationRead() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase.from('notifications') as any)
         .update({ is_read: true })
         .eq('id', id)
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
@@ -74,12 +74,12 @@ export function useMarkNotificationRead() {
 
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async () => {
       const { error } = await (supabase.from('notifications') as any)
         .update({ is_read: true })
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .eq('is_read', false)
       if (error) throw error
     },

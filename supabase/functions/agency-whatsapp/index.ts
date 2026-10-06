@@ -19,6 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -85,14 +86,16 @@ Deno.serve(async (req) => {
   const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
   const { data: { user } } = await sb.auth.getUser(jwt)
   if (!user) return json({ ok: false, error: 'Não autenticado.' }, 401)
+  // Sócio age como o dono da agência (migration 088)
+  const agencyId = await agencyIdFor(user.id)
 
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle()
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', agencyId).maybeSingle()
   if (profile?.role !== 'agency') return json({ ok: false, error: 'Disponível só para agências.' }, 403)
 
   const body = await req.json().catch(() => ({}))
   const action = String(body?.action ?? 'status')
 
-  const { data: inst } = await sb.from('whatsapp_instances').select('*').eq('user_id', user.id).maybeSingle()
+  const { data: inst } = await sb.from('whatsapp_instances').select('*').eq('user_id', agencyId).maybeSingle()
 
   /** Liga o webhook de mensagens recebidas da instância, uma vez só. */
   async function ensureWebhook(row: any) {
@@ -147,7 +150,7 @@ Deno.serve(async (req) => {
       const uazId = r.data?.instance?.id ?? r.data?.id
       if (!r.ok || !token) return null
 
-      const { data: prof } = await sb.from('profiles').select('agency_name, full_name, email').eq('id', user.id).maybeSingle()
+      const { data: prof } = await sb.from('profiles').select('agency_name, full_name, email').eq('id', agencyId).maybeSingle()
       if (uazId) {
         await uaz('/instance/updateAdminFields', ADMIN_TOKEN, {
           method: 'POST', admin: true,
@@ -155,7 +158,7 @@ Deno.serve(async (req) => {
         })
       }
       const { data: created } = await sb.from('whatsapp_instances')
-        .insert({ instance_name: name, instance_token: token, user_id: user.id, assigned_at: new Date().toISOString() })
+        .insert({ instance_name: name, instance_token: token, user_id: agencyId, assigned_at: new Date().toISOString() })
         .select().single()
       return created
     }
@@ -167,7 +170,7 @@ Deno.serve(async (req) => {
         if (!instance) return json({ ok: false, error: 'Não consegui criar o WhatsApp da agência agora.' }, 502)
       }
       if (!instance) {
-        const { data: claimed } = await sb.rpc('claim_whatsapp_instance', { p_user: user.id })
+        const { data: claimed } = await sb.rpc('claim_whatsapp_instance', { p_user: agencyId })
         instance = claimed?.id ? claimed : null
       }
       if (!instance) {
@@ -217,7 +220,7 @@ Deno.serve(async (req) => {
     if (action === 'disconnect') {
       if (inst) await uaz('/instance/disconnect', inst.instance_token, { method: 'POST', body: {} })
       await sb.from('agency_whatsapp').upsert(
-        { user_id: user.id, status: 'disconnected', phone: null, profile_name: null, updated_at: new Date().toISOString() },
+        { user_id: agencyId, status: 'disconnected', phone: null, profile_name: null, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' },
       )
       return json({ ok: true, status: 'disconnected' })
@@ -250,14 +253,14 @@ Deno.serve(async (req) => {
       if (!inst) return json({ ok: false, error: 'Conecte o seu WhatsApp em CRM → Configurações.' }, 409)
 
       // O lead precisa ser DESTA agência: o id vem do navegador
-      const { data: lead } = await sb.from('crm_leads').select('id, name, whatsapp, column_id').eq('id', leadId).eq('user_id', user.id).maybeSingle()
+      const { data: lead } = await sb.from('crm_leads').select('id, name, whatsapp, column_id').eq('id', leadId).eq('user_id', agencyId).maybeSingle()
       if (!lead) return json({ ok: false, error: 'Lead não encontrado.' }, 404)
       if (!lead.whatsapp) return json({ ok: false, error: 'Este lead está sem WhatsApp no cadastro.' }, 400)
 
       const hourAgo = new Date(Date.now() - 3600e3).toISOString()
       const dayAgo  = new Date(Date.now() - 86400e3).toISOString()
       const count = async (since: string) => (await sb.from('crm_lead_activities').select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id).eq('kind', 'whatsapp').eq('meta->>sent_via', 'agency_whatsapp').gte('created_at', since)).count ?? 0
+        .eq('user_id', agencyId).eq('kind', 'whatsapp').eq('meta->>sent_via', 'agency_whatsapp').gte('created_at', since)).count ?? 0
       if (await count(hourAgo) >= MAX_PER_HOUR || await count(dayAgo) >= MAX_PER_DAY) {
         return json({ ok: false, error: 'Limite de envios pelo sistema atingido por agora, para proteger o seu número. Use o botão de abrir no WhatsApp.' }, 429)
       }
@@ -267,7 +270,7 @@ Deno.serve(async (req) => {
       // repetido), só a primeira envia. As outras respondem ok sem mandar nada.
       const content = `${label} (enviada pelo sistema): "${text}"`
       const { data: mine } = await sb.from('crm_lead_activities').insert({
-        user_id: user.id, lead_id: lead.id, kind: 'whatsapp', content,
+        user_id: agencyId, lead_id: lead.id, kind: 'whatsapp', content,
         meta: { sent_via: 'agency_whatsapp' },
       }).select('id, created_at').single()
       const { data: same } = await sb.from('crm_lead_activities').select('id')
@@ -298,7 +301,7 @@ Deno.serve(async (req) => {
 
       // Entra na conversa do lead: o follow-up automático conta a partir daqui
       await sb.from('crm_messages').insert({
-        user_id: user.id, lead_id: lead.id, direction: 'out', text, source: 'sistema',
+        user_id: agencyId, lead_id: lead.id, direction: 'out', text, source: 'sistema',
         wa_id: [r.data?.messageid, r.data?.key?.id, r.data?.id].find(v => typeof v === 'string') ?? null,
       })
 
@@ -307,8 +310,8 @@ Deno.serve(async (req) => {
       let labeled = false
       try {
         const [{ data: settings }, { data: first }] = await Promise.all([
-          sb.from('crm_settings').select('wa_first_contact_label').eq('user_id', user.id).maybeSingle(),
-          sb.from('crm_columns').select('id').eq('user_id', user.id).order('position').limit(1).maybeSingle(),
+          sb.from('crm_settings').select('wa_first_contact_label').eq('user_id', agencyId).maybeSingle(),
+          sb.from('crm_columns').select('id').eq('user_id', agencyId).order('position').limit(1).maybeSingle(),
         ])
         if (settings?.wa_first_contact_label && first?.id === lead.column_id) {
           const lr = await uaz('/chat/labels', inst.instance_token, {

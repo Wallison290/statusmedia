@@ -46,17 +46,17 @@ export interface TeamTask {
 // ── Leitura ───────────────────────────────────────────────────────────────────
 
 export function useTeamMembers() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<TeamMember[]>({
-    queryKey: ['team_members', user?.id],
+    queryKey: ['team_members', agencyId],
     enabled:  !!user,
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('team_members')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('name')
       if (error) throw error
       return data ?? []
@@ -65,10 +65,10 @@ export function useTeamMembers() {
 }
 
 export function useTeamTasks() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<TeamTask[]>({
-    queryKey: ['team_tasks', user?.id],
+    queryKey: ['team_tasks', agencyId],
     enabled:  !!user,
     staleTime: 30_000,
     queryFn: async () => {
@@ -80,7 +80,7 @@ export function useTeamTasks() {
           client_id, assignee_id,
           clients(id, company_name)
         `)
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .not('assignee_id', 'is', null)
         .order('due_date', { ascending: true, nullsFirst: false })
       if (error) throw error
@@ -92,14 +92,14 @@ export function useTeamTasks() {
 // ── Criação ───────────────────────────────────────────────────────────────────
 
 export function useCreateTeamMember() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const qc = useQueryClient()
 
   return useMutation({
     mutationFn: async (member: Pick<TeamMember, 'name' | 'role' | 'whatsapp' | 'email' | 'color'>) => {
       const { data, error } = await (supabase as any)
         .from('team_members')
-        .insert({ ...member, user_id: user!.id })
+        .insert({ ...member, user_id: agencyId! })
         .select()
         .single()
       if (error) throw error
@@ -159,7 +159,7 @@ export interface NewTeamTaskInput {
 }
 
 export function useCreateAndDelegateTask() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const qc = useQueryClient()
 
   return useMutation({
@@ -167,7 +167,7 @@ export function useCreateAndDelegateTask() {
       const { error } = await (supabase as any)
         .from('tasks')
         .insert({
-          user_id:     user!.id,
+          user_id:     agencyId!,
           title:       task.title,
           description: task.description,
           due_date:    task.due_date,

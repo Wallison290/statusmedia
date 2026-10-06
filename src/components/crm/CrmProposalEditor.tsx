@@ -43,7 +43,7 @@ const selectClass =
 
 export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadId }: Props) {
   const { toast } = useToast()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const { data: settings } = useCrmSettings()
   const save = useSaveCrmProposal()
   const { data: wa } = useAgencyWhatsapp()

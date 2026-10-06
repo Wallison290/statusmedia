@@ -2,6 +2,7 @@
 
 import { supabase } from '@/integrations/supabase/client'
 import { PLAN_STORAGE_GB } from '@/config/plans'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 /**
  * Verifica se há espaço disponível para um novo arquivo.
@@ -20,13 +21,14 @@ export async function checkStorageLimit(fileSizeBytes: number): Promise<{ allowe
 
     // Buscar plano atual
     const { data: { user } } = await supabase.auth.getUser()
+    const agencyId = user ? await resolveAgencyId(user.id) : null
     if (!user) return { allowed: true }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: sub } = await (supabase as any)
       .from('subscriptions')
       .select('plan')
-      .eq('user_id', user.id)
+      .eq('user_id', agencyId!)
       .maybeSingle()
 
     const planId = sub?.plan ?? 'starter'

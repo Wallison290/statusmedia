@@ -30,7 +30,7 @@ export function CrmProposals() {
   const [params, setParams] = useSearchParams()
   const { data: proposals = [], isLoading } = useCrmProposals()
   const { data: leads = [] } = useCrmLeads()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
   const save = useSaveCrmProposal()
   const del  = useDeleteCrmProposal()

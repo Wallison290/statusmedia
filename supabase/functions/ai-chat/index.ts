@@ -2,6 +2,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI, { toFile } from 'npm:openai@4'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const OPENAI_API_KEY       = Deno.env.get('OPENAI_API_KEY') ?? ''
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
@@ -146,6 +147,8 @@ Deno.serve(async (req) => {
       status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }
+  // Sócio age como o dono da agência (migration 088)
+  const agencyId = await agencyIdFor(user.id)
 
   const { messages, systemPrompt, useWebSearch, generateImage, size, referenceAsStyle, classify, message: classifyMessage } = await req.json()
 
@@ -198,7 +201,7 @@ Responda com apenas o ID (ex: "fabrica-conteudo") ou "none".`
 
   // ── Geração de imagem (DALL-E 3) — conta como 5 requests ────────────────
   if (generateImage) {
-    const { allowed, plan, limit, reason } = await checkUsage(user.id, 5)
+    const { allowed, plan, limit, reason } = await checkUsage(agencyId, 5)
     if (!allowed) {
       const msg = reason === 'subscription_inactive'
         ? 'Assinatura inativa. Assine um plano para usar a IA.'
@@ -334,7 +337,7 @@ Rules:
   }
 
   // ── Chat normal / visão ──────────────────────────────────────────────────
-  const { allowed, plan, limit, reason } = await checkUsage(user.id, 1)
+  const { allowed, plan, limit, reason } = await checkUsage(agencyId, 1)
   if (!allowed) {
     const msg = reason === 'subscription_inactive'
       ? 'Assinatura inativa. Assine um plano para usar a IA.'

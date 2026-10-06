@@ -17,17 +17,17 @@ export interface CrmPeriodStats {
 }
 
 export function useCrmPeriodStats(start: Date, end: Date) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const from = start.toISOString()
   const to   = end.toISOString()
 
   return useQuery<CrmPeriodStats>({
-    queryKey: ['crm_period_stats', user?.id, from, to],
+    queryKey: ['crm_period_stats', agencyId, from, to],
     enabled:  !!user,
     staleTime: 60_000,
     queryFn: async () => {
       const sb = supabase as any
-      const uid = user!.id
+      const uid = agencyId!
       const [leads, sent, followups, replies, wonCols] = await Promise.all([
         sb.from('crm_leads').select('id', { count: 'exact', head: true })
           .eq('user_id', uid).gte('created_at', from).lte('created_at', to),

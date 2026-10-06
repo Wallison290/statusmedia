@@ -15,6 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -129,6 +130,8 @@ Deno.serve(async (req) => {
     })
     const { data: { user }, error: userErr } = await userClient.auth.getUser()
     if (userErr || !user) return json({ error: 'Não autenticado' }, 401)
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(user.id)
 
     const { client_id, month, year } = await req.json()
     if (!client_id || !month || !year) return json({ error: 'Parâmetros faltando (client_id, month, year)' }, 400)
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
     // planos Pro/Agency — sem essa checagem, o gate era só visual (a tela
     // escondia o botão, mas a função aceitava a chamada de qualquer plano).
     const { data: sub } = await admin
-      .from('subscriptions').select('plan').eq('user_id', user.id).maybeSingle()
+      .from('subscriptions').select('plan').eq('user_id', agencyId).maybeSingle()
     const plan = (sub as any)?.plan ?? 'starter'
     if (plan !== 'pro' && plan !== 'agency') {
       return json({ ok: false, error: 'plan_required', message: 'Relatórios estão disponíveis nos planos Pro e Agency.' }, 403)
@@ -148,7 +151,7 @@ Deno.serve(async (req) => {
 
     const { data: client } = await admin
       .from('clients').select('id, user_id, company_name').eq('id', client_id).maybeSingle()
-    if (!client || (client as any).user_id !== user.id) {
+    if (!client || (client as any).user_id !== agencyId) {
       return json({ error: 'Cliente não encontrado ou sem permissão' }, 403)
     }
 
@@ -284,7 +287,7 @@ Deno.serve(async (req) => {
       if (upErr) return json({ error: upErr.message }, 500)
     } else {
       const { data: ins, error: insErr } = await admin.from('client_reports')
-        .insert({ client_id, user_id: user.id, month, year, ...social }).select('id').single()
+        .insert({ client_id, user_id: agencyId, month, year, ...social }).select('id').single()
       if (insErr) return json({ error: insErr.message }, 500)
       reportId = (ins as any).id
     }

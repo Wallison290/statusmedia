@@ -11,14 +11,14 @@ import type { ContentAsset } from '@/types'
  *   - clientId → only assets for that client
  */
 export function useContentAssets(clientId?: string) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery({
     queryKey: ['content-assets', clientId ?? 'all'],
     queryFn: async () => {
       let q = supabase
         .from('content_assets')
         .select('*, client:clients(id,company_name)')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
 
       if (clientId) q = q.eq('client_id', clientId)
 

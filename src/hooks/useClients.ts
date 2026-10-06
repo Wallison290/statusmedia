@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import type { Client } from '@/types'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 export function useClients() {
   return useQuery({
@@ -120,6 +121,7 @@ export function useRegisterPayment() {
       // Also register in client_payments so the portal history is updated
       if (data.valor_mensal != null) {
         const { data: { user } } = await supabase.auth.getUser()
+        const agencyId = user ? await resolveAgencyId(user.id) : null
         if (user) {
           const now = new Date()
           const refMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -127,7 +129,7 @@ export function useRegisterPayment() {
             .from('client_payments')
             .insert({
               client_id: id,
-              user_id: user.id,
+              user_id: agencyId!,
               amount: data.valor_mensal,
               payment_date: today,
               reference_month: refMonth,

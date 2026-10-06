@@ -54,7 +54,7 @@ function ContentField({ label, value, onChange, multiline = false, rows = 3 }: {
 
 export function ContentGenerator() {
   const [searchParams] = useSearchParams()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: clients } = useClients()
   const saveContent = useSaveContent()
   const { toast } = useToast()
@@ -110,7 +110,7 @@ export function ContentGenerator() {
     if (!generated || !user) return
     try {
       await saveContent.mutateAsync({
-        user_id: user.id,
+        user_id: agencyId!,
         client_id: form.client_id,
         term: form.term,
         objective: form.objective,

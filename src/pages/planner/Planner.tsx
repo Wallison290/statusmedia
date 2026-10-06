@@ -1512,7 +1512,7 @@ function DroppableDay({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Planner() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const qc = useQueryClient()
   const { isDark } = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -2018,7 +2018,7 @@ export function Planner() {
         for (let fi = 0; fi < igFiles.length; fi++) {
           const file = igFiles[fi]
           const ext  = file.name.split('.').pop() || 'bin'
-          const path = `${user.id}/${editingItem.id}/ig_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const path = `${agencyId!}/${editingItem.id}/ig_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
           let publicUrl = ''
           try {
             ;({ url: publicUrl } = await uploadArquivo('planner-attachments', path, file))
@@ -2026,7 +2026,7 @@ export function Planner() {
             toast(`Erro ao enviar "${file.name}": ${(e as Error).message}`, 'error'); continue
           }
           await insertAttachment({
-            planner_id: editingItem.id, user_id: user.id,
+            planner_id: editingItem.id, user_id: agencyId!,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
             is_ig_media: true, sort_order: igStart + fi,
@@ -2049,7 +2049,7 @@ export function Planner() {
           const file = pendingFiles[fi]
           setUploadProgress({ current: fi + 1, total: pendingFiles.length })
           const ext = file.name.split('.').pop() || 'bin'
-          const path = `${user.id}/${editingItem.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const path = `${agencyId!}/${editingItem.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
           let publicUrl = ''
           try {
             ;({ url: publicUrl } = await uploadArquivo('planner-attachments', path, file))
@@ -2058,7 +2058,7 @@ export function Planner() {
             continue
           }
           await insertAttachment({
-            planner_id: editingItem.id, user_id: user.id,
+            planner_id: editingItem.id, user_id: agencyId!,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
           })
@@ -2066,13 +2066,13 @@ export function Planner() {
         setUploadProgress(null)
         if (allLinks.length > 0) {
           await supabase.from('planner_links').insert(
-            allLinks.map(url => ({ planner_id: editingItem.id, user_id: user.id, url, label: null }))
+            allLinks.map(url => ({ planner_id: editingItem.id, user_id: agencyId!, url, label: null }))
           )
         }
         toast(sendToClient ? 'Post enviado ao cliente!' : 'Post salvo!', 'success')
       } else {
         const created = await createItem.mutateAsync({
-          user_id: user.id,
+          user_id: agencyId!,
           title: form.title,
           content_type: form.content_type as ContentType,
           status: form.status,
@@ -2098,7 +2098,7 @@ export function Planner() {
         for (let fi = 0; fi < igFiles.length; fi++) {
           const file = igFiles[fi]
           const ext  = file.name.split('.').pop() || 'bin'
-          const path = `${user.id}/${created.id}/ig_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const path = `${agencyId!}/${created.id}/ig_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
           let publicUrl = ''
           try {
             ;({ url: publicUrl } = await uploadArquivo('planner-attachments', path, file))
@@ -2106,7 +2106,7 @@ export function Planner() {
             toast(`Erro ao enviar "${file.name}": ${(e as Error).message}`, 'error'); continue
           }
           await insertAttachment({
-            planner_id: created.id, user_id: user.id,
+            planner_id: created.id, user_id: agencyId!,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
             is_ig_media: true, sort_order: fi,
@@ -2117,7 +2117,7 @@ export function Planner() {
           const ext = linkedAsset.media_url.split('.').pop()?.split('?')[0] || 'file'
           await insertAttachment({
             planner_id: created.id,
-            user_id: user.id,
+            user_id: agencyId!,
             file_name: `${linkedAsset.title}.${ext}`,
             file_type: guessMediaType(linkedAsset.media_url),
             file_url: linkedAsset.media_url,
@@ -2128,7 +2128,7 @@ export function Planner() {
           const file = pendingFiles[fi]
           setUploadProgress({ current: fi + 1, total: pendingFiles.length })
           const ext = file.name.split('.').pop() || 'bin'
-          const path = `${user.id}/${created.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const path = `${agencyId!}/${created.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
           let publicUrl = ''
           try {
             ;({ url: publicUrl } = await uploadArquivo('planner-attachments', path, file))
@@ -2137,7 +2137,7 @@ export function Planner() {
             continue
           }
           await insertAttachment({
-            planner_id: created.id, user_id: user.id,
+            planner_id: created.id, user_id: agencyId!,
             file_name: file.name, file_type: getMimeType(file),
             file_url: publicUrl, file_size: file.size,
           })
@@ -2145,7 +2145,7 @@ export function Planner() {
         setUploadProgress(null)
         if (allLinks.length > 0) {
           await supabase.from('planner_links').insert(
-            allLinks.map(url => ({ planner_id: created.id, user_id: user.id, url, label: null }))
+            allLinks.map(url => ({ planner_id: created.id, user_id: agencyId!, url, label: null }))
           )
         }
         toast(sendToClient ? 'Post enviado ao cliente!' : 'Post salvo internamente!', 'success')
@@ -2995,7 +2995,7 @@ export function Planner() {
           open={itemViewOpen}
           onClose={closeItemView}
           onEdit={() => openEdit(liveSelectedItem)}
-          userId={user?.id ?? ''}
+          userId={agencyId ?? ''}
         />
       )}
 

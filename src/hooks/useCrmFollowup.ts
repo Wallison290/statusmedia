@@ -34,13 +34,13 @@ export function autoFollowupColumn<T extends { id: string; name: string; stage_t
 }
 
 export function useCrmOffers() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery<CrmOffer[]>({
-    queryKey: ['crm_offers', user?.id],
+    queryKey: ['crm_offers', agencyId],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('crm_offers').select('*').eq('user_id', user!.id).order('created_at')
+        .from('crm_offers').select('*').eq('user_id', agencyId!).order('created_at')
       if (error) throw error
       return data ?? []
     },
@@ -51,17 +51,17 @@ export type CrmOfferInput = Partial<Omit<CrmOffer, 'id' | 'user_id' | 'created_a
 
 export function useSaveCrmOffer() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useMutation({
     mutationFn: async ({ id, ...offer }: CrmOfferInput & { id?: string }) => {
       const row = { ...offer, updated_at: new Date().toISOString() }
       // Só um briefing padrão por agência
       if (offer.is_default) {
-        await (supabase as any).from('crm_offers').update({ is_default: false }).eq('user_id', user!.id).neq('id', id ?? '')
+        await (supabase as any).from('crm_offers').update({ is_default: false }).eq('user_id', agencyId!).neq('id', id ?? '')
       }
       const q = id
         ? (supabase as any).from('crm_offers').update(row).eq('id', id)
-        : (supabase as any).from('crm_offers').insert({ ...row, user_id: user!.id })
+        : (supabase as any).from('crm_offers').insert({ ...row, user_id: agencyId! })
       const { data, error } = await q.select().single()
       if (error) throw error
       return data as CrmOffer
@@ -83,15 +83,15 @@ export function useDeleteCrmOffer() {
 
 /** Follow-ups e respostas desde `since`, para as métricas dos relatórios. */
 export function useFollowupMessages(since: string) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery<Pick<CrmMessage, 'lead_id' | 'direction' | 'source' | 'followup_step' | 'sent_at'>[]>({
-    queryKey: ['crm_followup_messages', user?.id, since],
+    queryKey: ['crm_followup_messages', agencyId, since],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_messages')
         .select('lead_id, direction, source, followup_step, sent_at')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .or('source.eq.followup,direction.eq.in')
         .gte('sent_at', since)
         .order('sent_at')

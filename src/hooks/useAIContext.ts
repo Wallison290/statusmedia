@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import type { Client, PlannerItem, BrandDNA } from '@/types'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 export interface AIUserMemory {
@@ -28,12 +29,13 @@ export function useAIUserMemory() {
     queryKey: ['ai_user_memory'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (!user) return []
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from('ai_user_memory')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', agencyId!)
         .order('updated_at', { ascending: false })
       if (error) throw error
       return data as AIUserMemory[]
@@ -46,12 +48,13 @@ export function useUpsertAIUserMemory() {
   return useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (!user) throw new Error('Não autenticado')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from('ai_user_memory')
         .upsert(
-          { user_id: user.id, key, value, updated_at: new Date().toISOString() },
+          { user_id: agencyId!, key, value, updated_at: new Date().toISOString() },
           { onConflict: 'user_id,key' }
         )
         .select()
@@ -108,12 +111,13 @@ export function useUpsertAIMemory() {
       value: string
     }) => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       if (!user) throw new Error('Não autenticado')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from('ai_client_memory')
         .upsert(
-          { client_id: clientId, user_id: user.id, key, value, updated_at: new Date().toISOString() },
+          { client_id: clientId, user_id: agencyId!, key, value, updated_at: new Date().toISOString() },
           { onConflict: 'client_id,user_id,key' }
         )
         .select()

@@ -30,10 +30,10 @@ export interface SubscriptionData {
 }
 
 export function useSubscription() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<SubscriptionData | null>({
-    queryKey: ['subscription', user?.id],
+    queryKey: ['subscription', agencyId],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
@@ -43,7 +43,7 @@ export function useSubscription() {
       const { data, error } = await (supabase as any)
         .from('subscriptions')
         .select('plan, status, stripe_customer_id, stripe_subscription_id, current_period_end, trial_ends_at, canceled_at, cancel_at_period_end')
-        .eq('user_id', user.id)
+        .eq('user_id', agencyId!)
         .maybeSingle()
 
       if (error) throw error

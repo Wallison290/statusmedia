@@ -29,7 +29,7 @@ export function usePlannerComments(plannerId: string) {
 
 export function useAddPlannerComment() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async ({
@@ -45,7 +45,7 @@ export function useAddPlannerComment() {
         .from('planner_comments')
         .insert({
           planner_id: plannerId,
-          user_id: user!.id,
+          user_id: agencyId!,
           role,
           message: message.trim(),
         })

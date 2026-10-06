@@ -22,15 +22,15 @@ export interface EvolutionGroup {
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export function useWhatsappGroups() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   return useQuery<WhatsappGroup[]>({
-    queryKey: ['whatsapp_groups', user?.id],
+    queryKey: ['whatsapp_groups', agencyId],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('whatsapp_groups')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .eq('is_active', true)
         .order('group_name', { ascending: true })
       if (error) throw error
@@ -75,7 +75,7 @@ export function useFetchGroupsList() {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useAddWhatsappGroup() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: { group_jid: string; group_name: string; categories: WhatsappPrefs }) => {
@@ -83,7 +83,7 @@ export function useAddWhatsappGroup() {
       const { error } = await (supabase as any)
         .from('whatsapp_groups')
         .upsert(
-          { ...payload, user_id: user!.id, is_active: true, updated_at: new Date().toISOString() },
+          { ...payload, user_id: agencyId!, is_active: true, updated_at: new Date().toISOString() },
           { onConflict: 'user_id,group_jid' },
         )
       if (error) throw error

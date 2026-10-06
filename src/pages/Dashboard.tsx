@@ -580,7 +580,7 @@ function FinancialBlock({ data }: { data: FinStats }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export function Dashboard() {
-  const { user, profile } = useAuth()
+  const { user, profile, agencyProfile, agencyId } = useAuth()
 
   // ── Period state (single source of truth) ─────────────────────────────────
   const defaultCustom: DateRange = {
@@ -652,21 +652,21 @@ export function Dashboard() {
       plannerCalRes,
       igPostsRes,
     ] = await Promise.all([
-      supabase.from('clients').select('id, status, valor_mensal, financial_status, last_payment_date, dia_vencimento, manual_status_override').eq('user_id', user!.id),
-      supabase.from('tasks').select('id, status, due_date').eq('user_id', user!.id).neq('status', 'concluido'),
+      supabase.from('clients').select('id, status, valor_mensal, financial_status, last_payment_date, dia_vencimento, manual_status_override').eq('user_id', agencyId!),
+      supabase.from('tasks').select('id, status, due_date').eq('user_id', agencyId!).neq('status', 'concluido'),
       supabase.from('planner')
         .select('status, approval_status, sent_to_client')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .gte('scheduled_date', startDate)
         .lte('scheduled_date', endDate),
       supabase.from('planner')
         .select('id, title, content_type, status, scheduled_date, approval_status, sent_to_client')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .gte('scheduled_date', calStart)
         .lte('scheduled_date', calEnd),
       supabase.from('scheduled_posts')
         .select('status, scheduled_at')
-        .eq('user_id', user!.id),
+        .eq('user_id', agencyId!),
     ])
 
     if (seq !== fetchSeq.current) return   // o período mudou enquanto buscava
@@ -741,7 +741,7 @@ export function Dashboard() {
 
   // ── Greeting com IA ───────────────────────────────────────────────────────
   const { greeting, message, pills, isLoading: greetingLoading, refresh: refreshGreeting } =
-    useDashboardGreeting(user?.id, userName, stats, statsReady, (profile as any)?.agency_name || '')
+    useDashboardGreeting(agencyId ?? undefined, userName, stats, statsReady, (agencyProfile as any)?.agency_name || '')
 
   // ─────────────────────────────────────────────────────────────────────────
 

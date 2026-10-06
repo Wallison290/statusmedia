@@ -2,6 +2,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const OPENAI_API_KEY       = Deno.env.get('OPENAI_API_KEY') ?? ''
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
@@ -82,8 +83,10 @@ Deno.serve(async (req) => {
 
   const user = await getUser(req)
   if (!user) return json({ error: 'Não autenticado' }, 401)
+  // Sócio age como o dono da agência (migration 088)
+  const agencyId = await agencyIdFor(user.id)
 
-  const { allowed, current, limit, plan, reason } = await checkUsage(user.id)
+  const { allowed, current, limit, plan, reason } = await checkUsage(agencyId)
   if (!allowed) {
     const msg = reason === 'subscription_inactive'
       ? 'Assinatura inativa. Assine um plano para usar a IA.'

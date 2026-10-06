@@ -19,7 +19,7 @@ export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate
   const { data: proposals = [] } = useCrmProposals()
   const { data: contracts = [] } = useCrmContracts()
   const { data: leads = [] } = useCrmLeads()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
   const lead = leads.find(l => l.id === leadId) ?? null
 

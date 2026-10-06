@@ -11,16 +11,16 @@ import type { CrmTemplate } from '@/data/crmTemplates'
 // ── Leitura ───────────────────────────────────────────────────────────────────
 
 export function useCrmColumns() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<CrmColumn[]>({
-    queryKey: ['crm_columns', user?.id],
+    queryKey: ['crm_columns', agencyId],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_columns')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('position')
       if (error) throw error
       return data ?? []
@@ -29,16 +29,16 @@ export function useCrmColumns() {
 }
 
 export function useCrmLeads() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<CrmLead[]>({
-    queryKey: ['crm_leads', user?.id],
+    queryKey: ['crm_leads', agencyId],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_leads')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('position')
       if (error) throw error
       return data ?? []
@@ -55,12 +55,12 @@ export function useCrmLeads() {
  */
 export function useApplyCrmTemplate() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async ({ template, offset = 0 }: { template: CrmTemplate; offset?: number }) => {
       const rows = template.columns.map((c, i) => ({
-        user_id:    user!.id,
+        user_id:    agencyId!,
         name:       c.name,
         color:      c.color,
         stage_type: c.stage_type,
@@ -78,13 +78,13 @@ export function useApplyCrmTemplate() {
 
 export function useCreateCrmColumn() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async (col: { name: string; color: string; stage_type?: CrmStageType; position: number }) => {
       const { data, error } = await (supabase as any)
         .from('crm_columns')
-        .insert({ ...col, stage_type: col.stage_type ?? 'normal', user_id: user!.id })
+        .insert({ ...col, stage_type: col.stage_type ?? 'normal', user_id: agencyId! })
         .select()
         .single()
       if (error) throw error
@@ -141,7 +141,7 @@ export function useDeleteCrmColumn() {
 /** Grava a nova ordem das colunas depois de um arrasto. */
 export function useReorderCrmColumns() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async (ordered: CrmColumn[]) => {
@@ -152,7 +152,7 @@ export function useReorderCrmColumns() {
       )
     },
     onMutate: async (ordered) => {
-      const key = ['crm_columns', user?.id]
+      const key = ['crm_columns', agencyId]
       await qc.cancelQueries({ queryKey: key })
       const previous = qc.getQueryData<CrmColumn[]>(key)
       qc.setQueryData<CrmColumn[]>(key, ordered.map((c, i) => ({ ...c, position: i })))
@@ -174,13 +174,13 @@ export type CrmLeadInput = Partial<Omit<CrmLead, 'id' | 'user_id' | 'created_at'
 
 export function useCreateCrmLead() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async (lead: CrmLeadInput) => {
       const { data, error } = await (supabase as any)
         .from('crm_leads')
-        .insert({ ...lead, user_id: user!.id })
+        .insert({ ...lead, user_id: agencyId! })
         .select()
         .single()
       if (error) throw error
@@ -233,7 +233,7 @@ export function useDeleteCrmLead() {
  */
 export function useMoveCrmLead() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async ({ leadId, toColumnId, leadIds, lostReason }: {
@@ -255,7 +255,7 @@ export function useMoveCrmLead() {
       )
     },
     onMutate: async ({ leadId, toColumnId, leadIds }) => {
-      const key = ['crm_leads', user?.id]
+      const key = ['crm_leads', agencyId]
       await qc.cancelQueries({ queryKey: key })
       const previous = qc.getQueryData<CrmLead[]>(key)
 

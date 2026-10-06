@@ -1,6 +1,7 @@
 // ── delete-client: deleta perfil do cliente + usuário Auth vinculado ─────────
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -24,6 +25,8 @@ Deno.serve(async (req) => {
     // Verifica identidade do caller
     const { data: { user: caller } } = await sb.auth.getUser(authHeader.replace('Bearer ', ''))
     if (!caller) throw new Error('Não autorizado')
+    // Sócio age como o dono da agência (migration 088)
+    const agencyId = await agencyIdFor(caller.id)
 
     const { clientId, check } = await req.json()
     if (!clientId) throw new Error('clientId é obrigatório')
@@ -36,7 +39,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (clientErr || !client) throw new Error('Cliente não encontrado')
-    if (client.user_id !== caller.id) throw new Error('Sem permissão para deletar este cliente')
+    if (client.user_id !== agencyId) throw new Error('Sem permissão para deletar este cliente')
 
     // 2. Busca o usuário Auth vinculado a este cliente (se existir)
     const { data: linkedProfile } = await sb
@@ -54,7 +57,7 @@ Deno.serve(async (req) => {
       let duplicates = 0
       if (full?.email) {
         const { count } = await sb.from('clients').select('id', { count: 'exact', head: true })
-          .eq('user_id', caller.id).ilike('email', full.email).neq('id', clientId)
+          .eq('user_id', agencyId).ilike('email', full.email).neq('id', clientId)
         duplicates = count ?? 0
       }
       return new Response(

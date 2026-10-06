@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
+import { resolveAgencyId } from '@/hooks/useAuth'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,9 +63,10 @@ export function useCreateFeedVersion() {
   return useMutation({
     mutationFn: async (payload: CreateFeedPayload) => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       const { data, error } = await feedsDb()
         .insert({
-          user_id:   user!.id,
+          user_id:   agencyId!,
           client_id: payload.client_id,
           name:      payload.name,
           posts:     payload.posts ?? [],
@@ -155,9 +157,10 @@ export function useUpsertFeedMeta() {
   return useMutation({
     mutationFn: async ({ client_id, bio, link }: { client_id: string } & FeedClientMeta) => {
       const { data: { user } } = await supabase.auth.getUser()
+      const agencyId = user ? await resolveAgencyId(user.id) : null
       const { error } = await metaDb()
         .upsert(
-          { user_id: user!.id, client_id, bio, link, updated_at: new Date().toISOString() },
+          { user_id: agencyId!, client_id, bio, link, updated_at: new Date().toISOString() },
           { onConflict: 'user_id,client_id' }
         )
       if (error) throw error

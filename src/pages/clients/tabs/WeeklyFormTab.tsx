@@ -417,7 +417,7 @@ function QuestionEditor({
 // ── Componente principal ───────────────────────────────────────────────────────
 
 export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const { data: config, isLoading: configLoading } = useWeeklyFormConfig(clientId)
   const { data: responses = [], isLoading: responsesLoading, refetch } = useWeeklyFormResponses(clientId)
@@ -874,7 +874,7 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
         <FillFormModal
           configId={config.id}
           clientId={clientId}
-          userId={user.id}
+          userId={agencyId!}
           questions={resolvedQuestions}
           onClose={() => setShowFillModal(false)}
           onSuccess={() => refetch()}

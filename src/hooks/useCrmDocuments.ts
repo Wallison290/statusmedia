@@ -12,16 +12,16 @@ import type { CrmProposal, CrmContract } from '@/types'
 // ── Propostas ─────────────────────────────────────────────────────────────────
 
 export function useCrmProposals() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<CrmProposal[]>({
-    queryKey: ['crm_proposals', user?.id],
+    queryKey: ['crm_proposals', agencyId],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_proposals')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('created_at', { ascending: false })
       if (error) throw error
       return data ?? []
@@ -34,13 +34,13 @@ export type CrmProposalInput = Partial<Omit<CrmProposal,
 
 export function useSaveCrmProposal() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async ({ id, ...p }: CrmProposalInput & { id?: string }) => {
       const q = id
         ? (supabase as any).from('crm_proposals').update(p).eq('id', id)
-        : (supabase as any).from('crm_proposals').insert({ ...p, user_id: user!.id })
+        : (supabase as any).from('crm_proposals').insert({ ...p, user_id: agencyId! })
       const { data, error } = await q.select().single()
       if (error) throw error
       return data as CrmProposal
@@ -67,16 +67,16 @@ export function useDeleteCrmProposal() {
 // ── Contratos ─────────────────────────────────────────────────────────────────
 
 export function useCrmContracts() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<CrmContract[]>({
-    queryKey: ['crm_contracts', user?.id],
+    queryKey: ['crm_contracts', agencyId],
     enabled:  !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_contracts')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('created_at', { ascending: false })
       if (error) throw error
       return data ?? []
@@ -89,13 +89,13 @@ export type CrmContractInput = Partial<Omit<CrmContract,
 
 export function useSaveCrmContract() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useMutation({
     mutationFn: async ({ id, ...c }: CrmContractInput & { id?: string }) => {
       const q = id
         ? (supabase as any).from('crm_contracts').update(c).eq('id', id)
-        : (supabase as any).from('crm_contracts').insert({ ...c, user_id: user!.id })
+        : (supabase as any).from('crm_contracts').insert({ ...c, user_id: agencyId! })
       const { data, error } = await q.select().single()
       if (error) throw error
       return data as CrmContract

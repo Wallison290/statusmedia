@@ -229,9 +229,9 @@ function PlanCard({
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export function Subscription() {
-  const { user }                                 = useAuth()
+  const { user, agencyId }                                 = useAuth()
   const { data: subData, isLoading: subLoading } = useSubscription()
-  const { data: usage }                          = useAIUsage(user?.id)
+  const { data: usage }                          = useAIUsage(agencyId ?? undefined)
   const { data: storageUsage }                   = useStorageUsage()
   const [searchParams]                           = useSearchParams()
   const [loadingPlan, setLoadingPlan]             = useState<string | null>(null)

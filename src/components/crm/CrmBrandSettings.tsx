@@ -16,7 +16,7 @@ const SWATCHES = ['#2563EB', '#0F766E', '#7C3AED', '#DB2777', '#EA580C', '#CA8A0
 
 export function CrmBrandSettings() {
   const { toast } = useToast()
-  const { user, profile } = useAuth()
+  const { user, agencyProfile: profile, agencyId } = useAuth()
   const { data: settings } = useCrmSettings()
   const update = useUpdateCrmSettings()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -44,7 +44,7 @@ export function CrmBrandSettings() {
     if (file.size > 3 * 1024 * 1024) { toast('Imagem até 3 MB', 'warning'); return }
     setUploading(true)
     try {
-      const { url } = await uploadArquivo('client-logos', `${user.id}/marca-${Date.now()}`, file)
+      const { url } = await uploadArquivo('client-logos', `${agencyId!}/marca-${Date.now()}`, file)
       setLogo(url)
     } catch (err: any) {
       toast(err.message ?? 'Não consegui enviar o logo', 'error')

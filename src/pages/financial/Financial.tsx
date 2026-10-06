@@ -291,7 +291,7 @@ function RegisterPaymentModal({
 }: {
   client: Client | null; open: boolean; onClose: () => void
 }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const createPayment = useCreatePayment()
   const { toast } = useToast()
 
@@ -316,7 +316,7 @@ function RegisterPaymentModal({
     try {
       await createPayment.mutateAsync({
         client_id: client.id,
-        user_id: user.id,
+        user_id: agencyId!,
         amount: parseFloat(amount),
         payment_date: paymentDate,
         reference_month: referenceMonth,

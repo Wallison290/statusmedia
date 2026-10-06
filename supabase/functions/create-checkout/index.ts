@@ -3,6 +3,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@14'
+import { agencyIdFor } from '../_shared/agency.ts'
 
 const STRIPE_SECRET_KEY  = Deno.env.get('STRIPE_SECRET_KEY') ?? ''
 const SUPABASE_URL        = Deno.env.get('SUPABASE_URL') ?? ''
@@ -37,6 +38,8 @@ Deno.serve(async (req) => {
 
   const user = await getUser(req)
   if (!user) return json({ error: 'Não autenticado' }, 401)
+  // Sócio age como o dono da agência (migration 088)
+  const agencyId = await agencyIdFor(user.id)
 
   const { priceId } = await req.json()
   if (!priceId || priceId.startsWith('CONFIGURE_')) {
@@ -50,7 +53,7 @@ Deno.serve(async (req) => {
   const { data: sub } = await (sb as any)
     .from('subscriptions')
     .select('stripe_customer_id')
-    .eq('user_id', user.id)
+    .eq('user_id', agencyId)
     .maybeSingle()
 
   let customerId: string = sub?.stripe_customer_id ?? ''
@@ -58,14 +61,14 @@ Deno.serve(async (req) => {
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: user.email,
-      metadata: { user_id: user.id },
+      metadata: { user_id: agencyId },
     })
     customerId = customer.id
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (sb as any)
       .from('subscriptions')
-      .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: 'user_id' })
+      .upsert({ user_id: agencyId, stripe_customer_id: customerId }, { onConflict: 'user_id' })
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -75,7 +78,7 @@ Deno.serve(async (req) => {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${APP_URL}/planos?success=1`,
     cancel_url:  `${APP_URL}/planos?canceled=1`,
-    metadata: { user_id: user.id },
+    metadata: { user_id: agencyId },
   })
 
   return json({ url: session.url })

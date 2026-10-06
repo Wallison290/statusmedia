@@ -40,17 +40,17 @@ export interface ScheduledPost {
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export function useInstagramAccount() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<InstagramAccount | null>({
-    queryKey:  ['instagram_account', user?.id],
+    queryKey:  ['instagram_account', agencyId],
     enabled:   !!user,
     staleTime: 60_000,
     queryFn:   async () => {
       const { data, error } = await (supabase as any)
         .from('instagram_accounts')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .is('client_id', null)
         .eq('is_active', true)
         .maybeSingle()
@@ -62,17 +62,17 @@ export function useInstagramAccount() {
 
 /** Todas as contas Instagram ativas do usuário (própria + clientes) */
 export function useAllInstagramAccounts() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<InstagramAccount[]>({
-    queryKey:  ['instagram_accounts_all', user?.id],
+    queryKey:  ['instagram_accounts_all', agencyId],
     enabled:   !!user,
     staleTime: 60_000,
     queryFn:   async () => {
       const { data, error } = await (supabase as any)
         .from('instagram_accounts')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .eq('is_active', true)
         .order('connected_at', { ascending: false })
       if (error) throw error
@@ -83,7 +83,7 @@ export function useAllInstagramAccounts() {
 
 /** Conta Instagram vinculada a um cliente específico */
 export function useClientInstagramAccount(clientId: string | undefined) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<InstagramAccount | null>({
     queryKey:  ['instagram_account_client', clientId],
@@ -93,7 +93,7 @@ export function useClientInstagramAccount(clientId: string | undefined) {
       const { data, error } = await (supabase as any)
         .from('instagram_accounts')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .eq('client_id', clientId)
         .eq('is_active', true)
         .maybeSingle()
@@ -104,10 +104,10 @@ export function useClientInstagramAccount(clientId: string | undefined) {
 }
 
 export function useScheduledPosts() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
 
   return useQuery<ScheduledPost[]>({
-    queryKey:  ['scheduled_posts', user?.id],
+    queryKey:  ['scheduled_posts', agencyId],
     enabled:   !!user,
     staleTime: 30_000,
     refetchInterval: 30_000, // Atualiza a cada 30s para capturar mudanças de status
@@ -115,7 +115,7 @@ export function useScheduledPosts() {
       const { data, error } = await (supabase as any)
         .from('scheduled_posts')
         .select('*, instagram_accounts!ig_account_id(username, profile_picture_url)')
-        .eq('user_id', user!.id)
+        .eq('user_id', agencyId!)
         .order('scheduled_at', { ascending: false })
       if (error) throw error
       return data ?? []
@@ -126,7 +126,7 @@ export function useScheduledPosts() {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useCreateScheduledPost() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const qc = useQueryClient()
 
   return useMutation({
@@ -141,7 +141,7 @@ export function useCreateScheduledPost() {
     }) => {
       const { error } = await (supabase as any)
         .from('scheduled_posts')
-        .insert({ ...post, user_id: user!.id })
+        .insert({ ...post, user_id: agencyId! })
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scheduled_posts'] }),

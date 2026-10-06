@@ -29,7 +29,7 @@ interface Props {
 
 export function CrmWhatsappActions({ lead, columns, onSent }: Props) {
   const { toast } = useToast()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const { data: settings } = useCrmSettings()
   const { data: activities = [] } = useCrmActivities(lead.id)
   const addActivity = useAddCrmActivity()

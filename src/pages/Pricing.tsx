@@ -192,9 +192,9 @@ function ActiveBar({ used, limit, planName }: { used: number; limit: number; pla
 
 export function Pricing() {
   const navigate                                     = useNavigate()
-  const { signOut, user }                            = useAuth()
+  const { signOut, user, agencyId }                            = useAuth()
   const { data: subData }                            = useSubscription()
-  const { data: usage }                              = useAIUsage(user?.id)
+  const { data: usage }                              = useAIUsage(agencyId ?? undefined)
   const [loadingPlan, setLoadingPlan]                = useState<PlanId | null>(null)
   const [searchParams]                               = useSearchParams()
   const paymentSuccess                               = searchParams.get('success') === '1'

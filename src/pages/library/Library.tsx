@@ -238,7 +238,7 @@ function AssetDetailModal({
   onClose: () => void
   clients: Client[]
 }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const updateAsset = useUpdateContentAsset()
   const deleteAsset = useDeleteContentAsset()
@@ -286,7 +286,7 @@ function AssetDetailModal({
       const { allowed, message } = await checkStorageLimit(file.size)
       if (!allowed) { toast(message ?? 'Limite de armazenamento atingido.', 'error'); setUploading(false); e.target.value = ''; return }
       const ext  = file.name.split('.').pop() || 'bin'
-      const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const path = `${agencyId!}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { url } = await uploadArquivo('content-assets', path, file)
       setForm(p => ({ ...p, media_url: url }))
       toast('Arquivo enviado!', 'success')
@@ -647,7 +647,7 @@ function AssetDetailModal({
 // ─── Add Asset Modal ──────────────────────────────────────────────────────────
 
 function AddAssetModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const { data: clients = [] } = useClients()
   const createAsset = useCreateContentAsset()
@@ -676,7 +676,7 @@ function AddAssetModal({ open, onClose }: { open: boolean; onClose: () => void }
       const { allowed, message } = await checkStorageLimit(file.size)
       if (!allowed) { toast(message ?? 'Limite de armazenamento atingido.', 'error'); setUploading(false); return }
       const ext  = file.name.split('.').pop()
-      const path = `${user.id}/${Date.now()}.${ext}`
+      const path = `${agencyId!}/${Date.now()}.${ext}`
       const { url } = await uploadArquivo('content-assets', path, file)
       setForm(p => ({ ...p, media_url: url }))
       toast('Arquivo enviado!', 'success')
@@ -691,7 +691,7 @@ function AddAssetModal({ open, onClose }: { open: boolean; onClose: () => void }
     if (!user || !form.title.trim()) return
     try {
       await createAsset.mutateAsync({
-        user_id: user.id,
+        user_id: agencyId!,
         client_id: form.client_id || null,
         category:  form.category.trim() || null,
         title:     form.title.trim(),
@@ -989,7 +989,7 @@ function ConteudosTab() {
 // ─── Snippets Tab (existing — unchanged logic) ────────────────────────────────
 
 function SnippetsTab() {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const [activeCategory, setActiveCategory] = useState<LibraryCategory | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -1011,7 +1011,7 @@ function SnippetsTab() {
     if (!form.title.trim() || !form.content.trim() || !user) return
     try {
       await createItem.mutateAsync({
-        user_id: user.id,
+        user_id: agencyId!,
         title: form.title,
         content: form.content,
         category: form.category,
@@ -1216,7 +1216,7 @@ function MatFormModal({
   clients: Client[]
   onClose: () => void
 }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const addMaterial    = useAddMaterial()
   const updateMaterial = useUpdateMaterial()
@@ -1261,7 +1261,7 @@ function MatFormModal({
       if (selectedFile && !isLink) {
         const ext  = selectedFile.name.split('.').pop() || 'bin'
         const cid  = form.client_id || 'geral'
-        const path = `${user.id}/${cid}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const path = `${agencyId!}/${cid}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
         const { url } = await uploadArquivo('client-materials', path, selectedFile)
         file_url  = url
         file_size = selectedFile.size
@@ -1282,7 +1282,7 @@ function MatFormModal({
         toast('Material atualizado!', 'success')
       } else {
         if (!form.client_id) { toast('Selecione um cliente', 'error'); return }
-        await addMaterial.mutateAsync({ user_id: user.id, client_id: form.client_id, ...payload })
+        await addMaterial.mutateAsync({ user_id: agencyId!, client_id: form.client_id, ...payload })
         toast('Material adicionado!', 'success')
       }
       onClose()

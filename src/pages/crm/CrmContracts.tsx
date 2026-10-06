@@ -23,7 +23,7 @@ export function CrmContracts() {
   const { data: contracts = [], isLoading } = useCrmContracts()
   const { data: proposals = [] } = useCrmProposals()
   const { data: leads = [] } = useCrmLeads()
-  const { profile } = useAuth()
+  const { agencyProfile: profile } = useAuth()
   const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
   const del = useDeleteCrmContract()
 

@@ -48,7 +48,7 @@ function autoLink(type: ContactType, value: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SupportTab({ clientId }: { clientId: string }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: contacts = [] } = useClientSupportContacts(clientId)
   const addContact    = useAddSupportContact()
   const updateContact = useUpdateSupportContact()
@@ -98,7 +98,7 @@ export function SupportTab({ clientId }: { clientId: string }) {
         await updateContact.mutateAsync({ id: editing.id, clientId, ...payload })
         toast('Contato atualizado!', 'success')
       } else {
-        await addContact.mutateAsync({ user_id: user.id, client_id: clientId, ...payload })
+        await addContact.mutateAsync({ user_id: agencyId!, client_id: clientId, ...payload })
         toast('Contato adicionado!', 'success')
       }
 

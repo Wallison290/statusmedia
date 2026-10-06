@@ -230,7 +230,7 @@ async function uploadMediaFromUrl(url: string, userId: string): Promise<string> 
 }
 
 function InstagramScheduleSection({ item }: { item: PlannerItem }) {
-  const { user } = useAuth()
+  const { user, agencyId } = useAuth()
   const { data: igAccount, isLoading: igLoading } = useClientInstagramAccount(item.client_id ?? undefined)
   const createPost = useCreateScheduledPost()
   const { toast } = useToast()
@@ -260,7 +260,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
     try {
       const mediaUrls: string[] = []
       for (const att of attachments.slice(0, postType === 'CAROUSEL_ALBUM' ? 10 : 1)) {
-        const publicUrl = await uploadMediaFromUrl(att.file_url, user.id)
+        const publicUrl = await uploadMediaFromUrl(att.file_url, agencyId!)
         mediaUrls.push(publicUrl)
       }
       const scheduledAtISO = new Date(`${date}T${scheduledTime}:00`).toISOString()
