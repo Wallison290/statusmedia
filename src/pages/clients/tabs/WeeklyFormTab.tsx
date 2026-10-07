@@ -25,6 +25,7 @@ import {
 } from '@/hooks/useWeeklyForm'
 import type { WeeklyFormResponse, QuestionConfig } from '@/hooks/useWeeklyForm'
 import { WeeklyFormFields } from '@/pages/public/WeeklyFormFields'
+import { TabHeader, PrimaryButton, GhostButton, EmptyState, DotLabel, Eyebrow, cardStyle, inputStyle } from './tabUi'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -56,108 +57,71 @@ function formatDateTime(iso: string) {
   })
 }
 
-// ── Card de resposta individual ────────────────────────────────────────────────
+// ── Linha de resposta individual ──────────────────────────────────────────────
 
 function ResponseCard({
   response,
+  first,
   onView,
   onDelete,
   deleting,
 }: {
   response: WeeklyFormResponse
+  first: boolean
   onView: () => void
   onDelete: () => void
   deleting?: boolean
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const thisWeek   = getThisMonday()
-  const isThisWeek = response.week_reference === thisWeek
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setConfirmDelete(true)
-  }
-
-  const handleConfirm = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onDelete()
-  }
-
-  const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setConfirmDelete(false)
-  }
+  const isThisWeek = response.week_reference === getThisMonday()
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -16 }}
-      className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
-        confirmDelete
-          ? 'border-red-200 bg-red-50'
-          : 'border-[#e8eaf0] bg-white hover:border-violet-200 hover:bg-violet-50/30 cursor-pointer'
-      } group`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className={`relative flex items-center justify-between gap-3 px-4 py-3 transition-colors group ${first ? '' : 'border-t'} ${confirmDelete ? '' : 'cursor-pointer hover:bg-black/[0.02]'}`}
+      style={{ borderColor: 'var(--sm-border)', background: confirmDelete ? 'rgba(239,68,68,0.06)' : undefined }}
       onClick={confirmDelete ? undefined : onView}
     >
+      {isThisWeek && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: '#22C55E' }} />}
       <div className="flex items-center gap-3 min-w-0">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[13px] font-bold ${
-          confirmDelete
-            ? 'bg-red-400'
-            : 'bg-gradient-to-br from-violet-500 to-purple-600'
-        }`}>
+        <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
+          style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)' }}>
           {response.respondent_name?.[0]?.toUpperCase() || '?'}
-        </div>
+        </span>
         <div className="min-w-0">
           {confirmDelete ? (
-            <p className="text-[12px] font-semibold text-red-700">
-              Apagar este formulário?
-            </p>
+            <p className="text-[12.5px] font-semibold" style={{ color: '#EF4444' }}>Apagar esta resposta?</p>
           ) : (
             <>
-              <p className="text-[13px] font-semibold text-[#0f172a] truncate">
-                {response.respondent_name}
-              </p>
-              <p className="text-[11px] text-[#94a3b8] truncate">
-                {response.respondent_role} · {formatDateTime(response.created_at)}
+              <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{response.respondent_name}</p>
+              <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>
+                {response.respondent_role ? `${response.respondent_role} · ` : ''}{formatDateTime(response.created_at)}
               </p>
             </>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
         {confirmDelete ? (
           <>
-            <button
-              onClick={handleConfirm}
-              disabled={deleting}
-              className="px-3 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors disabled:opacity-60"
-            >
+            <button onClick={() => setConfirmDelete(false)} className="h-7 px-2 rounded-md text-[11.5px] hover:bg-black/5" style={{ color: 'var(--sm-text-2)' }}>Cancelar</button>
+            <button onClick={onDelete} disabled={deleting}
+              className="h-7 px-2.5 rounded-md text-[11.5px] font-semibold text-white disabled:opacity-60" style={{ background: '#EF4444' }}>
               {deleting ? 'Apagando...' : 'Sim, apagar'}
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 rounded-lg border border-[#e2e8f0] text-[11px] text-[#64748b] hover:bg-white transition-colors"
-            >
-              Cancelar
             </button>
           </>
         ) : (
           <>
-            {isThisWeek && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                Esta semana
-              </span>
-            )}
-            <button
-              onClick={handleDeleteClick}
-              className="p-1.5 rounded-lg text-[#c8d4e4] hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-              title="Apagar resposta"
-            >
+            {isThisWeek && <DotLabel color="#22C55E">Esta semana</DotLabel>}
+            <button onClick={() => setConfirmDelete(true)} title="Apagar resposta" aria-label="Apagar resposta"
+              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 transition-colors md:opacity-0 md:group-hover:opacity-100"
+              style={{ color: 'var(--sm-text-3)' }}>
               <Trash2 className="w-3.5 h-3.5" />
             </button>
-            <Eye className="w-4 h-4 text-[#c8d4e4] group-hover:text-violet-500 transition-colors" />
+            <ChevronRight className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />
           </>
         )}
       </div>
@@ -167,16 +131,16 @@ function ResponseCard({
 
 // ── Modal de visualização de resposta ─────────────────────────────────────────
 
-const RESPONSE_KEYS: { key: keyof WeeklyFormResponse; label: string; emoji: string }[] = [
-  { key: 'q_doubts',      label: 'Dúvidas dos clientes',          emoji: '❓' },
-  { key: 'q_objections',  label: 'Objeções encontradas',          emoji: '🛑' },
-  { key: 'q_highlights',  label: 'Temas que merecem destaque',    emoji: '🌟' },
-  { key: 'q_demands',     label: 'Demandas do setor',             emoji: '📋' },
-  { key: 'q_cases',       label: 'Casos e experiências da semana', emoji: '💼' },
-  { key: 'q_trends',      label: 'Tendências percebidas',         emoji: '📈' },
-  { key: 'q_faq',         label: 'Perguntas Frequentes (FAQ)',    emoji: '🔁' },
-  { key: 'q_suggestions', label: 'Sugestões de conteúdo',        emoji: '💡' },
-  { key: 'q_important',   label: 'Informações importantes',       emoji: '🔒' },
+const RESPONSE_KEYS: { key: keyof WeeklyFormResponse; label: string }[] = [
+  { key: 'q_doubts',      label: 'Dúvidas dos clientes' },
+  { key: 'q_objections',  label: 'Objeções encontradas' },
+  { key: 'q_highlights',  label: 'Temas que merecem destaque' },
+  { key: 'q_demands',     label: 'Demandas do setor' },
+  { key: 'q_cases',       label: 'Casos e experiências da semana' },
+  { key: 'q_trends',      label: 'Tendências percebidas' },
+  { key: 'q_faq',         label: 'Perguntas frequentes (FAQ)' },
+  { key: 'q_suggestions', label: 'Sugestões de conteúdo' },
+  { key: 'q_important',   label: 'Informações importantes' },
 ]
 
 function ResponseViewModal({
@@ -186,44 +150,31 @@ function ResponseViewModal({
   response: WeeklyFormResponse
   onClose: () => void
 }) {
+  const respostas = RESPONSE_KEYS.filter(({ key }) => response[key])
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-violet-600" />
-            Formulário — {response.respondent_name}
+          <DialogTitle className="font-display text-[18px] font-bold pr-6 text-[color:var(--sm-text-1)]">
+            {response.respondent_name}
           </DialogTitle>
         </DialogHeader>
+        <p className="text-[12px] -mt-1 flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--sm-text-3)' }}>
+          {response.respondent_role && <>{response.respondent_role} ·</>}
+          <Calendar className="w-3 h-3" /> Semana de {formatDate(response.week_reference)} · enviado em {formatDateTime(response.created_at)}
+        </p>
 
-        <div className="flex items-center gap-4 p-3 rounded-xl bg-violet-50 border border-violet-100 mb-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-[14px]">
-            {response.respondent_name?.[0]?.toUpperCase() || '?'}
-          </div>
-          <div>
-            <p className="text-[13px] font-semibold text-[#0f172a]">{response.respondent_name}</p>
-            <p className="text-[11px] text-[#64748b]">{response.respondent_role}</p>
-            <p className="text-[10px] text-[#94a3b8] mt-0.5 flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              Semana de {formatDate(response.week_reference)} · Enviado em {formatDateTime(response.created_at)}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {RESPONSE_KEYS.map(({ key, label, emoji }) => {
-            const value = response[key] as string | null
-            if (!value) return null
-            return (
-              <div key={key} className="p-3 rounded-xl border border-[#e8eaf0] bg-[#fafbfc]">
-                <p className="text-[11px] font-semibold text-[#64748b] mb-1.5 flex items-center gap-1">
-                  <span>{emoji}</span> {label}
-                </p>
-                <p className="text-[13px] text-[#0f172a] leading-relaxed whitespace-pre-wrap">{value}</p>
-              </div>
-            )
-          })}
-        </div>
+        <dl className="mt-2 rounded-xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)' }}>
+          {respostas.map(({ key, label }, i) => (
+            <div key={key} className={`px-4 py-3 ${i > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+              <dt className="text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1" style={{ color: 'var(--sm-text-4)' }}>{label}</dt>
+              <dd className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-1)' }}>{response[key] as string}</dd>
+            </div>
+          ))}
+          {respostas.length === 0 && (
+            <p className="px-4 py-6 text-center text-[12.5px]" style={{ color: 'var(--sm-text-4)' }}>Nenhuma pergunta respondida.</p>
+          )}
+        </dl>
       </DialogContent>
     </Dialog>
   )
@@ -286,21 +237,14 @@ function FillFormModal({
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-violet-600" />
-            Preencher Formulário Semanal
-          </DialogTitle>
+          <DialogTitle className="font-display text-[18px] font-bold text-[color:var(--sm-text-1)]">Preencher formulário semanal</DialogTitle>
         </DialogHeader>
         <WeeklyFormFields fields={fields} onChange={setFields} questions={questions} />
         <div className="flex gap-2 pt-2">
-          <Button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 text-white"
-          >
+          <PrimaryButton onClick={handleSubmit} disabled={saving} className="flex-1 justify-center">
             {saving ? 'Enviando...' : 'Enviar formulário'}
-          </Button>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          </PrimaryButton>
+          <GhostButton onClick={onClose}>Cancelar</GhostButton>
         </div>
       </DialogContent>
     </Dialog>
@@ -311,50 +255,42 @@ function FillFormModal({
 
 function QuestionEditor({
   q,
-  index,
-  total,
+  first,
   onChange,
 }: {
   q: QuestionConfig
-  index: number
-  total: number
+  first: boolean
   onChange: (updated: QuestionConfig) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const lbl = 'text-[10.5px] font-semibold uppercase tracking-[0.08em] block mb-1 text-[color:var(--sm-text-4)]'
 
   return (
-    <div className={`rounded-xl border transition-colors ${q.enabled ? 'border-[#e2e8f0] bg-white' : 'border-dashed border-[#e2e8f0] bg-[#f8fafc] opacity-60'}`}>
-      {/* Header da pergunta */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <span className="text-[15px]">{q.emoji}</span>
+    <div className={first ? '' : 'border-t'} style={{ borderColor: 'var(--sm-border)' }}>
+      <div className="flex items-center gap-3 px-4 py-2.5" style={{ opacity: q.enabled ? 1 : 0.55 }}>
+        <span className="text-[15px] w-5 text-center">{q.emoji}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-semibold text-[#0f172a] truncate">{q.title}</p>
-          <p className="text-[10px] text-[#94a3b8] truncate">{q.question}</p>
+          <p className="text-[12.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{q.title}</p>
+          <p className="text-[11px] truncate" style={{ color: 'var(--sm-text-4)' }}>{q.question}</p>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Toggle ativo/inativo */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => onChange({ ...q, enabled: !q.enabled })}
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold transition-colors ${
-              q.enabled
-                ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                : 'bg-[#f1f5f9] text-[#94a3b8] hover:bg-[#e2e8f0]'
-            }`}
+            role="switch"
+            aria-checked={q.enabled}
+            className="inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[11.5px] font-medium hover:bg-black/5 transition-colors"
+            style={{ color: 'var(--sm-text-2)' }}
           >
-            {q.enabled ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
+            {q.enabled ? <ToggleRight className="w-4 h-4" style={{ color: '#2563EB' }} /> : <ToggleLeft className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />}
             {q.enabled ? 'Ativa' : 'Oculta'}
           </button>
-          {/* Expandir para editar */}
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="p-1.5 rounded-lg hover:bg-[#f1f5f9] transition-colors text-[#94a3b8] hover:text-[#374151]"
-          >
+          <button onClick={() => setExpanded(v => !v)} title="Editar pergunta" aria-label="Editar pergunta" aria-expanded={expanded}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors" style={{ color: expanded ? '#2563EB' : 'var(--sm-text-3)' }}>
             <Pencil className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Campos de edição */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -363,53 +299,41 @@ function QuestionEditor({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 space-y-2.5 border-t border-[#f1f5f9] pt-2.5">
-              {/* Emoji + Título */}
+            <div className="px-4 pb-4 pt-1 space-y-2.5">
               <div className="flex gap-2">
                 <div className="w-16">
-                  <label className="text-[10px] font-medium text-[#94a3b8] block mb-1">Emoji</label>
-                  <Input
-                    value={q.emoji}
-                    onChange={e => onChange({ ...q, emoji: e.target.value })}
-                    className="h-8 text-[13px] text-center"
-                    maxLength={2}
-                  />
+                  <label className={lbl}>Emoji</label>
+                  <Input value={q.emoji} onChange={e => onChange({ ...q, emoji: e.target.value })} className="h-8 text-[13px] text-center" maxLength={2} />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] font-medium text-[#94a3b8] block mb-1">Título da seção</label>
-                  <Input
-                    value={q.title}
-                    onChange={e => onChange({ ...q, title: e.target.value })}
-                    className="h-8 text-[12px]"
-                    placeholder="Ex: Dúvidas dos clientes"
-                  />
+                  <label className={lbl}>Título da seção</label>
+                  <Input value={q.title} onChange={e => onChange({ ...q, title: e.target.value })} className="h-8 text-[12px]" placeholder="Ex: Dúvidas dos clientes" />
                 </div>
               </div>
-              {/* Pergunta */}
               <div>
-                <label className="text-[10px] font-medium text-[#94a3b8] block mb-1">Texto da pergunta</label>
-                <Textarea
-                  value={q.question}
-                  onChange={e => onChange({ ...q, question: e.target.value })}
-                  rows={2}
-                  className="text-[12px] resize-none"
-                  placeholder="Qual pergunta será exibida para o colaborador?"
-                />
+                <label className={lbl}>Texto da pergunta</label>
+                <Textarea value={q.question} onChange={e => onChange({ ...q, question: e.target.value })} rows={2} className="text-[12px] resize-none"
+                  placeholder="Qual pergunta será exibida para o colaborador?" />
               </div>
-              {/* Placeholder */}
               <div>
-                <label className="text-[10px] font-medium text-[#94a3b8] block mb-1">Placeholder (dica dentro do campo)</label>
-                <Input
-                  value={q.placeholder}
-                  onChange={e => onChange({ ...q, placeholder: e.target.value })}
-                  className="h-8 text-[12px]"
-                  placeholder="Texto de exemplo que aparece no campo vazio..."
-                />
+                <label className={lbl}>Dica dentro do campo</label>
+                <Input value={q.placeholder} onChange={e => onChange({ ...q, placeholder: e.target.value })} className="h-8 text-[12px]"
+                  placeholder="Texto de exemplo que aparece no campo vazio..." />
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+function QuestionList({ questions, onChange }: { questions: QuestionConfig[]; onChange: (idx: number, q: QuestionConfig) => void }) {
+  return (
+    <div className="rounded-xl border overflow-hidden" style={cardStyle}>
+      {questions.map((q, idx) => (
+        <QuestionEditor key={q.key} q={q} first={idx === 0} onChange={updated => onChange(idx, updated)} />
+      ))}
     </div>
   )
 }
@@ -515,151 +439,102 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
 
   const enabledCount = (editingQuestions ?? resolvedQuestions).filter(q => q.enabled).length
 
+
   if (configLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      <div className="space-y-3" aria-busy="true">
+        <div className="h-10 w-64 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+        <div className="h-24 rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+        <div className="h-40 rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
       </div>
     )
   }
 
+  const kpi = (label: string, value: React.ReactNode, hint: React.ReactNode, i: number) => (
+    <div className={`px-4 md:px-5 py-4 ${i > 0 ? 'max-sm:border-t sm:border-l' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+      <Eyebrow>{label}</Eyebrow>
+      <p className="font-display text-[24px] font-bold leading-tight mt-1 tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+      <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{hint}</p>
+    </div>
+  )
+
+  const sectionTitle = (n: string, text: string, aside?: React.ReactNode) => (
+    <div className="flex items-center justify-between gap-3 mb-2.5">
+      <h3 className="font-display text-[15px] font-bold flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
+        <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+        {text}
+      </h3>
+      {aside}
+    </div>
+  )
+
   return (
-    <div className="space-y-5">
-
-      {/* ── Header da aba ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-[15px] font-bold text-[#0f172a] flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-violet-600" />
-            Formulário Semanal de Conteúdo
-          </h3>
-          <p className="text-[12px] text-[#94a3b8] mt-0.5">
-            Coleta semanal de insights da equipe de {clientName}
-          </p>
-        </div>
-        {user && (
-          <Button
-            size="sm"
-            onClick={() => {
-              if (!config) {
-                setEditingQuestions(DEFAULT_QUESTIONS)
-                setConfigOpen(true)
-              } else {
-                setShowFillModal(true)
-              }
-            }}
-            className="gap-1.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-[12px]"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {!config ? 'Configurar' : 'Preencher agora'}
-          </Button>
+    <section className="space-y-6">
+      <TabHeader
+        title="Formulário semanal"
+        subtitle={`Coleta semanal de ideias e dúvidas com a equipe de ${clientName}.`}
+        actions={user && (
+          <PrimaryButton onClick={() => {
+            if (!config) { setEditingQuestions(DEFAULT_QUESTIONS); setConfigOpen(true) }
+            else setShowFillModal(true)
+          }}>
+            <Plus className="w-3.5 h-3.5" /> {!config ? 'Configurar' : 'Preencher agora'}
+          </PrimaryButton>
         )}
-      </div>
+      />
 
-      {/* ── Sem config ainda ── */}
       {!config && (
-        <div className="flex flex-col items-center justify-center py-12 gap-4 text-center border-2 border-dashed border-[#e2e8f0] rounded-2xl">
-          <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center">
-            <ClipboardList className="w-7 h-7 text-violet-400" />
-          </div>
-          <div>
-            <p className="text-[14px] font-semibold text-[#0f172a]">Nenhum formulário configurado</p>
-            <p className="text-[12px] text-[#94a3b8] mt-0.5">Configure o formulário para gerar o link de preenchimento</p>
-          </div>
-          <Button
-            onClick={() => { setEditingQuestions(DEFAULT_QUESTIONS); setConfigOpen(true) }}
-            className="bg-gradient-to-r from-violet-600 to-purple-600 text-white text-[12px]"
-          >
-            Configurar formulário
-          </Button>
-        </div>
+        <EmptyState Icon={ClipboardList} title="Nenhum formulário configurado"
+          hint="Configure o formulário para gerar o link que a equipe do cliente vai preencher."
+          action={<PrimaryButton onClick={() => { setEditingQuestions(DEFAULT_QUESTIONS); setConfigOpen(true) }}>Configurar formulário</PrimaryButton>} />
       )}
 
-      {/* ── Config existente ── */}
       {config && (
         <>
-          {/* Status cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className={`p-4 rounded-2xl border ${thisWeekOk ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <AlertCircle className={`w-4 h-4 ${thisWeekOk ? 'text-green-600' : 'text-amber-500'}`} />
-                <span className={`text-[11px] font-semibold ${thisWeekOk ? 'text-green-700' : 'text-amber-700'}`}>Esta semana</span>
-              </div>
-              <p className={`text-[22px] font-bold ${thisWeekOk ? 'text-green-700' : 'text-amber-600'}`}>{thisWeekCount}</p>
-              <p className="text-[11px] text-[#64748b]">{thisWeekOk ? 'resposta(s) recebida(s)' : 'nenhuma resposta ainda'}</p>
-            </div>
-            <div className="p-4 rounded-2xl border border-[#e2e8f0] bg-white">
-              <div className="flex items-center gap-2 mb-1">
-                <ClipboardList className="w-4 h-4 text-violet-500" />
-                <span className="text-[11px] font-semibold text-[#64748b]">Total de respostas</span>
-              </div>
-              <p className="text-[22px] font-bold text-[#0f172a]">{responses.length}</p>
-              <p className="text-[11px] text-[#94a3b8]">desde o início</p>
-            </div>
-            <div className="p-4 rounded-2xl border border-[#e2e8f0] bg-white">
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar className="w-4 h-4 text-blue-500" />
-                <span className="text-[11px] font-semibold text-[#64748b]">Frequência</span>
-              </div>
-              <p className="text-[14px] font-bold text-[#0f172a]">Toda {DAY_LABELS[config.day_of_week]}</p>
-              <p className={`text-[11px] mt-0.5 font-medium ${config.is_active ? 'text-green-600' : 'text-red-500'}`}>
-                {config.is_active ? '● Ativo' : '○ Inativo'}
-              </p>
-            </div>
+          {/* Números da semana em uma faixa só */}
+          <div className="relative rounded-2xl border grid grid-cols-1 sm:grid-cols-3 overflow-hidden" style={cardStyle}>
+            <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: thisWeekOk ? '#22C55E' : '#F59E0B' }} />
+            {kpi('Esta semana', thisWeekCount, thisWeekOk ? 'resposta(s) recebida(s)' : 'nenhuma resposta ainda', 0)}
+            {kpi('Total de respostas', responses.length, 'desde o início', 1)}
+            {kpi('Frequência', <span className="text-[18px]">Toda {DAY_LABELS[config.day_of_week]}</span>,
+              <DotLabel color={config.is_active ? '#22C55E' : '#EF4444'}>{config.is_active ? 'Ativo' : 'Inativo'}</DotLabel>, 2)}
           </div>
 
-          {/* Link público */}
-          <div className="p-4 rounded-2xl border border-[#e2e8f0] bg-[#fafbfc] space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-[12px] font-semibold text-[#0f172a] flex items-center gap-1.5">
-                <Link2 className="w-4 h-4 text-violet-500" />
-                Link público de preenchimento
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleToggleActive}
-                  className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full transition-colors ${
-                    config.is_active
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-                  }`}
-                >
-                  {config.is_active
-                    ? <><Power className="w-3 h-3" /> Ativo</>
-                    : <><PowerOff className="w-3 h-3" /> Inativo</>
-                  }
+          {/* 01 · Link público */}
+          <div>
+            {sectionTitle('01', 'Link de preenchimento',
+              <div className="flex items-center gap-1">
+                <button onClick={handleToggleActive} role="switch" aria-checked={config.is_active}
+                  className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium hover:bg-black/5"
+                  style={{ color: 'var(--sm-text-2)' }}>
+                  {config.is_active ? <Power className="w-3.5 h-3.5" style={{ color: '#22C55E' }} /> : <PowerOff className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />}
+                  {config.is_active ? 'Ativo' : 'Inativo'}
                 </button>
-                <button
-                  onClick={handleOpenConfig}
-                  className="text-[11px] text-violet-600 hover:text-violet-700 font-medium flex items-center gap-0.5"
-                >
-                  Editar
-                  {configOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                <button onClick={handleOpenConfig} aria-expanded={configOpen}
+                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[12px] font-semibold hover:bg-black/5" style={{ color: '#2563EB' }}>
+                  Editar perguntas <ChevronDown className="w-3.5 h-3.5 transition-transform" style={{ transform: configOpen ? 'rotate(180deg)' : undefined }} />
                 </button>
-              </div>
-            </div>
-
-            {publicLink && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-white border border-[#e2e8f0] text-[12px] text-[#64748b] font-mono truncate">
-                  {publicLink}
+              </div>)}
+            <div className="rounded-2xl border p-4 space-y-2.5" style={cardStyle}>
+              {publicLink && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0 h-9 px-3 flex items-center rounded-lg border text-[12px] font-mono truncate" style={inputStyle}>
+                    <Link2 className="w-3.5 h-3.5 mr-2 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
+                    <span className="truncate" style={{ color: 'var(--sm-text-2)' }}>{publicLink}</span>
+                  </div>
+                  <PrimaryButton onClick={handleCopyLink} className="flex-shrink-0">
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? 'Copiado!' : 'Copiar'}
+                  </PrimaryButton>
                 </div>
-                <button
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[12px] font-medium transition-colors flex-shrink-0"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? 'Copiado!' : 'Copiar'}
-                </button>
-              </div>
-            )}
-
-            <p className="text-[11px] text-[#94a3b8]">
-              Envie este link para os colaboradores do cliente. Cada um pode preencher quantas vezes quiser, sem precisar de login.
-            </p>
+              )}
+              <p className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+                Envie este link para os colaboradores do cliente. Cada um pode preencher quantas vezes quiser, sem login.
+              </p>
+            </div>
           </div>
 
-          {/* ── Painel de configuração expandível ── */}
+          {/* Painel de edição das perguntas */}
           <AnimatePresence>
             {configOpen && (
               <motion.div
@@ -668,112 +543,68 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-4 rounded-2xl border border-violet-200 bg-violet-50 space-y-5">
-                  <p className="text-[13px] font-bold text-violet-800">Editar formulário</p>
-
-                  {/* Dia de preenchimento */}
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">Dia preferido de preenchimento</p>
-                    <Select
-                      value={String(dayOfWeek ?? config.day_of_week)}
-                      onValueChange={v => setDayOfWeek(Number(v))}
-                    >
-                      <SelectTrigger className="w-44 h-8 text-[12px] bg-white text-[#0f0f0f]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAY_LABELS.map((label, i) => (
-                          <SelectItem key={i} value={String(i)} className="text-[12px]">
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="rounded-2xl border p-4 md:p-5 space-y-5" style={{ ...cardStyle, borderColor: 'rgba(37,99,235,0.35)' }}>
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <Eyebrow>Dia preferido de preenchimento</Eyebrow>
+                      <Select value={String(dayOfWeek ?? config.day_of_week)} onValueChange={v => setDayOfWeek(Number(v))}>
+                        <SelectTrigger className="w-48 h-9 text-[12.5px] mt-1.5"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {DAY_LABELS.map((label, i) => (
+                            <SelectItem key={i} value={String(i)} className="text-[12.5px]">{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <span className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
+                      {enabledCount} ativa{enabledCount !== 1 ? 's' : ''} de {(editingQuestions ?? resolvedQuestions).length} perguntas
+                    </span>
                   </div>
 
-                  {/* Editor de perguntas */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
-                        Perguntas do formulário
-                      </p>
-                      <span className="text-[10px] text-[#94a3b8]">
-                        {enabledCount} ativa{enabledCount !== 1 ? 's' : ''} de {(editingQuestions ?? resolvedQuestions).length}
-                      </span>
-                    </div>
+                  <QuestionList questions={editingQuestions ?? DEFAULT_QUESTIONS} onChange={handleQuestionChange} />
+                  <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
+                    Use o lápis para mudar o texto de cada pergunta e “Ativa/Oculta” para mostrar ou esconder no formulário.
+                  </p>
 
-                    <div className="space-y-2">
-                      {(editingQuestions ?? DEFAULT_QUESTIONS).map((q, idx) => (
-                        <QuestionEditor
-                          key={q.key}
-                          q={q}
-                          index={idx}
-                          total={(editingQuestions ?? DEFAULT_QUESTIONS).length}
-                          onChange={updated => handleQuestionChange(idx, updated)}
-                        />
-                      ))}
-                    </div>
-
-                    <p className="text-[10px] text-[#94a3b8]">
-                      💡 Clique no ícone de lápis para editar o texto de cada pergunta. Use o toggle para mostrar ou ocultar perguntas no formulário.
-                    </p>
-                  </div>
-
-                  {/* Botões */}
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={handleSaveConfig}
-                      disabled={upsertConfig.isPending}
-                      className="bg-violet-600 hover:bg-violet-700 text-white text-[12px]"
-                    >
+                  <div className="flex gap-2">
+                    <PrimaryButton onClick={handleSaveConfig} disabled={upsertConfig.isPending}>
                       {upsertConfig.isPending ? 'Salvando...' : 'Salvar configuração'}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setConfigOpen(false)} className="text-[12px]">
-                      Cancelar
-                    </Button>
+                    </PrimaryButton>
+                    <GhostButton onClick={() => setConfigOpen(false)}>Cancelar</GhostButton>
                   </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ── Lista de respostas ── */}
+          {/* 02 · Respostas */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[13px] font-semibold text-[#0f172a] flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-[#94a3b8]" />
-                Respostas recebidas
-              </p>
-              <span className="text-[11px] text-[#94a3b8]">{responses.length} no total</span>
-            </div>
+            {sectionTitle('02', 'Respostas recebidas',
+              <span className="text-[12px] tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{responses.length} no total</span>)}
 
             {responsesLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-14 rounded-xl bg-[#f1f5f9] animate-pulse" />
+                  <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
                 ))}
               </div>
             ) : responses.length === 0 ? (
-              <div className="text-center py-10 text-[#94a3b8]">
-                <User className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-[13px]">Nenhuma resposta ainda</p>
-                <p className="text-[11px]">Compartilhe o link para começar a receber</p>
-              </div>
+              <EmptyState Icon={User} title="Nenhuma resposta ainda" hint="Compartilhe o link para começar a receber." />
             ) : (
-              <AnimatePresence>
-                <div className="space-y-2">
-                  {responses.map(r => (
+              <div className="rounded-2xl border overflow-hidden" style={cardStyle}>
+                <AnimatePresence initial={false}>
+                  {responses.map((r, i) => (
                     <ResponseCard
                       key={r.id}
                       response={r}
+                      first={i === 0}
                       onView={() => setViewingResponse(r)}
                       onDelete={() => handleDeleteResponse(r.id)}
                       deleting={deletingId === r.id}
                     />
                   ))}
-                </div>
-              </AnimatePresence>
+                </AnimatePresence>
+              </div>
             )}
           </div>
         </>
@@ -783,59 +614,34 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
       <Dialog open={configOpen && !config} onOpenChange={v => !v && setConfigOpen(false)}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-violet-600" />
-              Configurar formulário
-            </DialogTitle>
+            <DialogTitle className="font-display text-[18px] font-bold text-[color:var(--sm-text-1)]">Configurar formulário</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-2">
-
-            {/* Dia */}
             <div>
-              <label className="text-[12px] font-medium text-[#64748b] block mb-1.5">
-                Dia preferido de preenchimento
-              </label>
-              <Select
-                value={String(dayOfWeek)}
-                onValueChange={v => setDayOfWeek(Number(v))}
-              >
-                <SelectTrigger className="h-9 text-[13px]">
-                  <SelectValue />
-                </SelectTrigger>
+              <Eyebrow>Dia preferido de preenchimento</Eyebrow>
+              <Select value={String(dayOfWeek)} onValueChange={v => setDayOfWeek(Number(v))}>
+                <SelectTrigger className="h-9 text-[13px] mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DAY_LABELS.map((label, i) => (
-                    <SelectItem key={i} value={String(i)} className="text-[13px]">
-                      {label}
-                    </SelectItem>
+                    <SelectItem key={i} value={String(i)} className="text-[13px]">{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-[#94a3b8] mt-1">
-                Apenas informativo — o link estará sempre disponível.
-              </p>
+              <p className="text-[11.5px] mt-1" style={{ color: 'var(--sm-text-4)' }}>Só informativo: o link fica sempre disponível.</p>
             </div>
 
-            {/* Perguntas */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[12px] font-medium text-[#64748b]">Perguntas do formulário</label>
-                <span className="text-[10px] text-[#94a3b8]">
+                <Eyebrow>Perguntas do formulário</Eyebrow>
+                <span className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
                   {(editingQuestions ?? DEFAULT_QUESTIONS).filter(q => q.enabled).length} ativas
                 </span>
               </div>
-              {(editingQuestions ?? DEFAULT_QUESTIONS).map((q, idx) => (
-                <QuestionEditor
-                  key={q.key}
-                  q={q}
-                  index={idx}
-                  total={(editingQuestions ?? DEFAULT_QUESTIONS).length}
-                  onChange={updated => handleQuestionChange(idx, updated)}
-                />
-              ))}
+              <QuestionList questions={editingQuestions ?? DEFAULT_QUESTIONS} onChange={handleQuestionChange} />
             </div>
 
             <div className="flex gap-2">
-              <Button
+              <PrimaryButton
                 onClick={async () => {
                   try {
                     await upsertConfig.mutateAsync({
@@ -851,25 +657,20 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
                   }
                 }}
                 disabled={upsertConfig.isPending}
-                className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 text-white"
+                className="flex-1 justify-center"
               >
                 {upsertConfig.isPending ? 'Criando...' : 'Criar formulário'}
-              </Button>
-              <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancelar</Button>
+              </PrimaryButton>
+              <GhostButton onClick={() => setConfigOpen(false)}>Cancelar</GhostButton>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ── Modal visualizar resposta ── */}
       {viewingResponse && (
-        <ResponseViewModal
-          response={viewingResponse}
-          onClose={() => setViewingResponse(null)}
-        />
+        <ResponseViewModal response={viewingResponse} onClose={() => setViewingResponse(null)} />
       )}
 
-      {/* ── Modal preencher internamente ── */}
       {showFillModal && config && user && (
         <FillFormModal
           configId={config.id}
@@ -880,6 +681,6 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
           onSuccess={() => refetch()}
         />
       )}
-    </div>
+    </section>
   )
 }

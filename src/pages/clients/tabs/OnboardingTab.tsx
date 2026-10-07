@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { useTheme } from '@/contexts/ThemeContext'
 import {
   Check, Upload, Trash2, FileText, ImageIcon, Video, File,
-  User, ChevronDown, ChevronUp, ExternalLink,
+  User, ChevronDown, ExternalLink, ArrowRight,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/hooks/useAuth'
@@ -18,31 +16,39 @@ import {
 } from '@/hooks/useOnboarding'
 import { supabase } from '@/integrations/supabase/client'
 import { formatDate } from '@/utils/formatters'
+import { CLIENT_STATUS } from '@/utils/clientBanner'
+import { PrimaryButton, GhostButton, cardStyle, inputStyle } from './tabUi'
 import type { Client, ClientStatus, BriefingData } from '@/types'
 
 // ─── Config de status ─────────────────────────────────────────────────────────
 
-// 'fechado' é gatilho de transição — não aparece como pill navegável
-const CLIENT_STATUSES: { value: ClientStatus; label: string; color: string; bg: string; colorLight: string; bgLight: string }[] = [
-  { value: 'lead',        label: 'Lead',        color: 'text-slate-300',   bg: 'bg-slate-500/10 border-slate-500/30',   colorLight: 'text-slate-700',   bgLight: 'bg-slate-100 border-slate-400' },
-  { value: 'proposta',    label: 'Proposta',    color: 'text-blue-300',    bg: 'bg-blue-500/10 border-blue-500/30',     colorLight: 'text-blue-700',    bgLight: 'bg-blue-100 border-blue-400' },
-  { value: 'onboarding',  label: 'Onboarding',  color: 'text-amber-300',   bg: 'bg-amber-500/10 border-amber-500/30',   colorLight: 'text-amber-700',   bgLight: 'bg-amber-100 border-amber-400' },
-  { value: 'ativo',       label: 'Ativo',       color: 'text-green-300',   bg: 'bg-green-500/10 border-green-500/30',   colorLight: 'text-green-700',   bgLight: 'bg-green-100 border-green-400' },
-  { value: 'pausado',     label: 'Pausado',     color: 'text-orange-300',  bg: 'bg-orange-500/10 border-orange-500/30', colorLight: 'text-orange-700',  bgLight: 'bg-orange-100 border-orange-400' },
-  { value: 'encerrado',   label: 'Encerrado',   color: 'text-red-300',     bg: 'bg-red-500/10 border-red-500/30',       colorLight: 'text-red-700',     bgLight: 'bg-red-100 border-red-400' },
-]
+// 'fechado' é gatilho de transição — não aparece como opção navegável
+const CLIENT_STATUSES: ClientStatus[] = ['lead', 'proposta', 'onboarding', 'ativo', 'pausado', 'encerrado']
 
-function getStatusConfig(status: string) {
-  return CLIENT_STATUSES.find(s => s.value === status) ?? CLIENT_STATUSES[4]
+// ─── Peças de layout ─────────────────────────────────────────────────────────
+
+function Secao({ n, title, aside, children }: { n: string; title: string; aside?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border p-4 md:p-5" style={cardStyle}>
+      <div className="flex items-center justify-between gap-3 mb-3.5">
+        <h3 className="font-display text-[15px] font-bold flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+          {title}
+        </h3>
+        {aside}
+      </div>
+      {children}
+    </section>
+  )
 }
 
 // ─── Ícone de tipo de arquivo ─────────────────────────────────────────────────
 
 function DocTypeIcon({ type }: { type: string }) {
-  if (type.startsWith('image/')) return <ImageIcon className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-  if (type.startsWith('video/')) return <Video className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-  if (type === 'application/pdf') return <FileText className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-  return <File className="w-3.5 h-3.5 text-[#64748b] flex-shrink-0" />
+  if (type.startsWith('image/')) return <ImageIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#2563EB' }} />
+  if (type.startsWith('video/')) return <Video className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8B5CF6' }} />
+  if (type === 'application/pdf') return <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#EF4444' }} />
+  return <File className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
 }
 
 function formatSize(bytes: number | null): string {
@@ -57,8 +63,6 @@ function formatSize(bytes: number | null): string {
 function StatusSection({ client }: { client: Client }) {
   const updateStatus = useUpdateClientStatus()
   const { toast } = useToast()
-  const { isDark } = useTheme()
-  const current = getStatusConfig(client.status)
 
   const handleChange = async (status: ClientStatus) => {
     if (status === client.status) return
@@ -89,70 +93,48 @@ function StatusSection({ client }: { client: Client }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--sm-text-3)' }}>Status do cliente</p>
-        <span className={`inline-flex items-center px-2.5 py-1 rounded border text-[11px] font-semibold ${isDark ? `${current.color} ${current.bg}` : `${current.colorLight} ${current.bgLight}`}`}>
-          {current.label}
-        </span>
-      </div>
-
-      {/* Pills de navegação (exceto 'fechado') */}
-      <div className="flex flex-wrap gap-1.5">
+    <Secao n="01" title="Status do cliente">
+      {/* Etapas: ponto colorido + nome; a atual fica marcada. */}
+      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Status do cliente">
         {CLIENT_STATUSES.map(s => {
-          const isActive = client.status === s.value
+          const cfg = CLIENT_STATUS[s]
+          const isActive = client.status === s
           return (
             <button
-              key={s.value}
-              onClick={() => handleChange(s.value)}
+              key={s}
+              role="radio"
+              aria-checked={isActive}
+              onClick={() => handleChange(s)}
               disabled={updateStatus.isPending}
-              className={`px-3 py-1.5 rounded-md border text-[12px] font-medium transition-colors ${
-                isActive
-                  ? isDark ? `${s.color} ${s.bg}` : `${s.colorLight} ${s.bgLight}`
-                  : ''
-              }`}
-              style={!isActive ? { color: 'var(--sm-text-3)', background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)' } : {}}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[12.5px] transition-colors hover:bg-black/5 disabled:opacity-60"
+              style={isActive
+                ? { borderColor: cfg.color, color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: `inset 0 0 0 1px ${cfg.color}` }
+                : { borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}
             >
-              {s.label}
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.color }} />
+              {cfg.label}
             </button>
           )
         })}
       </div>
 
-      {/* Ação: Iniciar onboarding (apenas quando não está em onboarding/ativo) */}
       {client.status !== 'onboarding' && client.status !== 'ativo' && (
-        <div className="flex items-center gap-3 pt-1">
-          <button
-            onClick={handleFechado}
-            disabled={updateStatus.isPending}
-            className={`px-3 py-1.5 rounded-md border text-[12px] transition-colors disabled:opacity-50 ${
-              isDark
-                ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
-                : 'border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100'
-            }`}
-          >
-            Negócio fechado → Iniciar onboarding
-          </button>
-          <p className="text-[11px] text-[#94a3b8]">Cria checklist e inicia o processo.</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-4 pt-4 border-t" style={{ borderColor: 'var(--sm-border)' }}>
+          <GhostButton onClick={handleFechado} disabled={updateStatus.isPending}>
+            Negócio fechado <ArrowRight className="w-3.5 h-3.5" /> Iniciar onboarding
+          </GhostButton>
+          <p className="text-[12px]" style={{ color: 'var(--sm-text-4)' }}>Cria o checklist e começa o processo.</p>
         </div>
       )}
 
-      {/* CTA: Finalizar onboarding */}
       {client.status === 'onboarding' && (
-        <button
-          onClick={handleFinalizar}
-          disabled={updateStatus.isPending}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border text-[13px] font-medium transition-colors disabled:opacity-50 ${
-            isDark
-              ? 'border-green-500/30 bg-green-500/10 text-green-300 hover:bg-green-500/20'
-              : 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
-          }`}
-        >
-          <Check className="w-3.5 h-3.5" />
-          Finalizar onboarding → Marcar como Ativo
-        </button>
+        <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--sm-border)' }}>
+          <PrimaryButton onClick={handleFinalizar} disabled={updateStatus.isPending} className="w-full justify-center">
+            <Check className="w-3.5 h-3.5" /> Finalizar onboarding e marcar como Ativo
+          </PrimaryButton>
+        </div>
       )}
-    </div>
+    </Secao>
   )
 }
 
@@ -177,43 +159,33 @@ function ChecklistSection({ clientId }: { clientId: string }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] text-[#94a3b8] uppercase tracking-wide">Checklist de Onboarding</p>
-        <span className="text-[11px] text-[#94a3b8] tabular-nums">{completed}/{total}</span>
+    <Secao n="02" title="Checklist de onboarding"
+      aside={<span className="text-[12px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-3)' }}>{completed}/{total}</span>}>
+      <div className="w-full h-1 rounded-full overflow-hidden mb-3" style={{ background: 'var(--sm-bg-alt)' }}>
+        <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: '#22C55E' }} />
       </div>
 
-      {/* Barra de progresso */}
-      <div className="w-full h-1 bg-[#1e293b] rounded-full overflow-hidden mb-4">
-        <div
-          className="h-full bg-green-600 rounded-full transition-all duration-300"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      <div className="space-y-1">
+      <div className="-mx-2">
         {items.map(item => (
           <button
             key={item.id}
             onClick={() => toggle.mutate({ id: item.id, completed: !item.completed, clientId })}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md hover:bg-[#1e293b] transition-colors group text-left"
+            className="flex items-center gap-3 w-full px-2 py-2 rounded-lg hover:bg-black/5 transition-colors text-left"
           >
-            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-              item.completed
-                ? 'bg-green-600 border-green-600'
-                : 'border-[#334155] group-hover:border-[#a0a0a0]'
-            }`}>
+            <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+              style={item.completed
+                ? { background: '#22C55E', border: '1px solid #22C55E' }
+                : { border: '1.5px solid var(--sm-border-alt)' }}>
               {item.completed && <Check className="w-2.5 h-2.5 text-white" />}
-            </div>
-            <span className={`text-[13px] transition-colors ${
-              item.completed ? 'text-[#64748b] line-through' : 'text-[#CBD5E1]'
-            }`}>
+            </span>
+            <span className={`text-[13px] ${item.completed ? 'line-through' : ''}`}
+              style={{ color: item.completed ? 'var(--sm-text-4)' : 'var(--sm-text-1)' }}>
               {item.title}
             </span>
           </button>
         ))}
       </div>
-    </div>
+    </Secao>
   )
 }
 
@@ -237,32 +209,24 @@ function ResponsibleSection({ client }: { client: Client }) {
   const current = members.find(m => m.id === client.responsible_user_id)
 
   return (
-    <div>
-      <p className="text-[11px] text-[#94a3b8] uppercase tracking-wide mb-3">Responsável Interno</p>
-      <Select
-        value={client.responsible_user_id ?? '__none__'}
-        onValueChange={handleChange}
-      >
+    <Secao n="03" title="Responsável interno">
+      <Select value={client.responsible_user_id ?? '__none__'} onValueChange={handleChange}>
         <SelectTrigger>
           <div className="flex items-center gap-2">
-            <User className="w-3.5 h-3.5 text-[#94a3b8]" />
+            <User className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
             <SelectValue placeholder="Sem responsável">
-              {current
-                ? (current.full_name || current.email)
-                : 'Sem responsável'}
+              {current ? (current.full_name || current.email) : 'Sem responsável'}
             </SelectValue>
           </div>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">Sem responsável</SelectItem>
           {members.map(m => (
-            <SelectItem key={m.id} value={m.id}>
-              {m.full_name || m.email}
-            </SelectItem>
+            <SelectItem key={m.id} value={m.id}>{m.full_name || m.email}</SelectItem>
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </Secao>
   )
 }
 
@@ -317,16 +281,11 @@ function DocumentsSection({ clientId }: { clientId: string }) {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] text-[#94a3b8] uppercase tracking-wide">Documentos</p>
-        <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
-          {uploading ? (
-            <><Upload className="w-3 h-3 animate-pulse" /> Enviando...</>
-          ) : (
-            <><Upload className="w-3 h-3" /> Adicionar arquivo</>
-          )}
-        </Button>
+    <Secao n="04" title="Documentos"
+      aside={<>
+        <GhostButton onClick={() => fileRef.current?.click()} disabled={uploading} className="h-8">
+          <Upload className={`w-3.5 h-3.5 ${uploading ? 'animate-pulse' : ''}`} /> {uploading ? 'Enviando...' : 'Adicionar'}
+        </GhostButton>
         <input
           ref={fileRef}
           type="file"
@@ -334,60 +293,42 @@ function DocumentsSection({ clientId }: { clientId: string }) {
           className="hidden"
           onChange={handleUpload}
         />
-      </div>
-
+      </>}>
       {docs.length === 0 ? (
-        <div className="text-center py-6 border border-dashed border-[#334155] rounded-lg">
-          <p className="text-[12px] text-[#64748b]">Nenhum documento ainda. Faça upload de logos, manuais, fotos...</p>
-        </div>
+        <p className="text-[12.5px] py-5 text-center rounded-xl border border-dashed" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-4)' }}>
+          Nenhum documento ainda. Envie logos, manuais, fotos…
+        </p>
       ) : (
-        <div className="space-y-1.5">
-          {docs.map(doc => {
+        <div className="-mx-4 md:-mx-5 border-t" style={{ borderColor: 'var(--sm-border)' }}>
+          {docs.map((doc, i) => {
             const isImg = doc.file_type.startsWith('image/')
             return (
-              <div
-                key={doc.id}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-md border border-[#1e293b] bg-[#182233] group"
-              >
+              <div key={doc.id} className={`flex items-center gap-3 px-4 md:px-5 py-2.5 group ${i > 0 ? 'border-t' : ''}`}
+                style={{ borderColor: 'var(--sm-border)' }}>
                 {isImg ? (
-                  <img
-                    src={doc.file_url}
-                    alt={doc.name}
-                    className="w-8 h-8 rounded object-cover flex-shrink-0 border border-white/[0.08]"
-                  />
+                  <img src={doc.file_url} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-[#182233] flex items-center justify-center flex-shrink-0">
+                  <span className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
                     <DocTypeIcon type={doc.file_type} />
-                  </div>
+                  </span>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-[#F8FAFC] truncate">{doc.name}</p>
-                  <p className="text-[10px] text-[#94a3b8]">{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ''}</p>
+                  <p className="text-[12.5px] font-medium truncate" style={{ color: 'var(--sm-text-1)' }}>{doc.name}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ''}</p>
                 </div>
-                <a
-                  href={doc.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#94a3b8] hover:text-[#F8FAFC] transition-colors flex-shrink-0"
-                >
+                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" title="Abrir" aria-label="Abrir"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
                 {confirmingId === doc.id ? (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setConfirmingId(null)}
-                      className="text-[10px] text-[#94a3b8] hover:text-[#CBD5E1] px-1.5"
-                    >Não</button>
-                    <button
-                      onClick={() => handleDelete(doc.id, doc.file_url)}
-                      className="text-[10px] text-red-400 hover:text-red-300 px-1.5"
-                    >Sim</button>
-                  </div>
+                  <span className="flex items-center gap-1">
+                    <button onClick={() => setConfirmingId(null)} className="text-[11.5px] px-2 h-7 rounded-md hover:bg-black/5" style={{ color: 'var(--sm-text-2)' }}>Não</button>
+                    <button onClick={() => handleDelete(doc.id, doc.file_url)} className="text-[11.5px] font-semibold px-2 h-7 rounded-md hover:bg-red-500/10" style={{ color: '#EF4444' }}>Sim</button>
+                  </span>
                 ) : (
-                  <button
-                    onClick={() => setConfirmingId(doc.id)}
-                    className="text-[#94a3b8] hover:text-red-600 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-                  >
+                  <button onClick={() => setConfirmingId(doc.id)} title="Excluir" aria-label="Excluir"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                    style={{ color: 'var(--sm-text-3)' }}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -396,7 +337,7 @@ function DocumentsSection({ clientId }: { clientId: string }) {
           })}
         </div>
       )}
-    </div>
+    </Secao>
   )
 }
 
@@ -489,37 +430,37 @@ function BriefingSection({ clientId }: { clientId: string }) {
     setOpenBlocks(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const simNao = (ativo: boolean, cor: string) => (ativo
+    ? { borderColor: cor, color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: `inset 0 0 0 1px ${cor}` }
+    : { borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' })
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] text-[#94a3b8] uppercase tracking-wide">Briefing Completo</p>
-        <Button size="sm" onClick={handleSave} disabled={upsert.isPending}>
+    <section>
+      <div className="flex items-end justify-between gap-3 mb-3">
+        <h3 className="font-display text-[15px] font-bold flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>05</span>
+          Briefing completo
+        </h3>
+        <PrimaryButton onClick={handleSave} disabled={upsert.isPending}>
           {upsert.isPending ? 'Salvando...' : 'Salvar briefing'}
-        </Button>
+        </PrimaryButton>
       </div>
 
-      <div className="space-y-3">
-        {BRIEFING_BLOCKS.map(block => (
-          <div
-            key={block.key}
-            className="rounded-lg border border-[#1e293b] overflow-hidden"
-          >
-            {/* Header do bloco */}
+      <div className="rounded-2xl border overflow-hidden" style={cardStyle}>
+        {BRIEFING_BLOCKS.map((block, bi) => (
+          <div key={block.key} className={bi > 0 ? 'border-t' : ''} style={{ borderColor: 'var(--sm-border)' }}>
             <button
               type="button"
               onClick={() => toggleBlock(block.key)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-[#182233] hover:bg-[#1e293b] transition-colors"
+              aria-expanded={!!openBlocks[block.key]}
+              className="w-full flex items-center justify-between px-4 md:px-5 py-3.5 hover:bg-black/[0.02] transition-colors"
             >
-              <p className="text-[13px] font-medium text-[#F8FAFC]">{block.title}</p>
-              {openBlocks[block.key]
-                ? <ChevronUp className="w-3.5 h-3.5 text-[#94a3b8]" />
-                : <ChevronDown className="w-3.5 h-3.5 text-[#94a3b8]" />
-              }
+              <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-3)' }}>{block.title}</span>
+              <ChevronDown className="w-4 h-4 transition-transform" style={{ color: 'var(--sm-text-4)', transform: openBlocks[block.key] ? 'rotate(180deg)' : undefined }} />
             </button>
 
-            {/* Campos do bloco */}
             {openBlocks[block.key] && (
-              <div className="p-4 space-y-3 border-t border-[#1e293b]">
+              <div className="px-4 md:px-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
                 {block.fields.map(field => {
                   if (field.type === 'textarea') {
                     return (
@@ -537,15 +478,14 @@ function BriefingSection({ clientId }: { clientId: string }) {
                   if (field.type === 'input') {
                     return (
                       <div key={field.key as string}>
-                        <label className="block text-[12px] font-normal text-[#94a3b8] mb-1.5">
-                          {field.label}
-                        </label>
+                        <label className="block text-[12px] mb-1.5" style={{ color: 'var(--sm-text-3)' }}>{field.label}</label>
                         <input
                           type="text"
                           value={(form[field.key] as string) || ''}
                           onChange={e => setField(field.key, e.target.value)}
                           placeholder={field.placeholder}
-                          className="flex h-8 w-full rounded-md border border-[#1e293b] bg-[#182233] px-3 text-[13px] text-[#F8FAFC] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/30 focus:border-[#334155] transition-colors"
+                          className="flex h-9 w-full rounded-lg border px-3 text-[13px] placeholder:text-[color:var(--sm-text-4)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]/50 transition-colors"
+                          style={inputStyle}
                         />
                       </div>
                     )
@@ -554,27 +494,13 @@ function BriefingSection({ clientId }: { clientId: string }) {
                   if (field.type === 'toggle') {
                     const val = form[field.key] as boolean | undefined
                     return (
-                      <div key={field.key as string} className="flex items-center justify-between">
-                        <label className="text-[13px] text-[#CBD5E1]">{field.label}</label>
+                      <div key={field.key as string} className="flex items-center justify-between gap-3">
+                        <label className="text-[13px]" style={{ color: 'var(--sm-text-1)' }}>{field.label}</label>
                         <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setField(field.key, true)}
-                            className={`px-3 py-1 rounded-md text-[12px] border transition-colors ${
-                              val === true
-                                ? 'bg-green-500/15 border-green-500/40 text-green-300 font-medium'
-                                : 'bg-[#182233] border-[#1e293b] text-[#64748b] hover:text-[#F8FAFC]'
-                            }`}
-                          >Sim</button>
-                          <button
-                            type="button"
-                            onClick={() => setField(field.key, false)}
-                            className={`px-3 py-1 rounded-md text-[12px] border transition-colors ${
-                              val === false
-                                ? 'bg-red-500/15 border-red-500/40 text-red-300 font-medium'
-                                : 'bg-[#182233] border-[#1e293b] text-[#64748b] hover:text-[#F8FAFC]'
-                            }`}
-                          >Não</button>
+                          <button type="button" onClick={() => setField(field.key, true)}
+                            className="h-7 px-3 rounded-lg border text-[12px] transition-colors hover:bg-black/5" style={simNao(val === true, '#22C55E')}>Sim</button>
+                          <button type="button" onClick={() => setField(field.key, false)}
+                            className="h-7 px-3 rounded-lg border text-[12px] transition-colors hover:bg-black/5" style={simNao(val === false, '#EF4444')}>Não</button>
                         </div>
                       </div>
                     )
@@ -586,22 +512,18 @@ function BriefingSection({ clientId }: { clientId: string }) {
                       <button
                         key={field.key as string}
                         type="button"
+                        role="checkbox"
+                        aria-checked={!!val}
                         onClick={() => setField(field.key, !val)}
-                        className="flex items-center gap-2.5 w-full text-left rounded px-1 py-1 transition-colors"
-                        style={{ '--tw-bg-opacity': 1 } as React.CSSProperties}
+                        className="flex items-center gap-2.5 w-full text-left rounded-lg px-1 py-1 hover:bg-black/5 transition-colors"
                       >
-                        <div
+                        <span
                           className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
-                          style={val
-                            ? { background: '#2563eb', borderColor: '#2563eb', border: '1px solid #2563eb' }
-                            : { border: '1.5px solid var(--sm-border-alt)' }
-                          }
+                          style={val ? { background: '#2563EB', border: '1px solid #2563EB' } : { border: '1.5px solid var(--sm-border-alt)' }}
                         >
                           {val && <Check className="w-2.5 h-2.5 text-white" />}
-                        </div>
-                        <span className="text-[13px]" style={{ color: val ? 'var(--sm-text-1)' : 'var(--sm-text-2)' }}>
-                          {field.label}
                         </span>
+                        <span className="text-[13px]" style={{ color: val ? 'var(--sm-text-1)' : 'var(--sm-text-2)' }}>{field.label}</span>
                       </button>
                     )
                   }
@@ -613,7 +535,7 @@ function BriefingSection({ clientId }: { clientId: string }) {
           </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -621,41 +543,33 @@ function BriefingSection({ clientId }: { clientId: string }) {
 
 export function OnboardingTab({ client }: { client: Client }) {
   return (
-    <div className="space-y-8">
-      {/* 1. Status */}
-      <div className="p-4 rounded-lg border border-[#1e293b] bg-[#182233]">
-        <StatusSection client={client} />
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Onboarding</h2>
+        <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>Etapa do cliente, checklist de entrada, documentos e briefing.</p>
       </div>
 
-      {/* 2. Checklist — só visível durante onboarding */}
-      {client.status === 'onboarding' ? (
-        <div className="p-4 rounded-lg border border-[#1e293b] bg-[#182233]">
-          <ChecklistSection clientId={client.id} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="space-y-4">
+          <StatusSection client={client} />
+          <ResponsibleSection client={client} />
         </div>
-      ) : (
-        <div className="p-4 rounded-lg border border-dashed border-[#334155] bg-[#182233]">
-          <p className="text-[11px] text-[#64748b] uppercase tracking-wide mb-2">Checklist de Onboarding</p>
-          <p className="text-[12px] text-[#64748b]">
-            O checklist fica disponível quando o cliente está em <span className="text-amber-700 font-medium">Onboarding</span>.
-            {' '}Use o botão <span className="text-purple-400 font-medium">Negócio fechado → Iniciar onboarding</span> acima para começar.
-          </p>
+        <div className="space-y-4">
+          {client.status === 'onboarding' ? (
+            <ChecklistSection clientId={client.id} />
+          ) : (
+            <Secao n="02" title="Checklist de onboarding">
+              <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>
+                O checklist aparece quando o cliente está em <strong style={{ color: 'var(--sm-text-1)' }}>Onboarding</strong>.
+                {' '}Use <strong style={{ color: 'var(--sm-text-1)' }}>Negócio fechado → Iniciar onboarding</strong> no status para começar.
+              </p>
+            </Secao>
+          )}
+          <DocumentsSection clientId={client.id} />
         </div>
-      )}
-
-      {/* 3. Responsável */}
-      <div className="p-4 rounded-lg border border-[#1e293b] bg-[#182233]">
-        <ResponsibleSection client={client} />
       </div>
 
-      {/* 4. Documentos */}
-      <div className="p-4 rounded-lg border border-[#1e293b] bg-[#182233]">
-        <DocumentsSection clientId={client.id} />
-      </div>
-
-      {/* 5. Briefing */}
-      <div className="p-4 rounded-lg border border-[#1e293b] bg-[#182233]">
-        <BriefingSection clientId={client.id} />
-      </div>
+      <BriefingSection clientId={client.id} />
     </div>
   )
 }

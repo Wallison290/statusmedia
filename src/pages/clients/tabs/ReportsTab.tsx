@@ -22,6 +22,7 @@ import {
 import { supabase } from '@/integrations/supabase/client'
 import { callProxy } from '@/lib/aiProxy'
 import { checkStorageLimit } from '@/utils/storageGate'
+import { TabHeader, PrimaryButton, EmptyState } from './tabUi'
 import type { ClientReport, ReportAttachment, ReportAttachmentType } from '@/types'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -103,29 +104,18 @@ function hasPaid(r: ClientReport) {
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
 
-const CARD_ACCENT: Record<string, { light: string; dark: string }> = {
-  green:  { light: 'border-green-300 bg-green-100',    dark: 'border-green-700/50 bg-green-950/60'   },
-  blue:   { light: 'border-blue-300 bg-blue-100',      dark: 'border-blue-700/50 bg-blue-950/60'     },
-  pink:   { light: 'border-pink-300 bg-pink-100',      dark: 'border-pink-700/50 bg-pink-950/60'     },
-  purple: { light: 'border-purple-300 bg-purple-100',  dark: 'border-purple-700/50 bg-purple-950/60' },
-  amber:  { light: 'border-amber-300 bg-amber-100',    dark: 'border-amber-700/50 bg-amber-950/60'   },
-  teal:   { light: 'border-teal-300 bg-teal-100',      dark: 'border-teal-700/50 bg-teal-950/60'     },
-  sky:    { light: 'border-sky-300 bg-sky-100',        dark: 'border-sky-700/50 bg-sky-950/60'       },
-  violet: { light: 'border-violet-300 bg-violet-100',  dark: 'border-violet-700/50 bg-violet-950/60' },
-}
-
 function MetricCard({
-  icon, label, value, sub, color,
-}: { icon: React.ReactNode; label: string; value: string; sub?: string; color: string }) {
-  const { isDark } = useTheme()
-  const acc = CARD_ACCENT[color] ?? CARD_ACCENT.blue
+  icon, label, value, sub,
+}: { icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${isDark ? acc.dark : acc.light}`}>
-      <div>{icon}</div>
+    <div className="rounded-2xl border p-4 flex flex-col gap-2" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>{label}</p>
+        {icon}
+      </div>
       <div>
-        <p className="text-[11px] font-medium" style={{ color: 'var(--sm-text-2)' }}>{label}</p>
-        <p className="text-[20px] font-bold leading-tight mt-0.5" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-        {sub && <p className="text-[10px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>{sub}</p>}
+        <p className="font-display text-[24px] font-bold leading-tight tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+        {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{sub}</p>}
       </div>
     </div>
   )
@@ -431,14 +421,14 @@ function AddAttachmentModal({
             <div>
               <label className="block text-[12px] text-[#64748b] mb-1.5">Arquivo</label>
               {file ? (
-                <div className="flex items-center gap-2 p-2.5 rounded-md border border-[#e8e8e8] bg-[#fafafa]">
+                <div className="flex items-center gap-2 p-2.5 rounded-md border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)]">
                   <File className="w-3.5 h-3.5 text-[#64748b] flex-shrink-0" />
-                  <span className="text-[12px] text-[#0f0f0f] truncate flex-1">{file.name}</span>
+                  <span className="text-[12px] text-[color:var(--sm-text-1)] truncate flex-1">{file.name}</span>
                   <button type="button" onClick={() => setFile(null)} className="text-[#94a3b8] hover:text-red-700 flex-shrink-0"><X className="w-3 h-3" /></button>
                 </div>
               ) : (
                 <button type="button" onClick={() => fileRef.current?.click()}
-                  className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-[#d0d0d0] bg-white text-[#64748b] text-[12px] hover:border-[#a0a0a0] hover:bg-[#fafafa] transition-colors">
+                  className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-[color:var(--sm-border)] bg-[color:var(--sm-bg-card)] text-[#64748b] text-[12px] hover:border-[#2563EB]/50 hover:bg-black/5 transition-colors">
                   <Upload className="w-3.5 h-3.5" /> Selecionar arquivo
                 </button>
               )}
@@ -623,7 +613,7 @@ function ReportDetail({
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-[16px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{monthLabel(report.month, report.year)}</h3>
+          <h3 className="font-display text-[20px] font-bold capitalize" style={{ color: 'var(--sm-text-1)' }}>{monthLabel(report.month, report.year)}</h3>
           {report.ig_synced_at ? (
             <p className="text-[11px] text-[#16a34a] mt-0.5 flex items-center gap-1">
               <Instagram className="w-3 h-3" /> Sincronizado com o Instagram em {new Date(report.ig_synced_at).toLocaleDateString('pt-BR')}
@@ -652,7 +642,7 @@ function ReportDetail({
               </Button>
               {confirmDel ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-400">Excluir relatório?</span>
+                  <span className="text-[11px] text-[color:var(--sm-text-3)]">Excluir relatório?</span>
                   <Button variant="outline" size="sm" onClick={() => setConfirmDel(false)}>Não</Button>
                   <Button size="sm" onClick={handleDelete}
                     className="bg-red-50 text-red-800 border-red-200 hover:bg-red-100">
@@ -661,7 +651,7 @@ function ReportDetail({
                 </div>
               ) : (
                 <button onClick={() => setConfirmDel(true)}
-                  className="flex items-center gap-1.5 text-[11px] text-gray-600 hover:text-red-400 transition-colors">
+                  className="flex items-center gap-1.5 text-[11px] text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -779,20 +769,15 @@ function ReportDetail({
       )}
 
       {/* ── Análise do mês ── */}
-      <section className="rounded-2xl overflow-hidden"
-        style={{
-          background: isDark ? 'rgba(99,102,241,0.08)' : '#eef2ff',
-          border: isDark ? '1px solid rgba(99,102,241,0.25)' : '1px solid #c7d2fe',
-        }}>
-        <div className="px-5 py-4 flex items-center justify-between gap-2"
-          style={{ borderBottom: isDark ? '1px solid rgba(99,102,241,0.2)' : '1px solid #ddd6fe' }}>
+      <section className="relative rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
+        <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: '#2563EB' }} />
+        <div className="px-5 py-4 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
           <div className="flex items-center gap-2">
-            <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+            <BookOpen className="w-3.5 h-3.5" style={{ color: '#2563EB' }} />
             <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Análise do mês</p>
           </div>
           {!editMode && (
             <Button size="sm" onClick={handleAiAnalysis} disabled={aiLoading}
-              className="bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
               title="Gerar um resumo dos resultados com IA para apresentar ao cliente">
               {aiLoading
                 ? <><RefreshCw className="w-3 h-3 animate-spin" /> Gerando...</>
@@ -871,80 +856,55 @@ export function ReportsTab({ clientId }: { clientId: string }) {
   // ── Gate: Relatórios só nos planos Pro e Agency ─────────────────────────────
   if (!subData?.plan.hasReports) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center">
-          <BarChart3 className="w-6 h-6 text-violet-400" />
-        </div>
-        <div>
-          <p className="text-[14px] font-semibold text-[#0f172a]">Relatórios disponíveis no Pro e Agency</p>
-          <p className="text-[12px] text-[#64748b] mt-1">Faça upgrade para criar e compartilhar relatórios com seus clientes.</p>
-        </div>
-        <a href="/assinatura" className="px-4 py-2 rounded-xl bg-violet-600 text-white text-[12px] font-semibold hover:bg-violet-700 transition-colors">
-          Ver planos
-        </a>
-      </div>
+      <EmptyState Icon={BarChart3} title="Relatórios disponíveis no Pro e Agency"
+        hint="Faça upgrade para criar e compartilhar relatórios com seus clientes."
+        action={<a href="/assinatura" className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center text-white" style={{ background: '#2563EB' }}>Ver planos</a>} />
     )
   }
 
   if (isLoading) {
-    return <div className="py-12 text-center text-[12px] text-gray-600">Carregando...</div>
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5" aria-busy="true">
+        <div className="h-40 rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+        <div className="h-72 rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-5">
-
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Resultados</p>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-            {reports.length} {reports.length === 1 ? 'relatório' : 'relatórios'} cadastrados
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="w-3 h-3" /> Novo relatório
-        </Button>
-      </div>
+    <section>
+      <TabHeader
+        title="Resultados"
+        subtitle={`${reports.length} ${reports.length === 1 ? 'relatório mensal' : 'relatórios mensais'}`}
+        actions={<PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-3.5 h-3.5" /> Novo relatório</PrimaryButton>}
+      />
 
       {reports.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-[#d0d0d0] rounded-2xl">
-          <BarChart3 className="w-8 h-8 text-[#c0c0c0] mx-auto mb-3" />
-          <p className="text-[13px] font-medium text-[#0f0f0f]">Nenhum relatório ainda</p>
-          <p className="text-[11px] text-[#64748b] mt-1 mb-4">
-            Crie o primeiro relatório mensal para este cliente.
-          </p>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-3 h-3" /> Criar primeiro relatório
-          </Button>
-        </div>
+        <EmptyState Icon={BarChart3} title="Nenhum relatório ainda" hint="Crie o primeiro relatório mensal para este cliente."
+          action={<PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-3.5 h-3.5" /> Criar primeiro relatório</PrimaryButton>} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6 items-start">
 
-          {/* ── Sidebar: month list ── */}
-          <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
-            {reports.map(r => (
-              <button
-                key={r.id}
-                onClick={() => setSelectedId(r.id)}
-                className="flex-shrink-0 lg:w-full text-left px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all"
-                style={r.id === selectedId
-                  ? {
-                      background: isDark ? 'rgba(255,255,255,0.12)' : '#1e293b',
-                      color: '#ffffff',
-                      border: isDark ? '1px solid rgba(255,255,255,0.18)' : '1px solid #1e293b',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                    }
-                  : {
-                      background: 'var(--sm-bg-card)',
-                      color: 'var(--sm-text-2)',
-                      border: '1px solid var(--sm-border)',
-                    }
-                }
-              >
-                {monthLabel(r.month, r.year)}
-              </button>
-            ))}
-          </div>
+          {/* ── Meses: lista fina com barra azul no selecionado ── */}
+          <nav aria-label="Meses" className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0 lg:sticky lg:top-4">
+            {reports.map(r => {
+              const ativo = r.id === selectedId
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedId(r.id)}
+                  aria-current={ativo ? 'true' : undefined}
+                  className="relative flex-shrink-0 lg:w-full text-left px-3.5 h-9 rounded-lg text-[13px] capitalize whitespace-nowrap transition-colors hover:bg-black/5"
+                  style={ativo
+                    ? { background: 'rgba(37,99,235,0.08)', color: 'var(--sm-text-1)', fontWeight: 600 }
+                    : { color: 'var(--sm-text-3)', fontWeight: 500 }}
+                >
+                  {ativo && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r" style={{ background: '#2563EB' }} />}
+                  {monthLabel(r.month, r.year)}
+                </button>
+              )
+            })}
+          </nav>
 
           {/* ── Content ── */}
           {selected && (
@@ -966,6 +926,6 @@ export function ReportsTab({ clientId }: { clientId: string }) {
         onClose={() => setCreateOpen(false)}
         onCreated={id => setSelectedId(id)}
       />
-    </div>
+    </section>
   )
 }

@@ -17,23 +17,28 @@ import { useToast } from '@/components/ui/toast'
 import { formatDate, isOverdue } from '@/utils/formatters'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
 
+import { TabHeader, PrimaryButton, GhostButton, EmptyState, DotLabel, cardStyle, inputStyle } from './tabUi'
+
 // ─── Configs ──────────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<TaskStatus, { label: string; bg: string; text: string; dot: string }> = {
-  a_fazer:      { label: 'A fazer',      bg: 'bg-[#f0f0f0]',  text: 'text-[#737373]',   dot: 'bg-[#c0c0c0]'   },
-  em_andamento: { label: 'Em andamento', bg: 'bg-blue-50',    text: 'text-blue-900',    dot: 'bg-blue-400'    },
-  revisao:      { label: 'Revisão',      bg: 'bg-amber-50',   text: 'text-amber-900',   dot: 'bg-amber-400'   },
-  concluido:    { label: 'Concluído',    bg: 'bg-emerald-50', text: 'text-emerald-900', dot: 'bg-emerald-400' },
+const STATUS_CFG: Record<TaskStatus, { label: string; color: string }> = {
+  a_fazer:      { label: 'A fazer',      color: '#94A3B8' },
+  em_andamento: { label: 'Em andamento', color: '#2563EB' },
+  revisao:      { label: 'Revisão',      color: '#F59E0B' },
+  concluido:    { label: 'Concluído',    color: '#10B981' },
 }
 
-const PRIORITY_CFG: Record<TaskPriority, { label: string; bg: string; text: string }> = {
-  baixa:   { label: 'Baixa',   bg: 'bg-[#f0f0f0]', text: 'text-[#737373]' },
-  media:   { label: 'Média',   bg: 'bg-blue-50',   text: 'text-blue-800'  },
-  alta:    { label: 'Alta',    bg: 'bg-amber-50',  text: 'text-amber-800' },
-  urgente: { label: 'Urgente', bg: 'bg-red-50',    text: 'text-red-800'   },
+const PRIORITY_CFG: Record<TaskPriority, { label: string; color: string }> = {
+  baixa:   { label: 'Baixa',   color: '#94A3B8' },
+  media:   { label: 'Média',   color: '#2563EB' },
+  alta:    { label: 'Alta',    color: '#F59E0B' },
+  urgente: { label: 'Urgente', color: '#EF4444' },
 }
 
-// ─── Status pill com dropdown inline ─────────────────────────────────────────
+const labelCls = 'block text-[10.5px] font-semibold mb-1.5 uppercase tracking-[0.08em] text-[color:var(--sm-text-4)]'
+const boxStyle = { background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' } as const
+
+// ─── Status (ponto + texto) com dropdown inline ──────────────────────────────
 
 function StatusPill({ status, onChange }: { status: TaskStatus; onChange: (s: TaskStatus) => void }) {
   const [open, setOpen] = useState(false)
@@ -42,10 +47,13 @@ function StatusPill({ status, onChange }: { status: TaskStatus; onChange: (s: Ta
     <div className="relative">
       <button
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${cfg.bg} ${cfg.text}`}
+        className="inline-flex items-center gap-1.5 h-6 pl-2 pr-1.5 -ml-2 rounded-md text-[11.5px] font-medium hover:bg-black/5 transition-colors"
+        style={{ color: 'var(--sm-text-2)' }}
+        title="Mudar status"
       >
-        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
         {cfg.label}
+        <ChevronDown className="w-3 h-3" style={{ color: 'var(--sm-text-4)' }} />
       </button>
       <AnimatePresence>
         {open && (
@@ -56,16 +64,18 @@ function StatusPill({ status, onChange }: { status: TaskStatus; onChange: (s: Ta
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -4 }}
               transition={{ duration: 0.12 }}
-              className="absolute left-0 top-full mt-1 z-40 bg-white border border-[#e2e8f0] rounded-xl shadow-lg overflow-hidden py-1 min-w-[150px]"
+              className="absolute left-0 top-full mt-1 z-40 border rounded-xl shadow-lg overflow-hidden p-1 min-w-[160px]"
+              style={cardStyle}
               onClick={e => e.stopPropagation()}
             >
               {(Object.entries(STATUS_CFG) as [TaskStatus, typeof STATUS_CFG[TaskStatus]][]).map(([s, c]) => (
                 <button
                   key={s}
                   onClick={e => { e.stopPropagation(); onChange(s); setOpen(false) }}
-                  className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-[#f5f7fb] transition-colors flex items-center gap-2 ${s === status ? 'font-semibold' : ''}`}
+                  className={`w-full text-left px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-black/5 transition-colors flex items-center gap-2 ${s === status ? 'font-semibold' : ''}`}
+                  style={{ color: 'var(--sm-text-1)' }}
                 >
-                  <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
                   {c.label}
                 </button>
               ))}
@@ -166,7 +176,7 @@ function TaskDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Prioridade</label>
+              <label className={labelCls}>Prioridade</label>
               <Select value={form.priority} onValueChange={v => set('priority', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -178,7 +188,7 @@ function TaskDialog({
               </Select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Status</label>
+              <label className={labelCls}>Status</label>
               <Select value={form.status} onValueChange={v => set('status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -194,21 +204,21 @@ function TaskDialog({
           <div className="grid grid-cols-2 gap-3">
             <Input label="Data" type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} />
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Horário</label>
+              <label className={labelCls}>Horário</label>
               <div className="relative">
-                <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b] pointer-events-none z-10" />
+                <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-[color:var(--sm-text-4)] z-10" />
                 <input
                   type="time"
                   value={form.due_time}
                   onChange={e => set('due_time', e.target.value)}
-                  className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#1e293b] bg-[#182233] text-[13px] text-[#E2E8F0] focus:outline-none focus:border-[#2563EB]/50 focus:ring-2 focus:ring-[#2563EB]/20 [color-scheme:dark]"
+                  className="w-full h-9 pl-8 pr-3 rounded-lg border text-[13px] focus:outline-none focus:border-[#2563EB]/50 focus:ring-2 focus:ring-[#2563EB]/20 [color-scheme:light_dark]" style={inputStyle}
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Responsável</label>
+            <label className={labelCls}>Responsável</label>
             <Select
               value={form.assignee_id || '__none__'}
               onValueChange={v => {
@@ -242,7 +252,6 @@ function TaskDialog({
     </Dialog>
   )
 }
-
 // ─── Modal de visualização da tarefa ─────────────────────────────────────────
 
 function TaskViewModal({
@@ -259,7 +268,6 @@ function TaskViewModal({
   if (!task) return null
 
   const pCfg   = PRIORITY_CFG[task.priority]
-  const sCfg   = STATUS_CFG[task.status]
   const member = members.find(m => m.id === (task as any).assignee_id)
   const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
 
@@ -267,171 +275,111 @@ function TaskViewModal({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <div className="flex items-start justify-between gap-3 pr-6">
-            <DialogTitle className="text-[16px] font-semibold text-[#0f0f0f] leading-snug">
-              {task.title}
-            </DialogTitle>
-          </div>
+          <DialogTitle className="font-display text-[18px] font-bold leading-snug pr-6 text-[color:var(--sm-text-1)]">
+            {task.title}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-1 overflow-y-auto max-h-[60vh] pr-1">
-          {/* Badges: prioridade + status */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${pCfg.bg} ${pCfg.text}`}>
-              {task.priority === 'urgente' && <AlertCircle className="w-3 h-3" />}
-              {pCfg.label}
-            </span>
-            <div className="relative inline-flex items-center">
-              <select
-                value={task.status}
-                onChange={e => { const next = e.target.value as TaskStatus; if (next !== task.status) onStatusChange(task.id, next) }}
-                title="Mudar status"
-                className={`appearance-none cursor-pointer rounded-full border border-black/10 pl-2.5 pr-7 py-1 text-[11px] font-medium outline-none transition-colors ${sCfg.bg} ${sCfg.text}`}
-              >
-                {(Object.entries(STATUS_CFG) as [TaskStatus, typeof STATUS_CFG[TaskStatus]][]).map(([s, c]) => (
-                  <option key={s} value={s} className="bg-[#0d0f14] text-[#F8FAFC]">{c.label}</option>
-                ))}
-              </select>
-              <ChevronDown className={`w-3 h-3 absolute right-1.5 pointer-events-none ${sCfg.text}`} />
-            </div>
-            {overdue && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-red-50 text-red-700 border border-red-200">
-                ⚠ Atrasada
-              </span>
-            )}
+          {/* Prioridade + status + atraso */}
+          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+            <DotLabel color={pCfg.color}>Prioridade {pCfg.label.toLowerCase()}</DotLabel>
+            <StatusPill status={task.status}
+              onChange={next => { if (next !== task.status) onStatusChange(task.id, next) }} />
+            {overdue && <DotLabel color="#EF4444"><span style={{ color: '#EF4444' }}>Atrasada</span></DotLabel>}
           </div>
 
-          {/* Descrição */}
           {task.description && (
-            <div className="bg-[#f8fafc] rounded-xl p-3.5 border border-[#e8e8e8]">
-              <p className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5">Descrição</p>
-              <p className="text-[13px] text-[#374151] leading-relaxed whitespace-pre-wrap">{task.description}</p>
+            <div className="rounded-xl p-3.5 border" style={boxStyle}>
+              <p className={labelCls}>Descrição</p>
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-1)' }}>{task.description}</p>
             </div>
           )}
 
-          {/* Grid de detalhes */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Data e hora */}
-            <div className="bg-[#f8fafc] rounded-xl p-3 border border-[#e8e8e8]">
-              <p className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                <CalendarDays className="w-3 h-3" /> Prazo
-              </p>
+          <dl className="grid grid-cols-2 rounded-xl border overflow-hidden" style={boxStyle}>
+            <div className="p-3">
+              <dt className={`${labelCls} flex items-center gap-1`}><CalendarDays className="w-3 h-3" /> Prazo</dt>
               {task.due_date ? (
-                <>
-                  <p className={`text-[13px] font-medium ${overdue ? 'text-red-600' : 'text-[#0f0f0f]'}`}>
+                <dd>
+                  <p className="text-[13px] font-medium" style={{ color: overdue ? '#EF4444' : 'var(--sm-text-1)' }}>
                     {format(new Date(task.due_date + 'T00:00:00'), "d 'de' MMMM yyyy", { locale: ptBR })}
                   </p>
                   {task.due_time && (
-                    <p className="text-[12px] text-[#64748b] mt-0.5 flex items-center gap-1">
+                    <p className="text-[12px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--sm-text-3)' }}>
                       <Clock className="w-3 h-3" /> {task.due_time.slice(0, 5)}
                     </p>
                   )}
-                </>
+                </dd>
               ) : (
-                <p className="text-[13px] text-[#94a3b8]">Sem prazo</p>
+                <dd className="text-[13px]" style={{ color: 'var(--sm-text-4)' }}>Sem prazo</dd>
               )}
             </div>
-
-            {/* Responsável */}
-            <div className="bg-[#f8fafc] rounded-xl p-3 border border-[#e8e8e8]">
-              <p className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                <User className="w-3 h-3" /> Responsável
-              </p>
-              {member ? (
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                    style={{ backgroundColor: member.color }}
-                  >
-                    {member.name.charAt(0).toUpperCase()}
+            <div className="p-3 border-l" style={{ borderColor: 'var(--sm-border)' }}>
+              <dt className={`${labelCls} flex items-center gap-1`}><User className="w-3 h-3" /> Responsável</dt>
+              <dd>
+                {member ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                      style={{ backgroundColor: member.color }}>
+                      {member.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>{member.name}</span>
                   </span>
-                  <span className="text-[13px] font-medium text-[#0f0f0f]">{member.name}</span>
-                </div>
-              ) : task.assignee ? (
-                <p className="text-[13px] text-[#374151]">{task.assignee}</p>
-              ) : (
-                <p className="text-[13px] text-[#94a3b8]">Agência</p>
-              )}
+                ) : (
+                  <span className="text-[13px]" style={{ color: task.assignee ? 'var(--sm-text-1)' : 'var(--sm-text-4)' }}>
+                    {task.assignee || 'Agência'}
+                  </span>
+                )}
+              </dd>
             </div>
-          </div>
+          </dl>
 
           {/* Referências e materiais (task_links) */}
           {Array.isArray(task.task_links) && task.task_links.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-2">
-                Referências e materiais ({task.task_links.length})
-              </p>
+              <p className={`${labelCls} mb-2`}>Referências e materiais ({task.task_links.length})</p>
               <div className="space-y-2">
                 {task.task_links.map((link: TaskLink) => {
+                  const rodape = (
+                    <div className="flex items-center justify-between px-3 py-2" style={{ background: 'var(--sm-bg-card)' }}>
+                      <span className="text-[11.5px] font-medium truncate flex-1" style={{ color: 'var(--sm-text-2)' }}>{link.label}</span>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="ml-2 flex-shrink-0 hover:opacity-70" style={{ color: 'var(--sm-text-4)' }}>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )
                   if (link.type === 'imagem') {
                     return (
-                      <div key={link.id} className="rounded-xl overflow-hidden border border-[#e2e8f0]">
-                        <img
-                          src={link.url}
-                          alt={link.label}
-                          className="w-full max-h-64 object-cover"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-                        <div className="flex items-center justify-between px-3 py-2 bg-white">
-                          <span className="text-[11px] font-medium text-[#334155] truncate flex-1">{link.label}</span>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="text-[#94a3b8] hover:text-[#0f0f0f] ml-2 flex-shrink-0">
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
+                      <div key={link.id} className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--sm-border)' }}>
+                        <img src={link.url} alt={link.label} className="w-full max-h-64 object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                        {rodape}
                       </div>
                     )
                   }
-
                   if (link.type === 'video') {
                     return (
-                      <div key={link.id} className="rounded-xl overflow-hidden border border-[#e2e8f0]">
-                        <video
-                          src={link.url}
-                          controls
-                          className="w-full max-h-64 bg-black"
-                          preload="metadata"
-                        />
-                        <div className="flex items-center justify-between px-3 py-2 bg-white">
-                          <span className="text-[11px] font-medium text-[#334155] truncate flex-1">{link.label}</span>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="text-[#94a3b8] hover:text-[#0f0f0f] ml-2 flex-shrink-0">
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
+                      <div key={link.id} className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--sm-border)' }}>
+                        <video src={link.url} controls className="w-full max-h-64 bg-black" preload="metadata" />
+                        {rodape}
                       </div>
                     )
                   }
 
-                  const iconMap: Record<string, LucideIcon> = {
-                    link:    Link2,
-                    arquivo: FileText,
-                    pasta:   Folder,
-                  }
+                  const iconMap: Record<string, LucideIcon> = { link: Link2, arquivo: FileText, pasta: Folder }
                   const Icon = iconMap[link.type] ?? Link2
-                  const colorMap: Record<string, string> = {
-                    link:    'text-blue-800 bg-blue-50',
-                    arquivo: 'text-amber-800 bg-amber-50',
-                    pasta:   'text-emerald-800 bg-emerald-50',
-                  }
-                  const colorCls = colorMap[link.type] ?? 'text-blue-800 bg-blue-50'
-
                   return (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-xl border border-[#e2e8f0] hover:border-blue-300 hover:bg-blue-50/50 transition-all group"
-                    >
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${colorCls}`}>
+                    <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-xl border hover:border-[#2563EB]/50 transition-colors group"
+                      style={{ borderColor: 'var(--sm-border)' }}>
+                      <span className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)' }}>
                         <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium text-[#334155] truncate group-hover:text-blue-700">{link.label}</p>
-                        <p className="text-[10px] text-[#94a3b8] truncate">{link.url}</p>
-                      </div>
-                      <ExternalLink className="w-3 h-3 text-[#c0c0c0] group-hover:text-blue-400 flex-shrink-0" />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[12.5px] font-medium truncate" style={{ color: 'var(--sm-text-1)' }}>{link.label}</span>
+                        <span className="block text-[10.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>{link.url}</span>
+                      </span>
+                      <ExternalLink className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
                     </a>
                   )
                 })}
@@ -441,37 +389,30 @@ function TaskViewModal({
 
           {/* Entrega do colaborador */}
           {(task.collaborator_note || task.delivery_url) && (
-            <div className="bg-violet-50 rounded-xl p-3.5 border border-violet-100 space-y-1.5">
-              <p className="text-[10px] font-semibold text-violet-500 uppercase tracking-wider">Entrega do colaborador</p>
+            <div className="relative rounded-xl p-3.5 pl-4 border space-y-1.5 overflow-hidden" style={boxStyle}>
+              <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: '#8B5CF6' }} />
+              <p className={labelCls}>Entrega do colaborador</p>
               {task.collaborator_note && (
-                <p className="text-[12px] text-violet-800 leading-relaxed">📝 {task.collaborator_note}</p>
+                <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--sm-text-1)' }}>{task.collaborator_note}</p>
               )}
               {task.delivery_url && (
-                <a
-                  href={task.delivery_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[11px] text-violet-600 hover:text-violet-800 font-medium"
-                >
+                <a href={task.delivery_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: '#2563EB' }}>
                   <ExternalLink className="w-3 h-3" /> Ver entrega enviada
                 </a>
               )}
             </div>
           )}
 
-          {/* Data de criação */}
-          <p className="text-[11px] text-[#94a3b8]">
+          <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>
             Criada em {format(new Date(task.created_at), "d 'de' MMMM yyyy 'às' HH:mm", { locale: ptBR })}
           </p>
         </div>
 
-        <DialogFooter className="gap-2 border-t border-[#f1f5f9] pt-3">
-          <Button
-            variant="outline"
-            size="sm"
+        <DialogFooter className="gap-2 border-t pt-3 border-[color:var(--sm-border)]">
+          <Button variant="outline" size="sm"
             className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-            onClick={() => { onClose(); onDelete(task.id) }}
-          >
+            onClick={() => { onClose(); onDelete(task.id) }}>
             <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
           </Button>
           <div className="flex-1" />
@@ -561,169 +502,127 @@ export function TasksTab({ clientId }: { clientId: string }) {
     } catch (err: any) { toast(err.message, 'error') }
   }
 
+  const abertas    = tasks.filter(t => t.status !== 'concluido').length
+  const atrasadas  = tasks.filter(t => t.status !== 'concluido' && isOverdue(t.due_date)).length
+
   return (
-    <div className="space-y-3">
-      {/* Header da aba */}
-      <div className="flex items-center justify-between">
-        <p className="text-[12px] text-[#94a3b8]">
-          {tasks.length} tarefa{tasks.length !== 1 ? 's' : ''}
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setTemplateOpen(true)}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-[#1e293b] bg-[#111827] text-[#CBD5E1] hover:border-[#334155] transition-colors"
-          >
+    <section>
+      <TabHeader
+        title="Tarefas"
+        subtitle={tasks.length === 0
+          ? 'Nada criado para este cliente ainda.'
+          : <>
+              {abertas} em aberto · {tasks.length - abertas} concluída{tasks.length - abertas !== 1 ? 's' : ''}
+              {atrasadas > 0 && <span style={{ color: '#EF4444' }}> · {atrasadas} atrasada{atrasadas !== 1 ? 's' : ''}</span>}
+            </>}
+        actions={<>
+          <GhostButton onClick={() => setTemplateOpen(true)}>
             <ListChecks className="w-3.5 h-3.5" /> Usar modelo
-          </button>
-          <button
-            onClick={handleNew}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors"
-          >
+          </GhostButton>
+          <PrimaryButton onClick={handleNew}>
             <Plus className="w-3.5 h-3.5" /> Nova tarefa
-          </button>
-        </div>
-      </div>
+          </PrimaryButton>
+        </>}
+      />
 
-      {/* Lista */}
-      <AnimatePresence>
-        {tasks.map((task, i) => {
-          const pCfg    = PRIORITY_CFG[task.priority]
-          const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
-          const member  = activeMembers.find(m => m.id === (task as any).assignee_id)
-          const isConfirming = deletingId === task.id
+      {tasks.length === 0 ? (
+        <EmptyState Icon={CalendarDays} title="Nenhuma tarefa ainda" hint="Crie a primeira tarefa ou aplique um modelo pronto."
+          action={<PrimaryButton onClick={handleNew}><Plus className="w-3.5 h-3.5" /> Nova tarefa</PrimaryButton>} />
+      ) : (
+        // Lista em uma só folha, separada por linhas finas. A barra de 3px à
+        // esquerda mostra a prioridade (vermelha quando a tarefa está atrasada).
+        <div className="rounded-2xl border overflow-hidden" style={cardStyle}>
+          <AnimatePresence initial={false}>
+            {tasks.map((task, i) => {
+              const pCfg    = PRIORITY_CFG[task.priority]
+              const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
+              const member  = activeMembers.find(m => m.id === (task as any).assignee_id)
+              const isConfirming = deletingId === task.id
+              const done = task.status === 'concluido'
 
-          return (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
-              transition={{ delay: i * 0.03, duration: 0.18 }}
-              onClick={() => !isConfirming && handleView(task)}
-              className={`bg-white rounded-xl border transition-all hover:shadow-md cursor-pointer group ${
-                overdue ? 'border-red-200 border-l-[3px] border-l-red-400' : 'border-[#e8e8e8]'
-              }`}
-            >
-              <div className="p-3.5 flex items-start gap-3">
-                {/* Conteúdo principal */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className={`text-[13px] font-medium leading-snug ${task.status === 'concluido' ? 'line-through text-[#9ca3af]' : 'text-[#0f0f0f]'}`}>
-                      {task.title}
-                    </p>
-                    {/* Badge prioridade */}
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pCfg.bg} ${pCfg.text}`}>
-                      {pCfg.label}
-                    </span>
-                  </div>
+              return (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                  onClick={() => !isConfirming && handleView(task)}
+                  className={`relative cursor-pointer group hover:bg-black/[0.02] transition-colors ${i > 0 ? 'border-t' : ''}`}
+                  style={{ borderColor: 'var(--sm-border)' }}
+                >
+                  <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r"
+                    style={{ background: overdue ? '#EF4444' : done ? 'var(--sm-border)' : pCfg.color }} />
+                  <div className="pl-5 pr-3 py-3 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[13.5px] font-semibold leading-snug ${done ? 'line-through' : ''}`}
+                        style={{ color: done ? 'var(--sm-text-4)' : 'var(--sm-text-1)' }}>
+                        {task.title}
+                      </p>
+                      {task.description && (
+                        <p className="text-[12px] mt-0.5 leading-relaxed line-clamp-1" style={{ color: 'var(--sm-text-3)' }}>{task.description}</p>
+                      )}
 
-                  {task.description && (
-                    <p className="text-[11px] text-[#9ca3af] mb-2 leading-relaxed line-clamp-2">{task.description}</p>
-                  )}
-
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {/* Status — stop propagation para não abrir modal de view */}
-                    <div onClick={e => e.stopPropagation()}>
-                      <StatusPill
-                        status={task.status}
-                        onChange={s => handleStatusChange(task, s)}
-                      />
+                      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap mt-1.5">
+                        <div onClick={e => e.stopPropagation()}>
+                          <StatusPill status={task.status} onChange={s => handleStatusChange(task, s)} />
+                        </div>
+                        <span className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>{pCfg.label}</span>
+                        {task.due_date && (
+                          <span className="inline-flex items-center gap-1 text-[11.5px] tabular-nums"
+                            style={{ color: overdue ? '#EF4444' : 'var(--sm-text-3)', fontWeight: overdue ? 600 : 400 }}>
+                            <CalendarDays className="w-3 h-3" />
+                            {formatDate(task.due_date)}
+                            {task.due_time && <> · {task.due_time.slice(0, 5)}</>}
+                            {overdue && ' · atrasada'}
+                          </span>
+                        )}
+                        {(task.assignee || member) && (
+                          <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>
+                            {member ? (
+                              <>
+                                <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0"
+                                  style={{ backgroundColor: member.color }}>
+                                  {member.name.charAt(0).toUpperCase()}
+                                </span>
+                                {member.name}
+                              </>
+                            ) : (
+                              <><User className="w-3 h-3" /> {task.assignee}</>
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Data */}
-                    {task.due_date && (
-                      <span className={`inline-flex items-center gap-1 text-[11px] ${overdue ? 'text-red-500 font-medium' : 'text-[#94a3b8]'}`}>
-                        <CalendarDays className="w-3 h-3" />
-                        {formatDate(task.due_date)}
-                        {task.due_time && <span className="ml-0.5">· {task.due_time.slice(0, 5)}</span>}
-                        {overdue && <span className="text-[10px]">(atrasada)</span>}
-                      </span>
-                    )}
-
-                    {/* Responsável */}
-                    {(task.assignee || member) && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-[#94a3b8]">
-                        {member ? (
-                          <>
-                            <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0"
-                              style={{ backgroundColor: member.color }}>
-                              {member.name.charAt(0).toUpperCase()}
-                            </span>
-                            {member.name}
-                          </>
-                        ) : (
-                          <>
-                            <User className="w-3 h-3" />
-                            {task.assignee}
-                          </>
-                        )}
-                      </span>
-                    )}
+                    {/* Ações (no celular ficam sempre visíveis) */}
+                    <div className="flex items-center gap-0.5 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                      onClick={e => e.stopPropagation()}>
+                      {isConfirming ? (
+                        <>
+                          <span className="text-[11.5px] mr-1" style={{ color: 'var(--sm-text-3)' }}>Excluir?</span>
+                          <button onClick={() => setDeletingId(null)}
+                            className="h-7 px-2 rounded-md text-[11.5px] hover:bg-black/5" style={{ color: 'var(--sm-text-2)' }}>Não</button>
+                          <button onClick={() => handleDelete(task.id)}
+                            className="h-7 px-2 rounded-md text-[11.5px] font-semibold hover:bg-red-500/10" style={{ color: '#EF4444' }}>Sim</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleEdit(task)} title="Editar" aria-label="Editar"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors" style={{ color: 'var(--sm-text-3)' }}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setDeletingId(task.id)} title="Excluir" aria-label="Excluir"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 transition-colors" style={{ color: 'var(--sm-text-3)' }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                {/* Ações */}
-                <div
-                  className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={e => e.stopPropagation()}
-                >
-                  {isConfirming ? (
-                    <>
-                      <span className="text-[11px] text-[#9ca3af] mr-1">Excluir?</span>
-                      <button
-                        onClick={() => setDeletingId(null)}
-                        className="px-2 py-1 rounded-lg text-[11px] text-[#64748b] hover:bg-[#f1f5f9] transition-colors"
-                      >
-                        Não
-                      </button>
-                      <button
-                        onClick={() => handleDelete(task.id)}
-                        className="px-2 py-1 rounded-lg text-[11px] text-red-600 hover:bg-red-50 font-medium transition-colors"
-                      >
-                        Sim
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleEdit(task)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9ca3af] hover:text-[#0f0f0f] hover:bg-[#f1f5f9] transition-colors"
-                        title="Editar"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setDeletingId(task.id)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9ca3af] hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )
-        })}
-      </AnimatePresence>
-
-      {/* Empty state */}
-      {tasks.length === 0 && (
-        <div className="text-center py-12 flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#f1f5f9] flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-[#94a3b8]" />
-          </div>
-          <div>
-            <p className="text-[13px] font-medium text-[#374151]">Nenhuma tarefa ainda</p>
-            <p className="text-[12px] text-[#9ca3af] mt-0.5">Crie a primeira tarefa para este cliente</p>
-          </div>
-          <button
-            onClick={handleNew}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> Nova tarefa
-          </button>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
         </div>
       )}
 
@@ -759,6 +658,6 @@ export function TasksTab({ clientId }: { clientId: string }) {
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
       />
-    </div>
+    </section>
   )
 }
