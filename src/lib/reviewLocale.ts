@@ -298,6 +298,7 @@ const DICT: Record<string, string> = {
   'Não foi possível alterar a data.': 'Could not change the date.',
   'Detalhes da conta selecionada': 'Selected account details',
   'Selecione uma conta para ver os detalhes': 'Select an account to see the details',
+  'Publicação': 'Publishing',
   'Desconectar conta': 'Disconnect account',
 
   // ── Planner ────────────────────────────────────────────────────────────────
@@ -646,6 +647,8 @@ const month = (m: string) => MONTHS[m.toLowerCase().replace('.', '')] ?? m
 
 // Textos com número ou data no meio. Cada regex cobre o nó de texto inteiro.
 const PATTERNS: Array<[RegExp, (...m: string[]) => string]> = [
+  [/^Conexão até (\d{2}\/[a-z]{3})$/, (_, d) => `Connected until ${d}`],
+  [/^Conexão expira em (\d+)d$/, (_, n) => `Connection expires in ${n}d`],
   [/^([\d.,]+) seguidores$/, (_, n) => `${n} followers`],
   [/^([\d.,]+) dias?$/, (_, n) => `${n} day${n === '1' ? '' : 's'}`],
   // "06 de out. às 14:30", "6 de outubro de 2026"

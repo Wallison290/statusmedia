@@ -12,7 +12,6 @@ import {
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useToast } from '@/components/ui/toast'
-import { useTheme } from '@/contexts/ThemeContext'
 import { supabase } from '@/integrations/supabase/client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/useAuth'
@@ -30,10 +29,18 @@ import {
   type InstagramAccount,
 } from '@/hooks/useInstagram'
 
-// ── Paleta dark ───────────────────────────────────────────────────────────────
-// bg #0B0F14 · surface #111827 · elevated #0F172A · border #1F2937
-// primary #2563EB hover #1D4ED8 · text #FFFFFF / #9CA3AF / #D1D5DB
-// success #22C55E · warning #F59E0B · error #EF4444 · neutral #6B7280
+// ── Visual ────────────────────────────────────────────────────────────────────
+// Mesmo padrão editorial do sistema: tokens de tema, status como ponto + texto
+// e barra de 3px à esquerda. O gradiente do Instagram fica só no anel do avatar.
+// Os textos visíveis batem com o dicionário de src/lib/reviewLocale.ts (modo
+// inglês do App Review da Meta) — ao mudar um rótulo, atualize lá também.
+
+const IG_RING = 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'
+const card = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
+const eyebrow = 'text-[10.5px] font-semibold uppercase tracking-[0.08em]'
+const primaryBtn = 'inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90 whitespace-nowrap'
+const ghostBtn = 'inline-flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl border text-[13px] font-medium hover:bg-black/5 transition-colors whitespace-nowrap disabled:opacity-50'
+const ghostStyle = { borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' } as const
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -43,7 +50,7 @@ type TabType = 'all' | 'scheduled' | 'published' | 'failed' | 'cancelled'
 const MAX_RETRIES = 3
 
 // A renovação do token é automática (Edge Function instagram-token-refresh,
-// diária, renova quando faltam 10 dias). O badge fica sempre visível: em estado
+// diária, renova quando faltam 10 dias). O aviso fica sempre visível: em estado
 // normal serve de confirmação de que a renovação está em dia — sem ele, "nada
 // aparecendo" é indistinguível de "quebrado". Laranja e vermelho só surgem
 // quando a renovação automática não deu conta e a reconexão manual virou a
@@ -58,35 +65,52 @@ function tokenDaysLeft(expiresAt: string | null): number | null {
   return Math.floor((new Date(expiresAt).getTime() - Date.now()) / 86_400_000)
 }
 
-function TokenBadge({ expiresAt }: { expiresAt: string | null }) {
+function tokenState(expiresAt: string | null) {
   const days = tokenDaysLeft(expiresAt)
   if (days === null) return null
-
   const expired = days <= 0
   const warning = !expired && days <= TOKEN_WARN_DAYS
+  const d       = new Date(expiresAt!)
+  const data    = `${String(d.getDate()).padStart(2, '0')}/${MESES_ABREV[d.getMonth()]}`
+  return {
+    expired, warning,
+    label: expired ? 'Reconectar Instagram' : warning ? `Conexão expira em ${days}d` : `Conexão até ${data}`,
+    color: expired ? '#EF4444' : warning ? '#F59E0B' : '#22C55E',
+    title: expired
+      ? 'A conexão com o Instagram expirou. Reconecte a conta para voltar a publicar.'
+      : warning
+        ? 'A renovação automática não conseguiu estender esta conexão. Reconecte a conta.'
+        : `Renovação automática em dia. A conexão é estendida sozinha ${TOKEN_WARN_DAYS + 3} dias antes de vencer.`,
+  }
+}
 
-  const d     = new Date(expiresAt!)
-  const data  = `${String(d.getDate()).padStart(2, '0')}/${MESES_ABREV[d.getMonth()]}`
-
-  const label = expired ? 'Reconectar Instagram'
-              : warning ? `Conexão expira em ${days}d`
-              : `Conexão até ${data}`
-
-  const bg    = expired ? '#dc2626' : warning ? '#d97706' : '#6B7280'
-
-  const title = expired
-    ? 'A conexão com o Instagram expirou. Reconecte a conta para voltar a publicar.'
-    : warning
-      ? 'A renovação automática não conseguiu estender esta conexão. Reconecte a conta.'
-      : `Renovação automática em dia. A conexão é estendida sozinha ${TOKEN_WARN_DAYS + 3} dias antes de vencer.`
-
+function TokenBadge({ expiresAt }: { expiresAt: string | null }) {
+  const st = tokenState(expiresAt)
+  if (!st) return null
+  const alerta = st.expired || st.warning
   return (
-    <span
-      className="inline-block mt-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-      style={{ background: bg, color: '#ffffff' }}
-      title={title}
-    >
-      {label}
+    <span className="inline-flex items-center gap-1.5 text-[11.5px] whitespace-nowrap" title={st.title}
+      style={{ color: alerta ? st.color : 'var(--sm-text-3)', fontWeight: alerta ? 600 : 500 }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.color }} />
+      {st.label}
+    </span>
+  )
+}
+
+function IgAvatar({ account, size, onError }: { account: InstagramAccount; size: number; onError: () => void }) {
+  return (
+    <span className="block rounded-full p-[2px] flex-shrink-0" style={{ width: size, height: size, background: IG_RING }}>
+      <span className="block w-full h-full rounded-full p-[2px]" style={{ background: 'var(--sm-bg-card)' }}>
+        {account.profile_picture_url ? (
+          <img src={account.profile_picture_url} alt={account.username}
+            className="w-full h-full rounded-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = 'none'; onError() }} />
+        ) : (
+          <span className="w-full h-full rounded-full flex items-center justify-center" style={{ background: 'var(--sm-bg-alt)' }}>
+            <Instagram className="w-1/2 h-1/2" style={{ color: 'var(--sm-text-3)' }} />
+          </span>
+        )}
+      </span>
     </span>
   )
 }
@@ -97,14 +121,12 @@ const POST_TYPE_CFG = {
   REELS:          { label: 'Reel',      Icon: Film       },
 } as const
 
-// solidBg: usado no pill de status (fundo sólido + texto branco, imune ao tema).
-// cardBgDark/cardBgLight: usados no wash sutil do card inteiro, por tema.
 const STATUS_CFG = {
-  scheduled:  { label: 'Agendado',   solidBg: '#2563EB', cardBgDark: 'bg-[#2563EB]/10 border-[#2563EB]/30', cardBgLight: 'bg-blue-50 border-blue-300',       dot: 'bg-[#2563EB]', Icon: Clock,        spin: false },
-  publishing: { label: 'Publicando', solidBg: '#b45309', cardBgDark: 'bg-[#F59E0B]/10 border-[#F59E0B]/30', cardBgLight: 'bg-amber-50 border-amber-300',     dot: 'bg-[#F59E0B]', Icon: Loader2,      spin: true  },
-  published:  { label: 'Publicado',  solidBg: '#059669', cardBgDark: 'bg-[#22C55E]/10 border-[#22C55E]/30', cardBgLight: 'bg-emerald-50 border-emerald-300', dot: 'bg-[#22C55E]', Icon: CheckCircle2, spin: false },
-  failed:     { label: 'Falhou',     solidBg: '#dc2626', cardBgDark: 'bg-[#EF4444]/10 border-[#EF4444]/30', cardBgLight: 'bg-red-50 border-red-300',         dot: 'bg-[#EF4444]', Icon: XCircle,      spin: false },
-  cancelled:  { label: 'Cancelado',  solidBg: '#475569', cardBgDark: 'bg-[#6B7280]/10 border-[#6B7280]/30', cardBgLight: 'bg-gray-100 border-gray-300',      dot: 'bg-[#6B7280]', Icon: X,            spin: false },
+  scheduled:  { label: 'Agendado',   color: '#2563EB', Icon: Clock,        spin: false },
+  publishing: { label: 'Publicando', color: '#F59E0B', Icon: Loader2,      spin: true  },
+  published:  { label: 'Publicado',  color: '#22C55E', Icon: CheckCircle2, spin: false },
+  failed:     { label: 'Falhou',     color: '#EF4444', Icon: XCircle,      spin: false },
+  cancelled:  { label: 'Cancelado',  color: '#94A3B8', Icon: X,            spin: false },
 } as const
 
 const TABS: { value: TabType; label: string; statuses: string[] }[] = [
@@ -115,16 +137,18 @@ const TABS: { value: TabType; label: string; statuses: string[] }[] = [
   { value: 'cancelled', label: 'Cancelados', statuses: ['cancelled']               },
 ]
 
-// ── Account List Card (clicável) ──────────────────────────────────────────────
+// ── Linha da conta (lista) ────────────────────────────────────────────────────
 
 function AccountListCard({
   account,
   posts,
+  first,
   onClick,
   onRefreshPic,
 }: {
   account: InstagramAccount
   posts: ScheduledPost[]
+  first: boolean
   onClick: () => void
   onRefreshPic: (id: string) => void
 }) {
@@ -132,72 +156,49 @@ function AccountListCard({
   const scheduledCount = accountPosts.filter(p => ['scheduled','publishing'].includes(p.status)).length
   const publishedCount = accountPosts.filter(p => p.status === 'published').length
   const failedCount    = accountPosts.filter(p => p.status === 'failed').length
-  const totalCount     = accountPosts.length
+  const tk = tokenState(account.token_expires_at)
+  const alerta = failedCount > 0 || !!(tk && (tk.expired || tk.warning))
+
+  const num = (n: number, label: string, color: string) => (
+    <span className="text-center min-w-[64px]">
+      <span className="block font-display text-[18px] font-bold leading-none tabular-nums" style={{ color: n > 0 ? color : 'var(--sm-text-4)' }}>{n}</span>
+      <span className="block text-[10.5px] mt-1" style={{ color: 'var(--sm-text-4)' }}>{label}</span>
+    </span>
+  )
 
   return (
-    <motion.button
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+    <button
       onClick={onClick}
-      className="w-full bg-[#111827] rounded-2xl border border-[#1F2937] p-4 flex items-center gap-3 hover:border-[#2563EB]/50 hover:bg-[#151d2e] transition-all text-left group"
+      className={`relative w-full flex items-center gap-4 pl-5 pr-4 py-4 text-left transition-colors hover:bg-black/[0.02] group ${first ? '' : 'border-t'}`}
+      style={{ borderColor: 'var(--sm-border)' }}
     >
-      {/* Avatar */}
-      {account.profile_picture_url ? (
-        <img
-          src={account.profile_picture_url}
-          alt={account.username}
-          className="w-12 h-12 rounded-full object-cover border-2 border-[#E1306C]/30 flex-shrink-0"
-          onError={(e) => { e.currentTarget.style.display = 'none'; onRefreshPic(account.id) }}
-        />
-      ) : (
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center flex-shrink-0">
-          <Instagram className="w-5 h-5 text-white" />
-        </div>
-      )}
+      {alerta && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: failedCount > 0 ? '#EF4444' : tk!.color }} />}
+      <IgAvatar account={account} size={48} onError={() => onRefreshPic(account.id)} />
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[14px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>@{account.username}</span>
-          <div className="w-1.5 h-1.5 rounded-full bg-[#22C55E] flex-shrink-0" />
-        </div>
-        <p className="text-[12px] text-[#9CA3AF]">
-          {account.followers_count.toLocaleString('pt-BR')} seguidores
+        <p className="text-[14.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>@{account.username}</p>
+        <p className="flex items-center gap-x-3 gap-y-0.5 flex-wrap mt-0.5">
+          <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+            <span className="tabular-nums">{account.followers_count.toLocaleString('pt-BR')}</span> <span>seguidores</span>
+          </span>
+          <TokenBadge expiresAt={account.token_expires_at} />
         </p>
-        {/* Aviso de conexão vencendo/vencida */}
-        <TokenBadge expiresAt={account.token_expires_at} />
-        {/* Mini-badges */}
-        {totalCount > 0 && (
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            {scheduledCount > 0 && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: '#2563EB', color: '#ffffff' }}>
-                {scheduledCount} ag.
-              </span>
-            )}
-            {publishedCount > 0 && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: '#059669', color: '#ffffff' }}>
-                {publishedCount} pub.
-              </span>
-            )}
-            {failedCount > 0 && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: '#dc2626', color: '#ffffff' }}>
-                {failedCount} falha{failedCount > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Seta */}
-      <ChevronRight className="w-4 h-4 text-[#6B7280] group-hover:text-[#9CA3AF] transition-colors flex-shrink-0" />
-    </motion.button>
+      <div className="hidden sm:flex items-center gap-1">
+        {num(scheduledCount, 'Agendados', '#2563EB')}
+        {num(publishedCount, 'Publicados', 'var(--sm-text-1)')}
+        {num(failedCount, 'Falhas', '#EF4444')}
+      </div>
+
+      <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--sm-text-3)' }} />
+    </button>
   )
 }
 
-// ── Post Card ─────────────────────────────────────────────────────────────────
+// ── Post ──────────────────────────────────────────────────────────────────────
 
-function PostCard({ post, onCancel, onRetry, onReschedule }: { post: ScheduledPost; onCancel: (id: string) => void; onRetry: (id: string) => void; onReschedule: (id: string, scheduledAt: string) => void }) {
-  const { isDark } = useTheme()
+function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: ScheduledPost; first: boolean; onCancel: (id: string) => void; onRetry: (id: string) => void; onReschedule: (id: string, scheduledAt: string) => void }) {
   const cfg        = STATUS_CFG[post.status]
   const StatusIcon = cfg.Icon
   const typeCfg    = POST_TYPE_CFG[post.post_type]
@@ -220,144 +221,118 @@ function PostCard({ post, onCancel, onRetry, onReschedule }: { post: ScheduledPo
     setEditing(false)
   }
 
+  const field = 'h-9 text-[12.5px] rounded-lg border px-2.5 focus:outline-none focus:border-[#2563EB]/60 [color-scheme:light_dark]'
+  const fieldStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
+  const linkBtn = 'inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[12px] font-semibold hover:bg-black/5 transition-colors'
+
   return (
-    <div className={`rounded-2xl border p-4 space-y-3 ${isDark ? cfg.cardBgDark : cfg.cardBgLight}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <TypeIcon className="w-4 h-4 text-[#9CA3AF]" />
-          <span className="text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>{typeCfg?.label}</span>
-        </div>
-        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-          {/* Reprocessamento automático após falha transitória */}
-          {(post.retry_count ?? 0) > 0 && post.status !== 'published' && post.status !== 'cancelled' && (
-            <div
-              title={`Falha temporária ao publicar. Tentando novamente automaticamente (tentativa ${post.retry_count}/${MAX_RETRIES}).`}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: '#b45309', color: '#ffffff' }}
-            >
-              <RefreshCw className="w-3 h-3" />
-              Tentativa {post.retry_count}/{MAX_RETRIES}
-            </div>
-          )}
-          <div
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-            style={{ background: cfg.solidBg, color: '#ffffff' }}
-          >
-            <StatusIcon className={`w-3 h-3 ${cfg.spin ? 'animate-spin' : ''}`} />
-            {cfg.label}
+    <div className={`relative pl-5 pr-4 py-4 space-y-3 ${first ? '' : 'border-t'}`} style={{ borderColor: 'var(--sm-border)' }}>
+      <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: cfg.color }} />
+
+      <div className="flex gap-3">
+        {/* Mídias */}
+        {post.media_urls.length > 0 && (
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
+            {post.post_type === 'REELS'
+              ? <video src={post.media_urls[0]} className="w-full h-full object-cover" />
+              : <img src={post.media_urls[0]} alt="" className="w-full h-full object-cover"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+            {post.media_urls.length > 1 && (
+              <span className="absolute bottom-1 right-1 min-w-[20px] h-5 px-1 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                {post.media_urls.length}
+              </span>
+            )}
           </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
+              <StatusIcon className={`w-3.5 h-3.5 ${cfg.spin ? 'animate-spin' : ''}`} style={{ color: cfg.color }} />
+              {cfg.label}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+              <TypeIcon className="w-3.5 h-3.5" /> {typeCfg?.label}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[12px] tabular-nums" style={{ color: 'var(--sm-text-3)' }}>
+              <Calendar className="w-3.5 h-3.5" />
+              {format(parseISO(post.scheduled_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
+            </span>
+            {/* Reprocessamento automático após falha transitória */}
+            {(post.retry_count ?? 0) > 0 && post.status !== 'published' && post.status !== 'cancelled' && (
+              <span className="inline-flex items-center gap-1 text-[12px] font-semibold" style={{ color: '#D97706' }}
+                title={`Falha temporária ao publicar. Tentando novamente automaticamente (tentativa ${post.retry_count}/${MAX_RETRIES}).`}>
+                <RefreshCw className="w-3 h-3" /> Tentativa {post.retry_count}/{MAX_RETRIES}
+              </span>
+            )}
+          </div>
+          {post.caption && (
+            <p className="text-[13px] line-clamp-2 leading-relaxed mt-1.5" style={{ color: 'var(--sm-text-2)' }}>{post.caption}</p>
+          )}
         </div>
       </div>
 
-      {/* Prévia das mídias */}
-      {post.media_urls.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {post.media_urls.slice(0, 4).map((url, i) => (
-            <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#1F2937] shadow-sm flex-shrink-0">
-              {post.post_type === 'REELS'
-                ? <video src={url} className="w-full h-full object-cover" />
-                : <img src={url} alt="" className="w-full h-full object-cover"
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              }
-              {i === 3 && post.media_urls.length > 4 && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[11px] font-bold">
-                  +{post.media_urls.length - 4}
-                </div>
-              )}
-            </div>
-          ))}
+      {/* Mensagem de erro */}
+      {post.error_message && (
+        <div className="flex items-start gap-2 text-[12px] rounded-lg px-3 py-2" style={{ background: 'rgba(239,68,68,0.07)', color: '#B91C1C' }}>
+          <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <span className="min-w-0 [overflow-wrap:anywhere]">{post.error_message}</span>
         </div>
       )}
 
-      {/* Legenda */}
-      {post.caption && (
-        <p className="text-[13px] text-[#D1D5DB] line-clamp-2 leading-relaxed">{post.caption}</p>
-      )}
-
-      {/* Rodapé */}
-      <div className="flex items-center justify-between pt-0.5 flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 text-[12px] text-[#9CA3AF] whitespace-nowrap">
-          <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-          {format(parseISO(post.scheduled_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap">
+      {/* Ações */}
+      {(post.status === 'failed' || post.status === 'scheduled' || post.ig_post_id) && (
+        <div className="flex items-center gap-1 flex-wrap -ml-2">
           {post.status === 'failed' && (
-            <button
-              onClick={() => onRetry(post.id)}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors"
-            >
+            <button onClick={() => onRetry(post.id)}
+              className="inline-flex items-center gap-1.5 h-8 px-3 ml-2 rounded-lg text-[12px] font-semibold text-white hover:opacity-90"
+              style={{ background: '#2563EB' }}>
               <RefreshCw className="w-3 h-3" />
               Tentar novamente
             </button>
           )}
           {post.status === 'scheduled' && (
             <>
-              <button
-                onClick={() => { setEditing(e => !e); const i = localDateTime(post.scheduled_at); setEditDate(i.date); setEditTime(i.time) }}
-                className="text-[11px] text-[#60A5FA] hover:text-[#2563EB] font-medium transition-colors"
-              >
+              <button onClick={() => { setEditing(e => !e); const i = localDateTime(post.scheduled_at); setEditDate(i.date); setEditTime(i.time) }}
+                className={linkBtn} style={{ color: '#2563EB' }}>
                 {editing ? 'Fechar' : 'Editar data'}
               </button>
-              <button
-                onClick={() => onCancel(post.id)}
-                className="text-[11px] text-[#F87171] hover:text-[#EF4444] font-medium transition-colors"
-              >
+              <button onClick={() => onCancel(post.id)} className={`${linkBtn} hover:bg-red-500/10`} style={{ color: '#EF4444' }}>
                 Cancelar
               </button>
             </>
           )}
           {post.ig_post_id && (
-            <a
-              href={`https://www.instagram.com/p/${post.ig_post_id}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[11px] text-[#60A5FA] hover:text-[#2563EB] hover:underline font-medium"
-            >
+            <a href={`https://www.instagram.com/p/${post.ig_post_id}/`} target="_blank" rel="noopener noreferrer"
+              className={linkBtn} style={{ color: '#2563EB' }}>
               <ExternalLink className="w-3 h-3" />
               Ver no Instagram
             </a>
           )}
         </div>
-      </div>
+      )}
 
       {/* Editor de data/hora (post agendado) */}
       {post.status === 'scheduled' && editing && (
-        <div className="flex items-end gap-2 flex-wrap pt-1 border-t border-[#1F2937] mt-1">
+        <div className="flex items-end gap-2 flex-wrap pt-3 border-t" style={{ borderColor: 'var(--sm-border)' }}>
           <div>
-            <p className="text-[10px] text-[#6B7280] uppercase tracking-wide mb-1">Data</p>
-            <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-              className="text-[12px] bg-[#0B0F14] border border-[#1F2937] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#2563EB]/60"
-              style={{ color: 'var(--sm-text-1)' }} />
+            <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-4)' }}>Data</p>
+            <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className={field} style={fieldStyle} />
           </div>
           <div>
-            <p className="text-[10px] text-[#6B7280] uppercase tracking-wide mb-1">Horário</p>
-            <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
-              className="text-[12px] bg-[#0B0F14] border border-[#1F2937] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#2563EB]/60"
-              style={{ color: 'var(--sm-text-1)' }} />
+            <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-4)' }}>Horário</p>
+            <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)} className={field} style={fieldStyle} />
           </div>
-          <button
-            onClick={saveReschedule}
-            className="text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors"
-          >
+          <button onClick={saveReschedule} className="h-9 px-3.5 rounded-lg text-[12.5px] font-semibold text-white hover:opacity-90" style={{ background: '#2563EB' }}>
             Salvar
           </button>
-        </div>
-      )}
-
-      {/* Mensagem de erro */}
-      {post.error_message && (
-        <div className="flex items-start gap-2 text-[11px] text-[#F87171] bg-[#EF4444]/10 rounded-xl px-3 py-2 border border-[#EF4444]/30">
-          <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{post.error_message}</span>
         </div>
       )}
     </div>
   )
 }
 
-// ── Account Detail View ───────────────────────────────────────────────────────
+// ── Detalhe da conta ──────────────────────────────────────────────────────────
 
 function AccountDetailView({
   account,
@@ -378,7 +353,6 @@ function AccountDetailView({
   onDisconnect: (id: string) => void
   onRefreshPic: (id: string) => void
 }) {
-  const { isDark } = useTheme()
   const [tab, setTab] = useState<TabType>('all')
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
 
@@ -404,139 +378,95 @@ function AccountDetailView({
       transition={{ duration: 0.2 }}
       className="space-y-5"
     >
-      {/* Header da conta — a confirmação de desconectar desce para a linha de baixo no celular */}
-      <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-        <button
-          onClick={onBack}
-          className="w-9 h-9 rounded-xl border border-[#1F2937] bg-[#111827] flex items-center justify-center text-[#9CA3AF] hover:text-[color:var(--sm-text-1)] hover:border-[#2563EB]/50 transition-colors flex-shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium hover:underline" style={{ color: 'var(--sm-text-3)' }}>
+        <ArrowLeft className="w-4 h-4" /> <span>Contas conectadas</span>
+      </button>
 
-        {account.profile_picture_url ? (
-          <img
-            src={account.profile_picture_url}
-            alt={account.username}
-            className="w-10 h-10 rounded-full object-cover border-2 border-[#E1306C]/30 flex-shrink-0"
-            onError={(e) => { e.currentTarget.style.display = 'none'; onRefreshPic(account.id) }}
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center flex-shrink-0">
-            <Instagram className="w-5 h-5 text-white" />
-          </div>
-        )}
-
+      {/* Cabeçalho da conta */}
+      <div className="rounded-2xl border p-4 md:p-5 flex items-center gap-4 flex-wrap sm:flex-nowrap" style={card}>
+        <IgAvatar account={account} size={64} onError={() => onRefreshPic(account.id)} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[16px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>@{account.username}</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-[#22C55E] flex-shrink-0" />
-          </div>
-          <p className="text-[12px] text-[#9CA3AF]">
-            {account.followers_count.toLocaleString('pt-BR')} seguidores
+          <p className="font-display text-[22px] font-bold leading-tight truncate" style={{ color: 'var(--sm-text-1)' }}>@{account.username}</p>
+          <p className="flex items-center gap-x-3 gap-y-0.5 flex-wrap mt-1">
+            <span className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>
+              <span className="tabular-nums">{account.followers_count.toLocaleString('pt-BR')}</span> <span>seguidores</span>
+            </span>
+            <TokenBadge expiresAt={account.token_expires_at} />
           </p>
-          <TokenBadge expiresAt={account.token_expires_at} />
         </div>
 
-        {/* Botão desconectar */}
         {confirmDisconnect ? (
-          <div className="flex items-center justify-end gap-2 w-full sm:w-auto flex-shrink-0">
-            <span className="text-[11px] text-[#F87171] font-medium">Desconectar esta conta?</span>
-            <button
-              onClick={() => { onDisconnect(account.id); onBack() }}
-              className="px-2.5 py-1.5 rounded-lg bg-[#EF4444] text-white text-[11px] font-semibold hover:bg-[#dc2626] transition-colors"
-            >
+          <div className="flex items-center justify-end gap-1.5 w-full sm:w-auto flex-shrink-0">
+            <span className="text-[12px] font-semibold" style={{ color: '#EF4444' }}>Desconectar esta conta?</span>
+            <button onClick={() => { onDisconnect(account.id); onBack() }}
+              className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white" style={{ background: '#EF4444' }}>
               Sim
             </button>
-            <button
-              onClick={() => setConfirmDisconnect(false)}
-              className="px-2.5 py-1.5 rounded-lg border border-[#1F2937] text-[11px] text-[#9CA3AF] hover:bg-[#1F2937] transition-colors"
-            >
+            <button onClick={() => setConfirmDisconnect(false)} className="h-8 px-3 rounded-lg border text-[12px] hover:bg-black/5" style={ghostStyle}>
               Não
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirmDisconnect(true)}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border border-[#EF4444]/30 text-[#F87171] text-[11px] font-medium hover:bg-[#EF4444]/10 transition-colors flex-shrink-0"
-            aria-label="Desconectar conta"
-            title="Desconectar conta"
-          >
+          <button onClick={() => setConfirmDisconnect(true)}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-[12.5px] font-medium hover:bg-red-500/10 hover:text-red-500 transition-colors flex-shrink-0"
+            style={{ color: 'var(--sm-text-3)' }}
+            aria-label="Desconectar conta" title="Desconectar conta">
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Desconectar</span>
           </button>
         )}
       </div>
 
-      {/* Stats da conta */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+      {/* Números da conta */}
+      <div className="rounded-2xl border grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden" style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
         {[
-          { label: 'Agendados',  value: stats.scheduled, colorDark: 'text-[#60A5FA]', colorLight: 'text-blue-700',    bgDark: 'bg-[#2563EB]/10 border-[#2563EB]/20', bgLight: 'bg-blue-50 border-blue-300'       },
-          { label: 'Publicados', value: stats.published, colorDark: 'text-[#4ADE80]', colorLight: 'text-emerald-700', bgDark: 'bg-[#22C55E]/10 border-[#22C55E]/20', bgLight: 'bg-emerald-50 border-emerald-300' },
-          { label: 'Falhas',     value: stats.failed,    colorDark: 'text-[#F87171]', colorLight: 'text-red-700',     bgDark: 'bg-[#EF4444]/10 border-[#EF4444]/20', bgLight: 'bg-red-50 border-red-300'         },
-          { label: 'Cancelados', value: stats.cancelled, colorDark: 'text-[#9CA3AF]', colorLight: 'text-gray-600',    bgDark: 'bg-[#6B7280]/10 border-[#6B7280]/20', bgLight: 'bg-gray-100 border-gray-300'      },
+          { label: 'Agendados',  value: stats.scheduled, color: '#2563EB' },
+          { label: 'Publicados', value: stats.published, color: '#22C55E' },
+          { label: 'Falhas',     value: stats.failed,    color: '#EF4444' },
+          { label: 'Cancelados', value: stats.cancelled, color: '#94A3B8' },
         ].map(s => (
-          <div key={s.label} className={`rounded-2xl border p-3 sm:p-4 text-center ${isDark ? s.bgDark : s.bgLight}`}>
-            <div className={`text-[22px] font-bold ${isDark ? s.colorDark : s.colorLight}`}>{s.value}</div>
-            <div className="text-[11px] text-[#9CA3AF] mt-0.5 font-medium">{s.label}</div>
+          <div key={s.label} className="px-4 py-3.5" style={{ background: 'var(--sm-bg-card)' }}>
+            <p className={`${eyebrow} flex items-center gap-1.5`} style={{ color: 'var(--sm-text-4)' }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} /><span>{s.label}</span>
+            </p>
+            <p className="font-display text-[26px] font-bold leading-tight tabular-nums mt-0.5"
+              style={{ color: s.label === 'Falhas' && s.value > 0 ? '#EF4444' : 'var(--sm-text-1)' }}>{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Posts */}
-      <div className="bg-[#111827] rounded-3xl border border-[#1F2937] overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-[#1F2937] px-2 pt-2 overflow-x-auto">
+      {/* Posts: abas sublinhadas + lista com linhas finas */}
+      <div>
+        <div className="flex items-end gap-1 border-b overflow-x-auto [&::-webkit-scrollbar]:hidden mb-3" style={{ borderColor: 'var(--sm-border)' }}>
           {TABS.map(t => {
             const count  = accountPosts.filter(p => t.statuses.includes(p.status)).length
             const active = tab === t.value
             return (
-              <button
-                key={t.value}
-                onClick={() => setTab(t.value)}
-                style={active ? { color: 'var(--sm-text-1)' } : undefined}
-              className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-medium rounded-t-xl transition-colors ${
-                  active ? '' : 'text-[#6B7280] hover:text-[#9CA3AF]'
-                }`}
-              >
+              <button key={t.value} onClick={() => setTab(t.value)} aria-current={active ? 'true' : undefined}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 h-10 px-3 border-b-2 -mb-px text-[13px] whitespace-nowrap transition-colors"
+                style={{ borderColor: active ? '#2563EB' : 'transparent', color: active ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: active ? 600 : 500 }}>
                 {t.label}
-                {count > 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                    active ? 'bg-[#2563EB] text-white' : 'bg-[#1F2937] text-[#9CA3AF]'
-                  }`}>
-                    {count}
-                  </span>
-                )}
-                {active && (
-                  <motion.div
-                    layoutId="tab-underline-detail"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2563EB] rounded-full"
-                  />
-                )}
+                {count > 0 && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{count}</span>}
               </button>
             )
           })}
         </div>
 
-        {/* Lista de posts */}
-        <div className="p-3 sm:p-4">
-          {filteredPosts.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="w-10 h-10 rounded-2xl bg-[#1F2937] flex items-center justify-center mx-auto mb-3">
-                <Calendar className="w-5 h-5 text-[#9CA3AF]" />
-              </div>
-              <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum post aqui</p>
-              <p className="text-[12px] text-[#9CA3AF] mt-1">
-                Ainda não há posts nesta categoria para esta conta.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredPosts.map(post => (
-                <PostCard key={post.id} post={post} onCancel={onCancel} onRetry={onRetry} onReschedule={onReschedule} />
-              ))}
-            </div>
-          )}
-        </div>
+        {filteredPosts.length === 0 ? (
+          <div className="rounded-2xl border border-dashed py-12 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+            <Calendar className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+            <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum post aqui</p>
+            <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
+              Ainda não há posts nesta categoria para esta conta.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border overflow-hidden" style={card}>
+            {filteredPosts.map((post, i) => (
+              <PostCard key={post.id} post={post} first={i === 0} onCancel={onCancel} onRetry={onRetry} onReschedule={onReschedule} />
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   )
@@ -593,16 +523,12 @@ function ConnectInstagramModal({
     window.location.href = buildInstagramOAuthUrl(agencyId!, clientId)
   }
 
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center">
-              <Instagram className="w-3.5 h-3.5 text-white" />
-            </div>
-            Conectar Instagram
-          </DialogTitle>
+          <DialogTitle className="font-display text-[19px] font-bold">Conectar Instagram</DialogTitle>
           <DialogDescription>
             Escolha de qual cliente é a conta profissional que você vai conectar.
             Você será levado ao Instagram para autorizar o acesso.
@@ -610,70 +536,69 @@ function ConnectInstagramModal({
         </DialogHeader>
 
         {maxProfiles !== -1 && (
-          <p className={`text-[11.5px] font-medium -mt-1 ${limitReached ? 'text-red-400' : 'text-[#9CA3AF]'}`}>
-            {activeCount}/{maxProfiles} perfil{maxProfiles === 1 ? '' : 's'} usados
-            {subData?.plan.name ? ` do plano ${subData.plan.name}` : ''}
-          </p>
+          <div className="-mt-1">
+            <div className="flex items-center justify-between text-[12px] mb-1">
+              <span style={{ color: limitReached ? '#EF4444' : 'var(--sm-text-3)', fontWeight: limitReached ? 600 : 500 }}>
+                {activeCount}/{maxProfiles} perfil{maxProfiles === 1 ? '' : 's'} usados
+                {subData?.plan.name ? ` do plano ${subData.plan.name}` : ''}
+              </span>
+            </div>
+            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--sm-bg-alt)' }}>
+              <div className="h-full rounded-full" style={{ width: `${Math.min(100, (activeCount / maxProfiles) * 100)}%`, background: limitReached ? '#EF4444' : '#2563EB' }} />
+            </div>
+          </div>
         )}
 
         {isLoading ? (
-          <div className="py-10 flex items-center justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-[#9CA3AF]" />
-          </div>
+          <div className="h-40 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-alt)' }} />
         ) : clients.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-[13.5px]" style={{ color: 'var(--sm-text-2)' }}>
+          <div className="rounded-xl border border-dashed py-8 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+            <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
               Você ainda não tem clientes cadastrados.
             </p>
-            <p className="text-[12px] text-[#9CA3AF] mt-1">
+            <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
               Cadastre um cliente antes de conectar o Instagram dele.
             </p>
-            <Link
-              to="/clients/new"
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#2563EB] text-white rounded-xl text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors"
-            >
+            <Link to="/clients/new" className={`${primaryBtn} h-9 mt-4`} style={{ background: '#2563EB' }}>
               <Plus className="w-4 h-4" />
               Novo cliente
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto -mx-1 px-1">
-            {clients.map(client => {
+          <div className="max-h-[320px] overflow-y-auto rounded-xl border" style={{ borderColor: 'var(--sm-border)' }}>
+            {clients.map((client, i) => {
               const already = connectedClientIds.has(client.id)
               return (
                 <button
                   key={client.id}
                   onClick={() => handlePick(client.id)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-colors hover:border-[#2563EB]/60"
-                  style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-card2)' }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-black/[0.03] ${i > 0 ? 'border-t' : ''}`}
+                  style={{ borderColor: 'var(--sm-border)' }}
                 >
                   {client.logo_url ? (
-                    <img
-                      src={client.logo_url}
-                      alt=""
-                      className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
-                    />
+                    <img src={client.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-[#1F2937] flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-4 h-4 text-[#9CA3AF]" />
-                    </div>
+                    <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
+                      <Building2 className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />
+                    </span>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[13.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>
                       {client.company_name}
-                    </p>
-                    <p className="text-[11.5px] text-[#9CA3AF] truncate">
-                      {already ? 'Já conectado — reconectar' : 'Conectar conta profissional'}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[#6B7280] flex-shrink-0" />
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[11.5px] truncate" style={{ color: 'var(--sm-text-3)' }}>
+                      {already && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#22C55E' }} />}
+                      <span>{already ? 'Já conectado — reconectar' : 'Conectar conta profissional'}</span>
+                    </span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
                 </button>
               )
             })}
           </div>
         )}
 
-        <p className="text-[11px] text-[#6B7280] leading-relaxed">
+        <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--sm-text-4)' }}>
           É preciso que a conta seja Business ou Creator. Ao autorizar, o StatusMedia
           passa a ler o perfil, publicar os conteúdos que você agendar e consultar
           as métricas para os relatórios. Você pode desconectar quando quiser.
@@ -761,20 +686,22 @@ export function InstagramPage() {
     }
   }
 
-  return (
-    <div className="min-h-full bg-[#0B0F14] p-4 sm:p-6">
-      <div className="max-w-3xl mx-auto space-y-5">
 
-        {/* ── Header global ────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-x-4 gap-y-3 flex-wrap">
+  const totalFalhas = posts.filter(p => p.status === 'failed').length
+  const totalAgendados = posts.filter(p => ['scheduled', 'publishing'].includes(p.status)).length
+
+  return (
+    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
+      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
+
+        {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
+        <header className="max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <h1 className="text-[20px] font-bold flex items-center gap-2.5" style={{ color: 'var(--sm-text-1)' }}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center">
-                <Instagram className="w-4 h-4 text-white" />
-              </div>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Publicação</p>
+            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
               Instagram
             </h1>
-            <p className="text-[13px] text-[#9CA3AF] mt-1">
+            <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
               {selectedAccount
                 ? 'Detalhes da conta selecionada'
                 : 'Selecione uma conta para ver os detalhes'}
@@ -784,8 +711,8 @@ export function InstagramPage() {
             <button
               onClick={() => { refetchAccounts(); refetchPosts(); accounts.forEach(a => refreshProfile.mutate(a.id)) }}
               disabled={isRefreshing}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 h-9 rounded-xl border border-[#1F2937] bg-[#111827] text-[13px] font-medium hover:border-[#2563EB]/50 transition-colors disabled:opacity-50 flex-shrink-0"
-              style={{ color: 'var(--sm-text-2)' }}
+              className={`${ghostBtn} flex-shrink-0 px-3 sm:px-3.5`}
+              style={ghostStyle}
               title="Refresh — reloads the connected accounts and the status of scheduled posts"
               aria-label="Atualizar"
             >
@@ -795,13 +722,14 @@ export function InstagramPage() {
             <button
               onClick={() => setConnectOpen(true)}
               title="Connect Instagram — starts Business Login for Instagram so the agency can publish and read insights for a client account"
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 h-9 rounded-xl bg-[#2563EB] text-white text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg shadow-[#2563EB]/20 whitespace-nowrap"
+              className={`${primaryBtn} flex-1 sm:flex-none`}
+              style={{ background: '#2563EB' }}
             >
               <Instagram className="w-4 h-4" />
               Conectar Instagram
             </button>
           </div>
-        </div>
+        </header>
 
         {/* ── Conteúdo: lista ou detalhe ───────────────────────────────────── */}
         <AnimatePresence mode="wait">
@@ -827,64 +755,79 @@ export function InstagramPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
               transition={{ duration: 0.2 }}
-              className="space-y-3"
+              className="space-y-5"
             >
-              <div className="flex items-center gap-2 mb-1">
-                <Users className="w-4 h-4 text-[#6B7280]" />
-                <h2 className="text-[13px] font-semibold text-[#9CA3AF] uppercase tracking-wider">
-                  Contas conectadas
-                </h2>
-              </div>
-
-              {isLoading ? (
-                <div className="bg-[#111827] rounded-2xl border border-[#1F2937] p-8 flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 animate-spin text-[#9CA3AF]" />
-                </div>
-              ) : accounts.length === 0 ? (
-                <div className="bg-[#0B0F14] rounded-2xl border border-dashed border-[#1F2937] p-12 text-center">
-                  <div className="relative w-20 h-20 mx-auto mb-5">
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#E1306C] to-[#833AB4] blur-2xl opacity-40" />
-                    <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E1306C] to-[#833AB4] flex items-center justify-center shadow-lg shadow-[#E1306C]/30">
-                      <Instagram className="w-9 h-9 text-white" />
+              {/* Resumo da fila */}
+              {!isLoading && accounts.length > 0 && (
+                <div className="rounded-2xl border grid grid-cols-3 gap-px overflow-hidden" style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+                  {[
+                    { label: 'Contas conectadas', value: accounts.length, alert: false },
+                    { label: 'Agendados', value: totalAgendados, alert: false },
+                    { label: 'Falhas', value: totalFalhas, alert: totalFalhas > 0 },
+                  ].map(k => (
+                    <div key={k.label} className="relative px-4 md:px-5 py-3.5" style={{ background: 'var(--sm-bg-card)' }}>
+                      {k.alert && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: '#EF4444' }} />}
+                      <p className={`${eyebrow} leading-tight`} style={{ color: 'var(--sm-text-4)' }}>{k.label}</p>
+                      <p className="font-display text-[24px] md:text-[26px] font-bold leading-tight tabular-nums mt-0.5"
+                        style={{ color: k.alert ? '#EF4444' : 'var(--sm-text-1)' }}>{k.value}</p>
                     </div>
-                  </div>
-                  <p className="text-[16px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhuma conta conectada</p>
-                  <p className="text-[13px] text-[#9CA3AF] mt-1.5 max-w-xs mx-auto">
-                    Conecte a conta Business ou Creator de um cliente para agendar
-                    publicações e gerar relatórios.
-                  </p>
-                  <div className="flex items-center justify-center gap-2 mt-5 flex-wrap">
-                    <button
-                      onClick={() => setConnectOpen(true)}
-                      title="Connect Instagram — starts Business Login for Instagram so the agency can publish and read insights for a client account"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2563EB] text-white rounded-xl text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg shadow-[#2563EB]/20"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      Conectar Instagram
-                    </button>
-                    <Link
-                      to="/clients"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#1F2937] bg-[#111827] text-[13px] font-medium hover:border-[#2563EB]/50 transition-colors"
-                      style={{ color: 'var(--sm-text-2)' }}
-                    >
-                      <Users className="w-4 h-4" />
-                      Ir para Clientes
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {accounts.map(acc => (
-                    <AccountListCard
-                      key={acc.id}
-                      account={acc}
-                      posts={posts}
-                      onClick={() => setSelectedAccount(acc)}
-                      onRefreshPic={(id) => refreshProfile.mutate(id)}
-                    />
                   ))}
                 </div>
               )}
+
+              <section>
+                <h2 className="flex items-baseline gap-2 mb-2.5">
+                  <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>01</span>
+                  <span className="font-display text-[16px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Contas conectadas</span>
+                </h2>
+
+                {isLoading ? (
+                  <div className="space-y-2" aria-busy="true">
+                    {[0, 1].map(i => <div key={i} className="h-[80px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />)}
+                  </div>
+                ) : accounts.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed py-12 px-6 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+                    <span className="inline-block rounded-2xl p-[2px] mb-4" style={{ background: IG_RING }}>
+                      <span className="w-14 h-14 rounded-[14px] flex items-center justify-center" style={{ background: 'var(--sm-bg-card)' }}>
+                        <Instagram className="w-7 h-7" style={{ color: 'var(--sm-text-2)' }} />
+                      </span>
+                    </span>
+                    <p className="font-display text-[18px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Nenhuma conta conectada</p>
+                    <p className="text-[13px] mt-1.5 max-w-xs mx-auto" style={{ color: 'var(--sm-text-3)' }}>
+                      Conecte a conta Business ou Creator de um cliente para agendar
+                      publicações e gerar relatórios.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-5 flex-wrap">
+                      <button
+                        onClick={() => setConnectOpen(true)}
+                        title="Connect Instagram — starts Business Login for Instagram so the agency can publish and read insights for a client account"
+                        className={primaryBtn}
+                        style={{ background: '#2563EB' }}
+                      >
+                        <Instagram className="w-4 h-4" />
+                        Conectar Instagram
+                      </button>
+                      <Link to="/clients" className={ghostBtn} style={ghostStyle}>
+                        <Users className="w-4 h-4" />
+                        Ir para Clientes
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border overflow-hidden" style={card}>
+                    {accounts.map((acc, i) => (
+                      <AccountListCard
+                        key={acc.id}
+                        account={acc}
+                        posts={posts}
+                        first={i === 0}
+                        onClick={() => setSelectedAccount(acc)}
+                        onRefreshPic={(id) => refreshProfile.mutate(id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
             </motion.div>
           )}
         </AnimatePresence>
