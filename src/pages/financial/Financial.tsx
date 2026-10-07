@@ -61,7 +61,7 @@ function StatusMenu({ client }: { client: Client }) {
   return (
     <div className="relative">
       <button onClick={() => setOpen(o => !o)} disabled={update.isPending}
-        className="h-8 px-2.5 inline-flex items-center gap-1 rounded-lg text-[12px] hover:bg-white/5 transition-colors"
+        className="h-8 w-[96px] inline-flex items-center justify-center gap-1 rounded-lg text-[12px] hover:bg-black/5 transition-colors"
         style={{ color: 'var(--sm-text-3)' }} title="Alterar situação">
         Situação <ChevronDown className="w-3 h-3" />
       </button>
@@ -177,6 +177,25 @@ function PaymentHistoryModal({ client, onClose }: { client: Client | null; onClo
 }
 
 // ── Linha do cliente ─────────────────────────────────────────────────────────
+// Tabela de colunas FIXAS (md+): a mensalidade fica sempre no mesmo eixo,
+// apareça ou não texto extra/botão "Cobrar". As ações têm vagas reservadas:
+// botão que não se aplica vira um espaço vazio do mesmo tamanho.
+// No celular cada cliente vira um cartão empilhado.
+
+const COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_132px_140px_128px_324px] md:items-center md:gap-x-4'
+
+function ClientTableHeader() {
+  return (
+    <div className={`hidden ${COLS} pl-5 pr-4 py-2.5 border-b text-[10.5px] font-semibold uppercase tracking-[0.08em]`}
+      style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-4)' }}>
+      <span>Cliente</span>
+      <span className="text-right">Mensalidade</span>
+      <span>Situação</span>
+      <span className="text-right">Último pagamento</span>
+      <span className="text-right pr-1">Ações</span>
+    </div>
+  )
+}
 
 function ClientRow({ client, first, onPay, onHistory }: {
   client: Client; first: boolean; onPay: (c: Client) => void; onHistory: (c: Client) => void
@@ -186,6 +205,7 @@ function ClientRow({ client, first, onPay, onHistory }: {
   const status = calcFinancialStatus(client)
   const aux = getFinancialAuxText(client, status)
   const canCharge = (status === 'atrasado' || status === 'vence_em_breve') && !!client.whatsapp
+  const canPay = status !== 'cancelado'
 
   const charge = async () => {
     try { await sendNow.mutateAsync(client.id); toast(`Cobrança enviada para ${client.company_name}.`, 'success') }
@@ -193,58 +213,73 @@ function ClientRow({ client, first, onPay, onHistory }: {
   }
 
   return (
-    <div className={`relative pl-5 pr-3 sm:pr-4 py-3 flex flex-wrap md:flex-nowrap items-center gap-x-4 gap-y-2 ${first ? '' : 'border-t'}`}
+    <div className={`relative pl-5 pr-3 md:pr-4 py-3 flex flex-col gap-2.5 ${COLS} ${first ? '' : 'border-t'}`}
       style={{ borderColor: 'var(--sm-border)' }}>
       <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: STATUS_COLOR[status] }} />
 
-      <div className="flex items-center gap-3 min-w-0 flex-1 basis-full md:basis-auto">
+      {/* Cliente */}
+      <div className="flex items-center gap-3 min-w-0">
         {client.logo_url ? (
-          <img src={client.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border" style={{ borderColor: 'var(--sm-border)' }} />
+          <img src={client.logo_url} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border" style={{ borderColor: 'var(--sm-border)' }} />
         ) : (
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-[13px] font-semibold flex-shrink-0"
             style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)' }}>{client.company_name[0]?.toUpperCase()}</div>
         )}
         <div className="min-w-0">
-          <Link to={`/clients/${client.id}`} className="block text-[13.5px] font-semibold truncate hover:underline" style={{ color: 'var(--sm-text-1)' }}>
+          <Link to={`/clients/${client.id}`} className="block text-[14px] font-semibold truncate hover:underline" style={{ color: 'var(--sm-text-1)' }}>
             {client.company_name}
           </Link>
-          {aux && <p className="text-[11.5px] truncate" style={{ color: status === 'atrasado' ? '#EF4444' : status === 'vence_em_breve' ? '#F59E0B' : 'var(--sm-text-3)' }}>{aux}</p>}
+          <p className="text-[11.5px] truncate h-[17px]" style={{ color: status === 'atrasado' ? '#EF4444' : status === 'vence_em_breve' ? '#F59E0B' : 'var(--sm-text-4)' }}>
+            {aux ?? ''}
+          </p>
         </div>
       </div>
 
-      <div className="w-[110px] text-right">
-        <p className="text-[13.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>
-          {client.valor_mensal != null ? brl(client.valor_mensal) : '—'}
-        </p>
-        {client.dia_vencimento != null && <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>vence dia {client.dia_vencimento}</p>}
-      </div>
-      <div className="w-[120px] hidden sm:block"><StatusLabel status={status} /></div>
-      <div className="w-[96px] hidden lg:block text-right text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
-        {client.last_payment_date ? <>pago {fmtDate(client.last_payment_date)}</> : 'sem pagamento'}
+      {/* Mensalidade + situação (no celular, lado a lado) */}
+      <div className="flex items-center justify-between md:contents">
+        <div className="md:text-right">
+          <p className="text-[14px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>
+            {client.valor_mensal != null ? brl(client.valor_mensal) : '—'}
+          </p>
+          <p className="text-[11px] h-[16px]" style={{ color: 'var(--sm-text-4)' }}>
+            {client.dia_vencimento != null ? `vence dia ${client.dia_vencimento}` : ''}
+          </p>
+        </div>
+        <div><StatusLabel status={status} /></div>
       </div>
 
-      <div className="flex items-center gap-0.5 ml-auto">
-        {status !== 'cancelado' && (
-          <button onClick={() => onPay(client)} title="Registrar pagamento"
-            className="h-8 px-2.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1"
-            style={{ background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}>
-            <Check className="w-3.5 h-3.5" /> Pago
-          </button>
-        )}
-        {canCharge && (
-          <button onClick={charge} disabled={sendNow.isPending} title="Enviar cobrança com Pix"
-            className="h-8 px-2.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1 disabled:opacity-50"
-            style={{ background: 'rgba(37,211,102,0.12)', color: '#25D366' }}>
-            {sendNow.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} Cobrar
-          </button>
-        )}
+      {/* Último pagamento */}
+      <div className="hidden md:block text-right text-[12px] tabular-nums" style={{ color: 'var(--sm-text-3)' }}>
+        {client.last_payment_date ? fmtDate(client.last_payment_date) : <span style={{ color: 'var(--sm-text-4)' }}>sem pagamento</span>}
+      </div>
+
+      {/* Ações: vagas fixas para não deslocar nada */}
+      <div className="flex items-center gap-1 md:justify-end">
+        <span className="w-[86px] flex justify-end">
+          {canCharge && (
+            <button onClick={charge} disabled={sendNow.isPending} title="Enviar cobrança com Pix"
+              className="h-8 w-full rounded-lg text-[12px] font-semibold inline-flex items-center justify-center gap-1 disabled:opacity-50"
+              style={{ background: 'rgba(37,211,102,0.12)', color: '#16A34A' }}>
+              {sendNow.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} Cobrar
+            </button>
+          )}
+        </span>
+        <span className="w-[74px]">
+          {canPay && (
+            <button onClick={() => onPay(client)} title="Registrar pagamento"
+              className="h-8 w-full rounded-lg text-[12px] font-semibold inline-flex items-center justify-center gap-1"
+              style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
+              <Check className="w-3.5 h-3.5" /> Pago
+            </button>
+          )}
+        </span>
         <button onClick={() => onHistory(client)} title="Histórico de pagamentos" aria-label="Histórico de pagamentos"
-          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
           <History className="w-3.5 h-3.5" />
         </button>
         <StatusMenu client={client} />
         <Link to={`/clients/${client.id}`} title="Abrir perfil" aria-label="Abrir perfil"
-          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
           <ExternalLink className="w-3.5 h-3.5" />
         </Link>
       </div>
@@ -346,9 +381,12 @@ export function ClientBillingTab() {
               action={<Link to="/clients" className="text-[13px] font-semibold" style={{ color: '#60A5FA' }}>Ir para Clientes →</Link>} />
           ) : list.length === 0 ? (
             <EmptyState title="Nenhum cliente neste filtro" />
-          ) : list.map(({ client }, i) => (
-            <ClientRow key={client.id} client={client} first={i === 0} onPay={setPaying} onHistory={setHistory} />
-          ))}
+          ) : <>
+            <ClientTableHeader />
+            {list.map(({ client }, i) => (
+              <ClientRow key={client.id} client={client} first={i === 0} onPay={setPaying} onHistory={setHistory} />
+            ))}
+          </>}
         </Card>
         {list.length > 0 && (
           <p className="text-[11.5px] mt-2" style={{ color: 'var(--sm-text-4)' }}>

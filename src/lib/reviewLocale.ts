@@ -714,6 +714,28 @@ function walk(root: Node) {
   for (let n = tw.nextNode(); n; n = tw.nextNode()) translateText(n as Text)
 }
 
+// O modo fica salvo no navegador: sem um aviso, quem gravou o vídeo da Meta
+// continuava vendo a tela meio em inglês sem saber por quê. Fica fora do
+// React (o texto não está no dicionário, então não é traduzido) e some ao voltar.
+function showExitButton() {
+  const btn = document.createElement('button')
+  btn.setAttribute('data-review-exit', '')
+  btn.textContent = 'Modo inglês (App Review) · Voltar para português'
+  btn.style.cssText = [
+    'position:fixed', 'right:12px', 'bottom:12px', 'z-index:2147483647',
+    'padding:8px 12px', 'border-radius:999px', 'border:1px solid rgba(255,255,255,.25)',
+    'background:#0F172A', 'color:#fff', 'font:600 12px/1.2 system-ui,sans-serif',
+    'box-shadow:0 6px 20px rgba(0,0,0,.35)', 'cursor:pointer',
+  ].join(';')
+  btn.onclick = () => {
+    try { localStorage.setItem(STORAGE_KEY, 'pt') } catch { /* sem storage */ }
+    const url = new URL(window.location.href)
+    url.searchParams.delete('lang')
+    window.location.replace(url.toString())
+  }
+  document.body.appendChild(btn)
+}
+
 export function isEnglishMode(): boolean {
   try { return localStorage.getItem(STORAGE_KEY) === 'en' } catch { return false }
 }
@@ -727,6 +749,7 @@ export function initReviewLocale() {
 
   document.documentElement.lang = 'en'
   walk(document.body)
+  showExitButton()
   new MutationObserver(records => {
     for (const r of records) {
       if (r.type === 'characterData') translateText(r.target as Text)
