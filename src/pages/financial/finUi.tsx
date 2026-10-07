@@ -163,3 +163,44 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
     </div>
   )
 }
+
+/** Bloco de número do topo das abas (mesmo desenho em todo o Financeiro). */
+export function KpiTile({ label, value, sub, tone, onClick, active }: {
+  label: string; value: string; sub?: string
+  tone?: 'good' | 'warn' | 'bad'; onClick?: () => void; active?: boolean
+}) {
+  const bar = tone === 'bad' ? '#EF4444' : tone === 'warn' ? '#F59E0B' : tone === 'good' ? '#22C55E' : 'transparent'
+  const Tag = onClick ? 'button' : 'div'
+  return (
+    <Tag
+      onClick={onClick}
+      aria-pressed={onClick ? !!active : undefined}
+      className={`relative text-left rounded-2xl border px-4 py-3.5 overflow-hidden min-w-0 ${onClick ? 'transition-colors hover:bg-white/[0.03]' : ''}`}
+      style={{ background: 'var(--sm-bg-card)', borderColor: active ? '#2563EB' : 'var(--sm-border)' }}
+    >
+      <span className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r" style={{ background: bar }} />
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] truncate" style={{ color: 'var(--sm-text-4)' }}>{label}</p>
+      <p className="font-display text-[22px] font-bold tabular-nums leading-tight mt-1 truncate" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+      {sub && <p className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--sm-text-3)' }}>{sub}</p>}
+    </Tag>
+  )
+}
+
+/** Bloco cinza pulsando no lugar do conteúdo enquanto carrega. */
+export function Skeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return <div className={`rounded-2xl animate-pulse ${className}`} style={{ background: 'var(--sm-bg-card)', ...style }} />
+}
+
+/** Esqueleto padrão de uma aba: faixa de números + blocos de conteúdo. */
+export function TabSkeleton({ kpis = 4, blocks = [260, 180] }: { kpis?: number; blocks?: number[] }) {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Carregando">
+      {kpis > 0 && (
+        <div className={`grid grid-cols-2 ${kpis >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
+          {Array.from({ length: kpis }, (_, i) => <Skeleton key={i} className="h-[92px]" />)}
+        </div>
+      )}
+      {blocks.map((h, i) => <Skeleton key={i} style={{ height: h }} />)}
+    </div>
+  )
+}

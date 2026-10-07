@@ -1,9 +1,10 @@
 import { useFinAudit, fmtBRL, type FinAuditEvent } from '@/hooks/useFinance'
-import { Card, EmptyState } from './finUi'
+import { Card, EmptyState, TabSkeleton } from './finUi'
 
 const TABLE_LABEL: Record<string, string> = {
   fin_entries: 'lançamento', fin_recurrences: 'recorrência', fin_accounts: 'conta',
   fin_categories: 'categoria', fin_transfers: 'transferência',
+  fin_invoices: 'nota fiscal', fin_billing_settings: 'cobrança automática',
 }
 const FIELD_LABEL: Record<string, string> = {
   amount: 'valor', due_date: 'vencimento', status: 'situação', paid_at: 'data do pagamento',
@@ -11,6 +12,7 @@ const FIELD_LABEL: Record<string, string> = {
   client_id: 'cliente', counterparty: 'fornecedor', notes: 'observação', is_active: 'ativo',
   day_of_month: 'dia do vencimento', name: 'nome', initial_balance: 'saldo inicial', end_date: 'término',
   interval_months: 'periodicidade', competence: 'competência', color: 'cor',
+  number: 'número', issue_date: 'data de emissão', pdf_url: 'PDF', xml_url: 'XML', access_key: 'chave de acesso',
 }
 const HIDDEN = new Set(['category_id', 'account_id', 'client_id', 'competence', 'color'])
 
@@ -35,7 +37,7 @@ function describe(ev: FinAuditEvent) {
 
 export function HistoryTab() {
   const { data: events = [], isLoading } = useFinAudit(150)
-  if (isLoading) return <p className="py-12 text-center text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Carregando...</p>
+  if (isLoading) return <TabSkeleton kpis={0} blocks={[420]} />
   return (
     <div className="space-y-2">
       <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>

@@ -1,282 +1,90 @@
-import { useState, useMemo } from 'react'
+// ── Aba "Clientes" do Financeiro ──────────────────────────────────────────────
+// A mensalidade de cada cliente e a situação (em dia, vence em breve, atrasado,
+// cancelado). A página com as abas é FinancePage. Mesmo visual das outras abas
+// (finUi): números no topo, lista com barra de situação, janelas padronizadas.
+
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
-  TrendingUp, DollarSign, AlertCircle, BarChart3,
-  CheckCircle2, Clock, Ban, Search, ExternalLink, ChevronDown,
-  CalendarDays, AlertTriangle, MessageCircle, History, X, Loader2,
-  RefreshCw, Check,
+  Search, ExternalLink, ChevronDown, MessageCircle, History, Loader2, RefreshCw, Check, AlertTriangle,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { useClients, useUpdateClient } from '@/hooks/useClients'
 import { useCreatePayment, useClientPayments } from '@/hooks/usePayments'
+import { useSendBillingNow } from '@/hooks/useFinance'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
-import { useTheme } from '@/contexts/ThemeContext'
-import { supabase } from '@/integrations/supabase/client'
 import { calcFinancialStatus, financialStatusLabel, getFinancialAuxText } from '@/utils/financial'
 import type { Client, FinancialStatus } from '@/types'
+import {
+  Card, SectionTitle, EmptyState, Modal, Field, TextInput, PrimaryButton, GhostButton,
+  KpiTile, TabSkeleton, parseMoney, moneyToInput,
+} from './finUi'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const MONTHS_PT = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-]
-
-function currentMonthLabel() {
-  const now = new Date()
-  return `${MONTHS_PT[now.getMonth()]} ${now.getFullYear()}`
-}
-
-function todayISO() {
-  return new Date().toISOString().split('T')[0]
-}
-
-function fmtBRL(n: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n)
-}
-
-function fmtBRLDecimal(n: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
-}
-
-function fmtDate(d: string | null) {
-  if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
-}
-
-function buildWhatsAppLink(client: Client): string | null {
-  if (!client.whatsapp) return null
-  const digits = client.whatsapp.replace(/\D/g, '')
-  if (!digits) return null
-  const phone = digits.startsWith('55') ? digits : `55${digits}`
-  const month = currentMonthLabel()
-  const dueDay = client.dia_vencimento ? `dia ${client.dia_vencimento}` : 'data prevista'
-  const amount = client.valor_mensal != null ? fmtBRLDecimal(client.valor_mensal) : ''
-  const msg = `Olá, tudo bem?\n\nSeu pagamento referente a ${month} venceu no ${dueDay}.\n\nValor: ${amount}\n\nPode me confirmar o pagamento, por favor?`
-  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-}
+const MONTHS_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const currentMonthLabel = () => { const n = new Date(); return `${MONTHS_PT[n.getMonth()]} ${n.getFullYear()}` }
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const brl = (n: number, cents = true) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: cents ? 2 : 0 }).format(n)
+const fmtDate = (d: string | null) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—')
 
 type FilterKey = 'todos' | FinancialStatus
-
-const filterLabels: Record<FilterKey, string> = {
-  todos: 'Todos',
-  ativo: 'Em dia',
-  vence_em_breve: 'Vence em breve',
-  atrasado: 'Atrasados',
-  cancelado: 'Cancelados',
+const FILTERS: [FilterKey, string][] = [
+  ['todos', 'Todos'], ['ativo', 'Em dia'], ['vence_em_breve', 'Vence em breve'], ['atrasado', 'Atrasados'], ['cancelado', 'Cancelados'],
+]
+// Situação = barrinha + ponto + texto (nunca só cor)
+const STATUS_COLOR: Record<FinancialStatus, string> = {
+  ativo: '#22C55E', vence_em_breve: '#F59E0B', atrasado: '#EF4444', cancelado: '#64748B',
 }
 
-// solidBg: usado no StatusBadge (pill) — fundo sólido + texto branco, imune ao
-// tema. text/dot: usados no menu "Alterar" (linha de texto, não pill) — mantêm
-// classe de tema escuro; a variante clara é escolhida no local via isDark.
-const statusStyles: Record<FinancialStatus, { solidBg: string; text: string; textLight: string; dot: string; icon: React.ReactNode }> = {
-  ativo:          { solidBg: '#059669', text: 'text-emerald-400', textLight: 'text-emerald-700', dot: 'bg-emerald-500', icon: <CheckCircle2 className="w-3 h-3" /> },
-  vence_em_breve: { solidBg: '#b45309', text: 'text-amber-400',   textLight: 'text-amber-700',   dot: 'bg-amber-500',   icon: <Clock className="w-3 h-3" /> },
-  atrasado:       { solidBg: '#dc2626', text: 'text-red-400',     textLight: 'text-red-700',     dot: 'bg-red-500',     icon: <AlertCircle className="w-3 h-3" /> },
-  cancelado:      { solidBg: '#475569', text: 'text-zinc-400',    textLight: 'text-zinc-700',    dot: 'bg-zinc-500',    icon: <Ban className="w-3 h-3" /> },
-}
-
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-
-function KpiCard({
-  icon, label, value, sub, borderAccent, iconBg, delay = 0, onClick,
-}: {
-  icon: React.ReactNode; label: string; value: string; sub?: string
-  borderAccent: string; iconBg: string; delay?: number; onClick?: () => void
-}) {
+function StatusLabel({ status }: { status: FinancialStatus }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3 }}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-      className={`rounded-2xl border bg-[#111827] p-4 flex flex-col gap-3.5 transition-all ${borderAccent} ${
-        onClick ? 'cursor-pointer hover:bg-[#182233] active:scale-[0.99]' : ''
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-          {icon}
-        </div>
-        <p className="text-[10px] text-[#64748b] uppercase tracking-wide text-right leading-tight mt-1">{label}</p>
-      </div>
-      <div className="min-w-0">
-        <p className="text-[22px] font-bold text-[#F8FAFC] leading-tight break-words">{value}</p>
-        {sub && <p className="text-[11px] text-[#64748b] mt-0.5 break-words">{sub}</p>}
-      </div>
-    </motion.div>
-  )
-}
-
-// ─── Alert Card (conditional) ─────────────────────────────────────────────────
-
-function AlertCard({
-  mrr, previsto, diff, affectedCount, onViewAffected, delay = 0,
-}: {
-  mrr: number; previsto: number; diff: number
-  affectedCount: number; onViewAffected: () => void; delay?: number
-}) {
-  const { isDark } = useTheme()
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3 }}
-      className={`rounded-xl border p-4 flex flex-col gap-3 ${
-        isDark ? 'border-amber-500/30 bg-amber-500/10' : 'border-amber-300 bg-amber-50'
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <div className={`flex-shrink-0 w-7 h-7 rounded-lg border flex items-center justify-center mt-0.5 ${
-          isDark ? 'bg-amber-500/15 border-amber-500/30' : 'bg-amber-100 border-amber-300'
-        }`}>
-          <AlertTriangle className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={`text-[12px] font-semibold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>Receita prevista menor que o MRR</p>
-          <p className={`text-[11px] mt-0.5 ${isDark ? 'text-amber-400/90' : 'text-amber-700'}`}>
-            Impacto de {affectedCount} cliente{affectedCount !== 1 ? 's' : ''} em atraso
-          </p>
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-[9px] text-[#64748b] uppercase tracking-wide mb-0.5">Previsto</p>
-          <p className="text-[13px] font-semibold text-[#F8FAFC]">{fmtBRL(previsto)}</p>
-        </div>
-        <div>
-          <p className="text-[9px] text-[#64748b] uppercase tracking-wide mb-0.5">MRR</p>
-          <p className="text-[13px] font-semibold text-[#F8FAFC]">{fmtBRL(mrr)}</p>
-        </div>
-        <div>
-          <p className="text-[9px] text-[#64748b] uppercase tracking-wide mb-0.5">Diferença</p>
-          <p className={`text-[13px] font-semibold ${isDark ? 'text-red-400' : 'text-red-600'}`}>-{fmtBRL(diff)}</p>
-        </div>
-      </div>
-      <button
-        onClick={onViewAffected}
-        className={`w-full h-7 rounded-lg border text-[11px] transition-colors ${
-          isDark
-            ? 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-            : 'border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200'
-        }`}
-      >
-        Ver clientes afetados
-      </button>
-    </motion.div>
-  )
-}
-
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: FinancialStatus }) {
-  const s = statusStyles[status]
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium"
-      style={{ background: s.solidBg, color: '#ffffff' }}
-    >
-      {s.icon}
+    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap" style={{ color: 'var(--sm-text-2)' }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_COLOR[status] }} />
       {financialStatusLabel(status)}
     </span>
   )
 }
 
-// ─── Status Dropdown ──────────────────────────────────────────────────────────
+// ── Menu de situação (automático ou manual) ──────────────────────────────────
 
-function StatusDropdown({ client }: { client: Client }) {
+function StatusMenu({ client }: { client: Client }) {
   const [open, setOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const { isDark } = useTheme()
-  const updateClient = useUpdateClient()
+  const update = useUpdateClient()
   const { toast } = useToast()
-
-  const handleSelect = async (status: FinancialStatus) => {
-    setSaving(true)
-    try {
-      await updateClient.mutateAsync({
-        id: client.id,
-        financial_status: status,
-        // Qualquer escolha manual fixa o status (override), senão o cálculo
-        // automático por data de vencimento reverte na hora. O override é
-        // limpo quando um pagamento é registrado (volta ao modo automático).
-        manual_status_override: true,
-      })
-      toast('Status atualizado.', 'success')
-      setOpen(false)
-    } catch (err: any) {
-      toast(err.message, 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Volta ao modo automático: limpa o override e o status passa a seguir a
-  // data de vencimento novamente (sem precisar registrar pagamento).
-  const handleAuto = async () => {
-    setSaving(true)
-    try {
-      await updateClient.mutateAsync({ id: client.id, manual_status_override: false })
-      toast('Status no automático (segue a data de vencimento).', 'success')
-      setOpen(false)
-    } catch (err: any) {
-      toast(err.message, 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const isAuto = !client.manual_status_override
+
+  const choose = async (patch: Partial<Client>, msg: string) => {
+    try { await update.mutateAsync({ id: client.id, ...patch } as any); toast(msg, 'success'); setOpen(false) }
+    catch (err: any) { toast(err.message, 'error') }
+  }
 
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
-        disabled={saving}
-        className="h-7 px-2.5 flex items-center gap-1 rounded-lg text-[11px] text-[#64748b] hover:text-white hover:bg-[#1e293b] border border-transparent hover:border-[#1e293b] transition-all"
-      >
-        <ChevronDown className="w-3 h-3" /> Status
+      <button onClick={() => setOpen(o => !o)} disabled={update.isPending}
+        className="h-8 px-2.5 inline-flex items-center gap-1 rounded-lg text-[12px] hover:bg-white/5 transition-colors"
+        style={{ color: 'var(--sm-text-3)' }} title="Alterar situação">
+        Situação <ChevronDown className="w-3 h-3" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-20 w-52 max-w-[90vw] rounded-xl border border-[#1e293b] bg-[#182233] shadow-xl overflow-hidden">
-            {/* Automático — limpa o override e volta a seguir a data de vencimento */}
-            <button
-              onClick={handleAuto}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors hover:bg-[#1e293b] text-[#CBD5E1]"
-            >
-              <RefreshCw className="w-3 h-3 flex-shrink-0 text-[#64748b]" />
-              <span className="flex-1 min-w-0">
-                Automático
-                <span className="block text-[10px] text-[#64748b]">Segue a data de vencimento</span>
-              </span>
-              {isAuto && <Check className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />}
+          <div className="absolute right-0 top-full mt-1 z-20 w-56 max-w-[90vw] rounded-xl border overflow-hidden shadow-2xl"
+            style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+            <button onClick={() => choose({ manual_status_override: false }, 'Situação no automático (segue a data de vencimento).')}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] text-left hover:bg-white/5" style={{ color: 'var(--sm-text-1)' }}>
+              <RefreshCw className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
+              <span className="flex-1">Automático<span className="block text-[11px]" style={{ color: 'var(--sm-text-4)' }}>Segue a data de vencimento</span></span>
+              {isAuto && <Check className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />}
             </button>
-            <div className="h-px bg-[#1e293b]" />
-            {(['ativo', 'vence_em_breve', 'atrasado', 'cancelado'] as FinancialStatus[]).map(s => {
-              const st = statusStyles[s]
-              const active = client.manual_status_override && client.financial_status === s
-              return (
-                <button
-                  key={s}
-                  onClick={() => handleSelect(s)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors hover:bg-[#1e293b] ${isDark ? st.text : st.textLight}`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st.dot}`} />
-                  <span className="flex-1 min-w-0">{financialStatusLabel(s)}</span>
-                  {active && <Check className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />}
-                </button>
-              )
-            })}
+            <div className="h-px" style={{ background: 'var(--sm-border)' }} />
+            {(['ativo', 'vence_em_breve', 'atrasado', 'cancelado'] as FinancialStatus[]).map(s => (
+              <button key={s} onClick={() => choose({ financial_status: s, manual_status_override: true }, 'Situação atualizada.')}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-left hover:bg-white/5" style={{ color: 'var(--sm-text-2)' }}>
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: STATUS_COLOR[s] }} />
+                <span className="flex-1">{financialStatusLabel(s)}</span>
+                {client.manual_status_override && client.financial_status === s && <Check className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />}
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -284,576 +92,273 @@ function StatusDropdown({ client }: { client: Client }) {
   )
 }
 
-// ─── Register Payment Modal ───────────────────────────────────────────────────
+// ── Registrar pagamento ──────────────────────────────────────────────────────
 
-function RegisterPaymentModal({
-  client, open, onClose,
-}: {
-  client: Client | null; open: boolean; onClose: () => void
-}) {
-  const { user, agencyId } = useAuth()
-  const createPayment = useCreatePayment()
+function RegisterPaymentModal({ client, onClose }: { client: Client | null; onClose: () => void }) {
+  const { agencyId } = useAuth()
+  const create = useCreatePayment()
   const { toast } = useToast()
-
   const [amount, setAmount] = useState('')
-  const [paymentDate, setPaymentDate] = useState(todayISO())
-  const [referenceMonth, setReferenceMonth] = useState(currentMonthLabel())
+  const [date, setDate] = useState(todayISO())
+  const [ref, setRef] = useState(currentMonthLabel())
   const [notes, setNotes] = useState('')
+  const [lastId, setLastId] = useState<string | null>(null)
 
-  // Reset when modal opens for a new client
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && client) {
-      setAmount(client.valor_mensal != null ? String(client.valor_mensal) : '')
-      setPaymentDate(todayISO())
-      setReferenceMonth(currentMonthLabel())
-      setNotes('')
-    }
-    if (!isOpen) onClose()
+  // Reinicia ao abrir para outro cliente
+  if (client && client.id !== lastId) {
+    setLastId(client.id)
+    setAmount(moneyToInput(client.valor_mensal ?? 0)); setDate(todayISO()); setRef(currentMonthLabel()); setNotes('')
   }
-
-  const handleConfirm = async () => {
-    if (!client || !user || !amount || !paymentDate || !referenceMonth) return
-    try {
-      await createPayment.mutateAsync({
-        client_id: client.id,
-        user_id: agencyId!,
-        amount: parseFloat(amount),
-        payment_date: paymentDate,
-        reference_month: referenceMonth,
-        notes: notes.trim() || null,
-      })
-      toast(`Pagamento de ${client.company_name} registrado!`, 'success')
-      onClose()
-    } catch (err: any) {
-      toast(err.message, 'error')
-    }
-  }
-
   if (!client) return null
 
+  const submit = async () => {
+    const value = parseMoney(amount)
+    if (value <= 0 || !date || !ref.trim()) return toast('Preencha valor, data e mês de referência.', 'error')
+    try {
+      await create.mutateAsync({ client_id: client.id, user_id: agencyId!, amount: value, payment_date: date, reference_month: ref.trim(), notes: notes.trim() || null })
+      toast(`Pagamento de ${client.company_name} registrado.`, 'success')
+      setLastId(null); onClose()
+    } catch (err: any) { toast(err.message, 'error') }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="w-[95vw] max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-[14px]">Registrar pagamento</DialogTitle>
-          <p className="text-[12px] text-zinc-500 mt-0.5">{client.company_name}</p>
-        </DialogHeader>
-
-        <div className="space-y-3 mt-1">
-          <Input
-            label="Valor (R$) *"
-            type="number"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            placeholder="0,00"
-          />
-          <Input
-            label="Data do pagamento *"
-            type="date"
-            value={paymentDate}
-            onChange={e => setPaymentDate(e.target.value)}
-          />
-          <Input
-            label="Mês de referência *"
-            value={referenceMonth}
-            onChange={e => setReferenceMonth(e.target.value)}
-            placeholder="ex: Abril 2026"
-          />
-          <Textarea
-            label="Observação (opcional)"
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Notas sobre este pagamento..."
-            rows={2}
-          />
+    <Modal open onClose={() => { setLastId(null); onClose() }} title="Registrar pagamento" footer={<>
+      <GhostButton onClick={() => { setLastId(null); onClose() }}>Cancelar</GhostButton>
+      <PrimaryButton onClick={submit} disabled={create.isPending}>
+        {create.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : 'Confirmar pagamento'}
+      </PrimaryButton>
+    </>}>
+      <div className="space-y-3.5">
+        <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{client.company_name}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Valor (R$)"><TextInput inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" /></Field>
+          <Field label="Data do pagamento"><TextInput type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button
-            size="sm"
-            onClick={handleConfirm}
-            disabled={createPayment.isPending || !amount || !paymentDate || !referenceMonth}
-          >
-            {createPayment.isPending
-              ? <><Loader2 className="w-3 h-3 animate-spin" /> Salvando...</>
-              : <><CheckCircle2 className="w-3 h-3" /> Confirmar pagamento</>}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Field label="Mês de referência" hint="Dá baixa na mensalidade deste mês no Financeiro.">
+          <TextInput value={ref} onChange={e => setRef(e.target.value)} placeholder="Ex.: Outubro 2026" />
+        </Field>
+        <Field label="Observação (opcional)"><TextInput value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: pagou por Pix" /></Field>
+      </div>
+    </Modal>
   )
 }
 
-// ─── Payment History Modal ────────────────────────────────────────────────────
+// ── Histórico de pagamentos ──────────────────────────────────────────────────
 
-function PaymentHistoryModal({
-  client, open, onClose,
-}: {
-  client: Client | null; open: boolean; onClose: () => void
-}) {
-  const { data: payments = [], isLoading } = useClientPayments(open && client ? client.id : null)
-
+function PaymentHistoryModal({ client, onClose }: { client: Client | null; onClose: () => void }) {
+  const { data: payments = [], isLoading } = useClientPayments(client?.id ?? null)
   if (!client) return null
-
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="w-[95vw] max-w-md max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-[14px]">Histórico de pagamentos</DialogTitle>
-          <p className="text-[12px] text-zinc-500 mt-0.5">{client.company_name}</p>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto space-y-2 mt-2 pr-1">
-          {isLoading && (
-            <div className="py-8 text-center">
-              <Loader2 className="w-4 h-4 animate-spin text-zinc-600 mx-auto" />
-            </div>
-          )}
-
-          {!isLoading && payments.length === 0 && (
-            <div className="py-10 text-center">
-              <History className="w-6 h-6 text-zinc-700 mx-auto mb-2" />
-              <p className="text-[12px] text-zinc-600">Nenhum pagamento registrado ainda.</p>
-            </div>
-          )}
-
-          {payments.map(p => (
-            <div
-              key={p.id}
-              className="flex items-center gap-3 p-3 rounded-xl border border-[#1e293b] bg-[#182233]"
-            >
-              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.status === 'pago' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+    <Modal open onClose={onClose} title="Histórico de pagamentos" footer={<GhostButton onClick={onClose}>Fechar</GhostButton>}>
+      <p className="text-[13px] font-semibold mb-3" style={{ color: 'var(--sm-text-1)' }}>{client.company_name}</p>
+      {isLoading ? (
+        <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--sm-text-4)' }} /></div>
+      ) : payments.length === 0 ? (
+        <EmptyState title="Nenhum pagamento registrado ainda" />
+      ) : (
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)' }}>
+          {payments.map((p, i) => (
+            <div key={p.id} className={`relative pl-4 pr-3 py-2.5 flex items-center gap-3 ${i ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+              <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r" style={{ background: p.status === 'pago' ? '#22C55E' : '#EF4444' }} />
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-medium text-[#F8FAFC]">{p.reference_month}</p>
-                {p.notes && <p className="text-[10px] text-[#94a3b8] truncate mt-0.5">{p.notes}</p>}
+                <p className="text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>{p.reference_month}</p>
+                {p.notes && <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>{p.notes}</p>}
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-[13px] font-semibold text-[#F8FAFC]">{fmtBRLDecimal(p.amount)}</p>
-                <p className="text-[10px] text-[#64748b] mt-0.5">{fmtDate(p.payment_date)}</p>
+              <div className="text-right">
+                <p className="text-[13px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{brl(p.amount)}</p>
+                <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>{fmtDate(p.payment_date)}</p>
               </div>
-              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full border flex-shrink-0 ${
-                p.status === 'pago'
-                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                  : 'bg-red-500/15 border-red-500/30 text-red-400'
-              }`}>
-                {p.status === 'pago' ? 'Pago' : 'Atrasado'}
-              </span>
             </div>
           ))}
         </div>
-
-        <DialogFooter className="mt-3">
-          <Button variant="outline" size="sm" onClick={onClose}>Fechar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      )}
+    </Modal>
   )
 }
 
-// ─── Client Row ───────────────────────────────────────────────────────────────
+// ── Linha do cliente ─────────────────────────────────────────────────────────
 
-function ClientRow({ client, onOpenPayment, onOpenHistory }: {
-  client: Client
-  onOpenPayment: (c: Client) => void
-  onOpenHistory: (c: Client) => void
+function ClientRow({ client, first, onPay, onHistory }: {
+  client: Client; first: boolean; onPay: (c: Client) => void; onHistory: (c: Client) => void
 }) {
   const { toast } = useToast()
-  const [sending, setSending] = useState(false)
+  const sendNow = useSendBillingNow()
   const status = calcFinancialStatus(client)
   const aux = getFinancialAuxText(client, status)
-  const showCobrar = (status === 'atrasado' || status === 'vence_em_breve') && !!client.whatsapp
+  const canCharge = (status === 'atrasado' || status === 'vence_em_breve') && !!client.whatsapp
 
-  const handleCobrar = async () => {
-    setSending(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('charge-client-whatsapp', {
-        body: { client_id: client.id },
-      })
-      if (error) throw error
-      if (data?.ok === false) throw new Error(data.error ?? 'Erro ao enviar mensagem.')
-      toast('Mensagem de cobrança enviada no WhatsApp! ✅', 'success')
-    } catch (err: any) {
-      toast(err.message ?? 'Erro ao enviar mensagem.', 'error')
-    } finally {
-      setSending(false)
-    }
+  const charge = async () => {
+    try { await sendNow.mutateAsync(client.id); toast(`Cobrança enviada para ${client.company_name}.`, 'success') }
+    catch (err: any) { toast(err.message ?? 'Erro ao enviar.', 'error') }
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -4 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-[#1e293b] bg-[#111827] hover:bg-[#182233] hover:border-[#2563EB]/40 transition-all group flex-wrap sm:flex-nowrap"
-    >
-      {/* Avatar */}
-      <div className="flex-shrink-0">
+    <div className={`relative pl-5 pr-3 sm:pr-4 py-3 flex flex-wrap md:flex-nowrap items-center gap-x-4 gap-y-2 ${first ? '' : 'border-t'}`}
+      style={{ borderColor: 'var(--sm-border)' }}>
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: STATUS_COLOR[status] }} />
+
+      <div className="flex items-center gap-3 min-w-0 flex-1 basis-full md:basis-auto">
         {client.logo_url ? (
-          <img src={client.logo_url} alt={client.company_name}
-            className="w-8 h-8 rounded-lg object-cover border border-[#1e293b]" />
+          <img src={client.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border" style={{ borderColor: 'var(--sm-border)' }} />
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-[#182233] border border-[#1e293b] flex items-center justify-center text-[12px] font-medium text-[#94a3b8]">
-            {client.company_name[0].toUpperCase()}
-          </div>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
+            style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)' }}>{client.company_name[0]?.toUpperCase()}</div>
         )}
-      </div>
-
-      {/* Name — clickable */}
-      <div className="flex-1 min-w-0">
-        <Link to={`/clients/${client.id}`} className="group/name">
-          <p className="text-[13px] font-medium text-[#F8FAFC] truncate group-hover/name:text-white transition-colors">
+        <div className="min-w-0">
+          <Link to={`/clients/${client.id}`} className="block text-[13.5px] font-semibold truncate hover:underline" style={{ color: 'var(--sm-text-1)' }}>
             {client.company_name}
-          </p>
-        </Link>
-        {aux && (
-          <p className={`text-[10px] mt-0.5 ${
-            status === 'atrasado' ? 'text-red-400' :
-            status === 'vence_em_breve' ? 'text-amber-400' : 'text-[#94a3b8]'
-          }`}>{aux}</p>
-        )}
+          </Link>
+          {aux && <p className="text-[11.5px] truncate" style={{ color: status === 'atrasado' ? '#EF4444' : status === 'vence_em_breve' ? '#F59E0B' : 'var(--sm-text-3)' }}>{aux}</p>}
+        </div>
       </div>
 
-      {/* Valor mensal */}
-      <div className="hidden sm:block w-28 text-right flex-shrink-0">
-        <p className="text-[13px] font-semibold text-[#F8FAFC]">
-          {client.valor_mensal != null ? fmtBRLDecimal(client.valor_mensal) : '—'}
+      <div className="w-[110px] text-right">
+        <p className="text-[13.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>
+          {client.valor_mensal != null ? brl(client.valor_mensal) : '—'}
         </p>
-        {client.dia_vencimento != null && (
-          <p className="text-[10px] text-[#64748b] flex items-center justify-end gap-1 mt-0.5">
-            <CalendarDays className="w-2.5 h-2.5" /> dia {client.dia_vencimento}
-          </p>
-        )}
+        {client.dia_vencimento != null && <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>vence dia {client.dia_vencimento}</p>}
+      </div>
+      <div className="w-[120px] hidden sm:block"><StatusLabel status={status} /></div>
+      <div className="w-[96px] hidden lg:block text-right text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
+        {client.last_payment_date ? <>pago {fmtDate(client.last_payment_date)}</> : 'sem pagamento'}
       </div>
 
-      {/* Status badge */}
-      <div className="hidden md:block flex-shrink-0 w-36">
-        <StatusBadge status={status} />
-      </div>
-
-      {/* Último pagamento */}
-      <div className="hidden lg:block w-28 text-right flex-shrink-0">
-        <p className="text-[11px] text-[#64748b]">{fmtDate(client.last_payment_date)}</p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Registrar pagamento */}
+      <div className="flex items-center gap-0.5 ml-auto">
         {status !== 'cancelado' && (
-          <button
-            onClick={() => onOpenPayment(client)}
-            title="Registrar pagamento"
-            className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-[11px] text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/30 transition-all"
-          >
-            <CheckCircle2 className="w-3 h-3" /> Pago
+          <button onClick={() => onPay(client)} title="Registrar pagamento"
+            className="h-8 px-2.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1"
+            style={{ background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}>
+            <Check className="w-3.5 h-3.5" /> Pago
           </button>
         )}
-
-        {/* Cobrar via WhatsApp */}
-        {showCobrar && (
-          <button
-            onClick={handleCobrar}
-            disabled={sending}
-            title="Enviar cobrança via WhatsApp"
-            className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-[11px] text-green-400 hover:bg-green-500/10 border border-transparent hover:border-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sending
-              ? <Loader2 className="w-3 h-3 animate-spin" />
-              : <MessageCircle className="w-3 h-3" />}
-            {sending ? 'Enviando...' : 'Cobrar'}
+        {canCharge && (
+          <button onClick={charge} disabled={sendNow.isPending} title="Enviar cobrança com Pix"
+            className="h-8 px-2.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1 disabled:opacity-50"
+            style={{ background: 'rgba(37,211,102,0.12)', color: '#25D366' }}>
+            {sendNow.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} Cobrar
           </button>
         )}
-
-        {/* Histórico */}
-        <button
-          onClick={() => onOpenHistory(client)}
-          title="Histórico de pagamentos"
-          className="h-7 w-7 flex items-center justify-center rounded-lg text-[#64748b] hover:text-white hover:bg-[#1e293b] border border-transparent hover:border-[#1e293b] transition-all"
-        >
-          <History className="w-3 h-3" />
+        <button onClick={() => onHistory(client)} title="Histórico de pagamentos" aria-label="Histórico de pagamentos"
+          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+          <History className="w-3.5 h-3.5" />
         </button>
-
-        {/* Alterar status */}
-        <StatusDropdown client={client} />
-
-        {/* Abrir perfil */}
-        <Link
-          to={`/clients/${client.id}`}
-          title="Abrir perfil"
-          className="h-7 w-7 flex items-center justify-center rounded-lg text-[#64748b] hover:text-white hover:bg-[#1e293b] border border-transparent hover:border-[#1e293b] transition-all"
-        >
-          <ExternalLink className="w-3 h-3" />
+        <StatusMenu client={client} />
+        <Link to={`/clients/${client.id}`} title="Abrir perfil" aria-label="Abrir perfil"
+          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+          <ExternalLink className="w-3.5 h-3.5" />
         </Link>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ── Aba ──────────────────────────────────────────────────────────────────────
 
-// Aba "Clientes" do Financeiro: a mensalidade de cada cliente e a situação
-// (em dia, vence em breve, atrasado). A página com as abas é FinancePage.
 export function ClientBillingTab() {
   const { data: allClients = [], isLoading } = useClients()
-  const { toast } = useToast()
-
   const [filter, setFilter] = useState<FilterKey>('todos')
   const [search, setSearch] = useState('')
+  const [paying, setPaying] = useState<Client | null>(null)
+  const [history, setHistory] = useState<Client | null>(null)
 
-  // Modal state
-  const [paymentTarget, setPaymentTarget] = useState<Client | null>(null)
-  const [paymentOpen, setPaymentOpen] = useState(false)
-  const [historyTarget, setHistoryTarget] = useState<Client | null>(null)
-  const [historyOpen, setHistoryOpen] = useState(false)
-
-  const openPaymentModal = (c: Client) => { setPaymentTarget(c); setPaymentOpen(true) }
-  const openHistoryModal = (c: Client) => { setHistoryTarget(c); setHistoryOpen(true) }
-
-  // Only clients with financial data
-  const financialClients = useMemo(() =>
-    allClients.filter(c => c.valor_mensal != null || c.dia_vencimento != null),
-    [allClients]
-  )
-
-  // Compute status for each
   const withStatus = useMemo(() =>
-    financialClients.map(c => ({ client: c, status: calcFinancialStatus(c) })),
-    [financialClients]
-  )
+    allClients.filter(c => c.valor_mensal != null || c.dia_vencimento != null)
+      .map(c => ({ client: c, status: calcFinancialStatus(c) })),
+  [allClients])
 
-  // KPI calculations
-  const kpis = useMemo(() => {
+  const k = useMemo(() => {
     const now = new Date()
-    const thisYear = now.getFullYear()
-    const thisMonth = now.getMonth() + 1
-
-    const mrrClients = withStatus.filter(x => x.status !== 'cancelado')
-    const mrr = mrrClients.reduce((s, x) => s + (x.client.valor_mensal ?? 0), 0)
-
-    const previstaClients = withStatus.filter(x => x.status === 'ativo' || x.status === 'vence_em_breve')
-    const previsto = previstaClients.reduce((s, x) => s + (x.client.valor_mensal ?? 0), 0)
-
-    const overdueList = withStatus.filter(x => x.status === 'atrasado')
-    const overdueRevenue = overdueList.reduce((s, x) => s + (x.client.valor_mensal ?? 0), 0)
-
-    const soonList = withStatus.filter(x => x.status === 'vence_em_breve')
-    const soonRevenue = soonList.reduce((s, x) => s + (x.client.valor_mensal ?? 0), 0)
-
-    const receivedList = withStatus.filter(x => {
+    const sum = (xs: typeof withStatus) => xs.reduce((s, x) => s + (x.client.valor_mensal ?? 0), 0)
+    const live = withStatus.filter(x => x.status !== 'cancelado')
+    const previstoList = withStatus.filter(x => x.status === 'ativo' || x.status === 'vence_em_breve')
+    const overdue = withStatus.filter(x => x.status === 'atrasado')
+    const soon = withStatus.filter(x => x.status === 'vence_em_breve')
+    const received = withStatus.filter(x => {
       if (!x.client.last_payment_date) return false
       const [y, m] = x.client.last_payment_date.split('-').map(Number)
-      return y === thisYear && m === thisMonth
+      return y === now.getFullYear() && m === now.getMonth() + 1
     })
-    const receivedRevenue = receivedList.reduce((s, x) => s + (x.client.valor_mensal ?? 0), 0)
-
-    const avgTicket = mrrClients.length > 0 ? mrr / mrrClients.length : 0
-
+    const mrr = sum(live), previsto = sum(previstoList)
     return {
-      mrr, previsto, overdueRevenue, overdueCount: overdueList.length,
-      soonRevenue, soonCount: soonList.length,
-      receivedRevenue, receivedCount: receivedList.length,
-      avgTicket, mrrCount: mrrClients.length,
-      showAlert: previsto < mrr && overdueList.length > 0,
-      alertDiff: mrr - previsto,
+      mrr, mrrCount: live.length, previsto, received: sum(received), receivedCount: received.length,
+      overdue: sum(overdue), overdueCount: overdue.length, soon: sum(soon), soonCount: soon.length,
+      ticket: live.length ? mrr / live.length : 0,
     }
   }, [withStatus])
 
-  // Filter + search
-  const filtered = useMemo(() => {
-    let list = withStatus
-    if (filter !== 'todos') list = list.filter(x => x.status === filter)
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      list = list.filter(x => x.client.company_name.toLowerCase().includes(q))
-    }
-    return list
-  }, [withStatus, filter, search])
-
-  // Filter counts
   const counts = useMemo(() => {
-    const map: Record<FilterKey, number> = { todos: withStatus.length, ativo: 0, vence_em_breve: 0, atrasado: 0, cancelado: 0 }
-    withStatus.forEach(x => { map[x.status] = (map[x.status] ?? 0) + 1 })
-    return map
+    const c: Record<FilterKey, number> = { todos: withStatus.length, ativo: 0, vence_em_breve: 0, atrasado: 0, cancelado: 0 }
+    withStatus.forEach(x => { c[x.status]++ })
+    return c
   }, [withStatus])
+
+  const list = withStatus.filter(x =>
+    (filter === 'todos' || x.status === filter) &&
+    (!search.trim() || x.client.company_name.toLowerCase().includes(search.trim().toLowerCase())))
+
+  if (isLoading) return <TabSkeleton kpis={6} blocks={[380]} />
 
   return (
-    <div>
-      <div className="space-y-6">
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <KpiTile label="Recebido no mês" value={brl(k.received, false)} sub={`${k.receivedCount} pagamento(s)`} tone="good" />
+        <KpiTile label="MRR" value={brl(k.mrr, false)} sub={`${k.mrrCount} contrato(s) ativo(s)`} />
+        <KpiTile label="Previsto" value={brl(k.previsto, false)} sub="em dia + vence em breve" />
+        <KpiTile label="Vence em breve" value={k.soonCount ? brl(k.soon, false) : '—'} sub={`${k.soonCount} cliente(s) em até 5 dias`}
+          tone={k.soonCount ? 'warn' : undefined} active={filter === 'vence_em_breve'}
+          onClick={k.soonCount ? () => setFilter(f => f === 'vence_em_breve' ? 'todos' : 'vence_em_breve') : undefined} />
+        <KpiTile label="Em atraso" value={k.overdueCount ? brl(k.overdue, false) : '—'} sub={`${k.overdueCount} cliente(s)`}
+          tone={k.overdueCount ? 'bad' : undefined} active={filter === 'atrasado'}
+          onClick={k.overdueCount ? () => setFilter(f => f === 'atrasado' ? 'todos' : 'atrasado') : undefined} />
+        <KpiTile label="Ticket médio" value={brl(k.ticket, false)} sub="por cliente ativo" />
+      </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard
-            icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            label="Recebido no mês"
-            value={fmtBRL(kpis.receivedRevenue)}
-            sub={`${kpis.receivedCount} pagamento${kpis.receivedCount !== 1 ? 's' : ''} confirmado${kpis.receivedCount !== 1 ? 's' : ''}`}
-            borderAccent="border-emerald-500/30"
-            iconBg="bg-emerald-500/15"
-            delay={0}
-          />
-          <KpiCard
-            icon={<TrendingUp className="w-4 h-4 text-blue-400" />}
-            label="MRR"
-            value={fmtBRL(kpis.mrr)}
-            sub={`${kpis.mrrCount} contrato${kpis.mrrCount !== 1 ? 's' : ''} ativo${kpis.mrrCount !== 1 ? 's' : ''}`}
-            borderAccent="border-blue-500/20"
-            iconBg="bg-blue-500/15"
-            delay={0.04}
-          />
-          <KpiCard
-            icon={<Clock className="w-4 h-4 text-amber-400" />}
-            label="Vence em breve"
-            value={kpis.soonCount > 0 ? fmtBRL(kpis.soonRevenue) : '—'}
-            sub={kpis.soonCount > 0
-              ? `${kpis.soonCount} cliente${kpis.soonCount !== 1 ? 's' : ''} vence${kpis.soonCount !== 1 ? 'm' : ''} em até 5 dias`
-              : 'nenhum vencimento próximo'}
-            borderAccent={kpis.soonCount > 0 ? 'border-amber-500/30' : 'border-[#1e293b]'}
-            iconBg="bg-amber-500/15"
-            delay={0.08}
-            onClick={kpis.soonCount > 0 ? () => setFilter('vence_em_breve') : undefined}
-          />
-          <KpiCard
-            icon={<AlertCircle className="w-4 h-4 text-red-400" />}
-            label="Em atraso"
-            value={kpis.overdueCount > 0 ? fmtBRL(kpis.overdueRevenue) : '—'}
-            sub={`${kpis.overdueCount} cliente${kpis.overdueCount !== 1 ? 's' : ''} em atraso`}
-            borderAccent={kpis.overdueCount > 0 ? 'border-red-500/30' : 'border-[#1e293b]'}
-            iconBg="bg-red-500/15"
-            delay={0.12}
-            onClick={kpis.overdueCount > 0 ? () => setFilter('atrasado') : undefined}
-          />
-          <KpiCard
-            icon={<BarChart3 className="w-4 h-4 text-violet-400" />}
-            label="Ticket médio"
-            value={kpis.mrrCount > 0 ? fmtBRL(kpis.avgTicket) : '—'}
-            sub="média por contrato ativo"
-            borderAccent="border-violet-500/20"
-            iconBg="bg-violet-500/15"
-            delay={0.16}
-          />
+      {k.overdueCount > 0 && k.previsto < k.mrr && (
+        <div className="rounded-2xl border px-4 py-3 flex flex-wrap items-center gap-3"
+          style={{ borderColor: 'rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.07)' }}>
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: '#F59E0B' }} />
+          <p className="text-[13px] flex-1 min-w-[200px]" style={{ color: 'var(--sm-text-1)' }}>
+            A receita prevista está <strong>{brl(k.mrr - k.previsto, false)}</strong> abaixo do MRR por causa de {k.overdueCount} cliente(s) em atraso.
+          </p>
+          <button onClick={() => setFilter('atrasado')} className="text-[12.5px] font-semibold" style={{ color: '#F59E0B' }}>Ver quem →</button>
         </div>
+      )}
 
-        {/* Alert card — only when previsto < MRR */}
-        {kpis.showAlert && (
-          <AlertCard
-            mrr={kpis.mrr}
-            previsto={kpis.previsto}
-            diff={kpis.alertDiff}
-            affectedCount={kpis.overdueCount}
-            onViewAffected={() => setFilter('atrasado')}
-            delay={0.2}
-          />
-        )}
-
-        {/* Filter + Search */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex gap-1.5 flex-wrap">
-            {(Object.keys(filterLabels) as FilterKey[]).map(key => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium transition-all border ${
-                  filter === key
-                    ? 'bg-[#2563EB] text-white border-transparent'
-                    : 'bg-[#182233] text-[#94a3b8] hover:text-white hover:bg-[#1e293b] border-[#1e293b]'
-                }`}
-              >
-                {filterLabels[key]}
-                {counts[key] > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${
-                    filter === key ? 'bg-white/20 text-white' : 'bg-[#0d1424] text-[#94a3b8]'
-                  }`}>
-                    {counts[key]}
-                  </span>
-                )}
+      <section>
+        <SectionTitle n="01" title="Mensalidades dos clientes" />
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="flex gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none max-w-full" style={{ background: 'var(--sm-bg-alt)' }}>
+            {FILTERS.map(([key, label]) => (
+              <button key={key} onClick={() => setFilter(key)} className="h-8 px-3 rounded-lg text-[12.5px] font-medium whitespace-nowrap"
+                style={filter === key ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)' } : { color: 'var(--sm-text-3)' }}>
+                {label} <span className="tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{counts[key]}</span>
               </button>
             ))}
           </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94a3b8] pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Buscar cliente..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 rounded-xl border border-[#1e293b] bg-[#182233] text-[12px] text-[#E2E8F0] placeholder:text-[#64748b] focus:outline-none focus:border-[#2563EB]/50 transition-colors"
-            />
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--sm-text-4)' }} />
+            <TextInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente" className="pl-9" />
           </div>
         </div>
-
-        {/* Table header */}
-        {filtered.length > 0 && (
-          <div className="hidden md:grid grid-cols-[32px_1fr_112px_144px_112px_auto] items-center gap-4 px-4 pb-1">
-            <div />
-            <p className="text-[10px] text-[#9ca3af] uppercase tracking-wide">Cliente</p>
-            <p className="text-[10px] text-[#9ca3af] uppercase tracking-wide text-right">Mensalidade</p>
-            <p className="text-[10px] text-[#9ca3af] uppercase tracking-wide">Status</p>
-            <p className="text-[10px] text-[#9ca3af] uppercase tracking-wide text-right">Últ. pagamento</p>
-            <div />
-          </div>
-        )}
-
-        {/* Client list */}
-        <div className="space-y-1.5">
-          {isLoading && (
-            <div className="py-12 text-center text-[12px] text-[#9ca3af]">Carregando clientes...</div>
-          )}
-
-          {!isLoading && financialClients.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-12 h-12 rounded-xl border border-[#1e293b] bg-[#182233] flex items-center justify-center mb-4">
-                <DollarSign className="w-5 h-5 text-[#475569]" />
-              </div>
-              <p className="text-[14px] font-medium text-[#F8FAFC]">Nenhum cliente com dados financeiros</p>
-              <p className="text-[12px] text-[#64748b] mt-1 max-w-xs">
-                Cadastre o valor mensal e o dia de vencimento no perfil de cada cliente.
-              </p>
-              <Link
-                to="/clients"
-                className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold transition-colors hover:bg-[#1D4ED8] shadow-lg shadow-[#2563EB]/20"
-                style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}
-              >
-                Ver clientes
-              </Link>
-            </div>
-          )}
-
-          {!isLoading && financialClients.length > 0 && filtered.length === 0 && (
-            <div className="py-12 text-center text-[12px] text-[#9ca3af]">
-              Nenhum cliente encontrado para este filtro.
-            </div>
-          )}
-
-          {filtered.map(({ client }) => (
-            <ClientRow
-              key={client.id}
-              client={client}
-              onOpenPayment={openPaymentModal}
-              onOpenHistory={openHistoryModal}
-            />
+        <Card>
+          {withStatus.length === 0 ? (
+            <EmptyState title="Nenhum cliente com mensalidade" text="Cadastre o valor mensal e o dia de vencimento no perfil do cliente para ele aparecer aqui."
+              action={<Link to="/clients" className="text-[13px] font-semibold" style={{ color: '#60A5FA' }}>Ir para Clientes →</Link>} />
+          ) : list.length === 0 ? (
+            <EmptyState title="Nenhum cliente neste filtro" />
+          ) : list.map(({ client }, i) => (
+            <ClientRow key={client.id} client={client} first={i === 0} onPay={setPaying} onHistory={setHistory} />
           ))}
-        </div>
-
-        {filtered.length > 0 && (
-          <p className="text-[11px] text-[#9ca3af] text-center">
-            {filtered.length} cliente{filtered.length !== 1 ? 's' : ''} exibido{filtered.length !== 1 ? 's' : ''}
+        </Card>
+        {list.length > 0 && (
+          <p className="text-[11.5px] mt-2" style={{ color: 'var(--sm-text-4)' }}>
+            {list.length} cliente(s). "Pago" dá baixa na mensalidade do mês no Financeiro; "Cobrar" envia a mensagem com Pix da cobrança automática.
           </p>
         )}
-      </div>
+      </section>
 
-      {/* Modals */}
-      <RegisterPaymentModal
-        client={paymentTarget}
-        open={paymentOpen}
-        onClose={() => { setPaymentOpen(false); setPaymentTarget(null) }}
-      />
-      <PaymentHistoryModal
-        client={historyTarget}
-        open={historyOpen}
-        onClose={() => { setHistoryOpen(false); setHistoryTarget(null) }}
-      />
+      <RegisterPaymentModal client={paying} onClose={() => setPaying(null)} />
+      <PaymentHistoryModal client={history} onClose={() => setHistory(null)} />
     </div>
   )
 }

@@ -8,7 +8,7 @@ import {
   useBillingSettings, useSaveBillingSettings, useBillingLog, useBillingPreview,
   useToggleClientAutoBilling, type BillingSettings,
 } from '@/hooks/useFinance'
-import { Card, SectionTitle, Field, TextInput, SelectInput, PrimaryButton, GhostButton, EmptyState } from './finUi'
+import { Card, SectionTitle, Field, TextInput, SelectInput, PrimaryButton, GhostButton, EmptyState, TabSkeleton } from './finUi'
 
 const STAGE_OPTIONS = [-7, -5, -3, -1, 0, 1, 3, 5, 7, 10, 15, 30]
 const stageLabel = (s: number) => s < 0 ? `${-s} dia${s === -1 ? '' : 's'} antes` : s === 0 ? 'No dia' : `${s} dia${s === 1 ? '' : 's'} depois`
@@ -74,7 +74,7 @@ export function BillingTab() {
     } catch (err: any) { toast(err.message ?? 'Erro na pré-visualização.', 'error') }
   }
 
-  if (isLoading) return <p className="py-12 text-center text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Carregando...</p>
+  if (isLoading) return <TabSkeleton kpis={0} blocks={[120, 260, 200]} />
 
   return (
     <div className="space-y-6 max-w-4xl">

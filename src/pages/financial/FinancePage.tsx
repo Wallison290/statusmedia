@@ -14,6 +14,7 @@ import { SettingsTab } from './SettingsTab'
 import { HistoryTab } from './HistoryTab'
 import { BillingTab } from './BillingTab'
 import { InvoicesTab } from './InvoicesTab'
+import { TabSkeleton } from './finUi'
 
 const TABS = [
   { id: 'visao',          label: 'Visão geral' },
@@ -38,10 +39,11 @@ export function FinancePage() {
   return (
     <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
       <div className="p-4 md:p-6 max-w-7xl mx-auto">
-        <div className="mb-4 max-md:pl-12 max-md:-mt-[3.25rem]">
-          <h1 className="font-display text-[24px] font-bold leading-tight" style={{ color: 'var(--sm-text-1)' }}>Financeiro</h1>
-          <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>Contas a receber e a pagar, fluxo de caixa e mensalidades</p>
-        </div>
+        <header className="mb-5 max-md:pl-12 max-md:-mt-[3.25rem]">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Gestão da agência</p>
+          <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>Financeiro</h1>
+          <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Contas a receber e a pagar, fluxo de caixa, cobranças e notas fiscais</p>
+        </header>
 
         <nav className="flex gap-1 overflow-x-auto scrollbar-none border-b mb-5 -mx-4 px-4 md:mx-0 md:px-0" style={{ borderColor: 'var(--sm-border)' }} aria-label="Seções do Financeiro">
           {TABS.map(t => (
@@ -54,7 +56,7 @@ export function FinancePage() {
         </nav>
 
         {booting ? (
-          <p className="py-16 text-center text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Preparando o financeiro...</p>
+          <TabSkeleton kpis={5} blocks={[300, 200]} />
         ) : (
           <>
             {tab === 'visao' && <OverviewTab goTo={goTo} />}

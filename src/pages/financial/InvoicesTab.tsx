@@ -10,7 +10,7 @@ import {
   useCancelInvoice, useSkipInvoice, useSaveClientFiscal, EMISSOR_NACIONAL_URL,
   fmtBRL, fmtDateBR, todayISO, type FiscalSettings, type FinEntry, type ClientFiscal,
 } from '@/hooks/useFinance'
-import { Card, SectionTitle, EmptyState, Modal, Field, TextInput, SelectInput, PrimaryButton, GhostButton, parseMoney, moneyToInput } from './finUi'
+import { Card, SectionTitle, EmptyState, Skeleton, Modal, Field, TextInput, SelectInput, PrimaryButton, GhostButton, parseMoney, moneyToInput } from './finUi'
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const monthName = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]}/${iso.slice(0, 4)}`
@@ -72,7 +72,7 @@ export function InvoicesTab() {
           <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>{groups.length} nota(s) · {fmtBRL(groups.reduce((s, g) => s + g.total, 0))}</span>
         } />
         <Card>
-          {isLoading ? <p className="py-10 text-center text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Carregando...</p>
+          {isLoading ? <div className="p-3 space-y-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-12" />)}</div>
             : groups.length === 0 ? <EmptyState title="Tudo em dia" text="Todo recebimento de cliente até este mês já tem nota (ou foi marcado como sem nota)." />
             : groups.map((g, i) => (
               <div key={g.key} className={`px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 ${i ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>

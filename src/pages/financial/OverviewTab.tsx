@@ -5,7 +5,7 @@ import {
   useFinAccounts, useFinOpenUntil, useFinEntries, useContractsAwaitingBilling,
   todayISO, monthStartISO, addMonthsISO, fmtBRL, fmtDateBR, daysBetween,
 } from '@/hooks/useFinance'
-import { Card, SectionTitle, EmptyState } from './finUi'
+import { Card, SectionTitle, EmptyState, KpiTile, TabSkeleton } from './finUi'
 
 const HORIZON = 90
 
@@ -19,10 +19,13 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })()
 
-  const { data: accounts = [] } = useFinAccounts()
-  const { data: open = [] } = useFinOpenUntil(horizonISO)
-  const { data: monthEntries = [] } = useFinEntries(month, monthEndISO)
+  // Só desenha com tudo carregado: antes a tela aparecia zerada (saldo R$ 0,00,
+  // gráfico reto) e pulava para os valores reais um instante depois.
+  const { data: accounts = [], isLoading: l1 } = useFinAccounts()
+  const { data: open = [], isLoading: l2 } = useFinOpenUntil(horizonISO)
+  const { data: monthEntries = [], isLoading: l3 } = useFinEntries(month, monthEndISO)
   const { data: awaiting = [] } = useContractsAwaitingBilling()
+  const loading = l1 || l2 || l3
 
   const balance = accounts.filter(a => a.is_active).reduce((s, a) => s + a.balance, 0)
 
@@ -67,6 +70,8 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
   const endPoint = series[series.length - 1]
   const upcoming = open.filter(e => e.due_date >= today && daysBetween(today, e.due_date) <= 7)
 
+  if (loading) return <TabSkeleton kpis={5} blocks={[300, 200]} />
+
   return (
     <div className="space-y-6">
       {awaiting.length > 0 && (
@@ -84,12 +89,12 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
 
       {/* Números */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Kpi label="Saldo em contas" value={fmtBRL(balance)} sub={`${accounts.filter(a => a.is_active).length} conta(s)`} />
-        <Kpi label="A receber em 30 dias" value={fmtBRL(k.rec30)} sub="vencimentos futuros" />
-        <Kpi label="A pagar em 30 dias" value={fmtBRL(k.pay30)} sub="vencimentos futuros" />
-        <Kpi label="Resultado do mês" value={fmtBRL(k.result)}
-          sub={`${fmtBRL(k.recMonth)} entrou · ${fmtBRL(k.payMonth)} saiu`} tone={k.result < 0 ? 'neg' : undefined} />
-        <Kpi label="Em atraso" value={fmtBRL(k.overdueRec)} sub={`${k.overdueCount} recebimento(s) vencido(s)`}
+        <KpiTile label="Saldo em contas" value={fmtBRL(balance)} sub={`${accounts.filter(a => a.is_active).length} conta(s)`} />
+        <KpiTile label="A receber em 30 dias" value={fmtBRL(k.rec30)} sub="vencimentos futuros" />
+        <KpiTile label="A pagar em 30 dias" value={fmtBRL(k.pay30)} sub="vencimentos futuros" />
+        <KpiTile label="Resultado do mês" value={fmtBRL(k.result)}
+          sub={`${fmtBRL(k.recMonth)} entrou · ${fmtBRL(k.payMonth)} saiu`} tone={k.result < 0 ? 'bad' : undefined} />
+        <KpiTile label="Em atraso" value={fmtBRL(k.overdueRec)} sub={`${k.overdueCount} recebimento(s) vencido(s)`}
           tone={k.overdueRec > 0 ? 'warn' : undefined} onClick={k.overdueRec > 0 ? () => goTo('inadimplencia') : undefined} />
       </div>
 
@@ -132,7 +137,7 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
                     </div>
                   ) : null}
                 />
-                <Area type="stepAfter" dataKey="saldo" stroke="#3B82F6" strokeWidth={2} fill="url(#finFlow)"
+                <Area isAnimationActive={false} type="stepAfter" dataKey="saldo" stroke="#3B82F6" strokeWidth={2} fill="url(#finFlow)"
                   activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--sm-bg-card)' }} />
               </AreaChart>
             </ResponsiveContainer>
@@ -182,22 +187,5 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
         </section>
       </div>
     </div>
-  )
-}
-
-function Kpi({ label, value, sub, tone, onClick }: {
-  label: string; value: string; sub?: string; tone?: 'neg' | 'warn'; onClick?: () => void
-}) {
-  const bar = tone === 'neg' ? '#EF4444' : tone === 'warn' ? '#F59E0B' : 'transparent'
-  const Tag = onClick ? 'button' : 'div'
-  return (
-    <Tag onClick={onClick}
-      className={`text-left rounded-2xl border px-4 py-3 relative overflow-hidden ${onClick ? 'hover:bg-white/5 transition-colors' : ''}`}
-      style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
-      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: bar }} />
-      <p className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>{label}</p>
-      <p className="text-[18px] font-bold tabular-nums mt-0.5" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-      {sub && <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--sm-text-4)' }}>{sub}</p>}
-    </Tag>
   )
 }

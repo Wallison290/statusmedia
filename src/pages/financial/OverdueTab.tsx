@@ -5,7 +5,7 @@ import {
   useFinOpenUntil, useSendBillingNow, useToggleEntryBillingPause,
   todayISO, fmtBRL, fmtDateBR, daysBetween, type FinEntry,
 } from '@/hooks/useFinance'
-import { Card, SectionTitle, EmptyState } from './finUi'
+import { Card, SectionTitle, EmptyState, TabSkeleton } from './finUi'
 import { SettleModal } from './EntryModals'
 
 interface Debtor { key: string; name: string; clientId: string | null; total: number; oldest: string; entries: FinEntry[] }
@@ -55,7 +55,7 @@ export function OverdueTab() {
     }
   }
 
-  if (isLoading) return <p className="py-12 text-center text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Carregando...</p>
+  if (isLoading) return <TabSkeleton kpis={0} blocks={[300, 160]} />
 
   return (
     <div className="space-y-6">

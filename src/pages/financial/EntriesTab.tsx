@@ -6,7 +6,7 @@ import {
   entryState, fmtBRL, fmtDateBR, addMonthsISO, todayISO, monthStartISO,
   type FinEntry, type FinType, type EntryState,
 } from '@/hooks/useFinance'
-import { Card, StatePill, Amount, EmptyState, PrimaryButton, GhostButton, TextInput, SelectInput } from './finUi'
+import { Card, StatePill, Amount, EmptyState, PrimaryButton, GhostButton, TextInput, SelectInput, KpiTile, Skeleton } from './finUi'
 import { EntryModal, SettleModal } from './EntryModals'
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -102,12 +102,7 @@ export function EntriesTab() {
           ['Recebido no mês', totals.recOk],
           ['A pagar no mês', totals.payPrev],
           ['Pago no mês', totals.payOk],
-        ].map(([label, v]) => (
-          <Card key={label as string} className="px-4 py-3">
-            <p className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>{label}</p>
-            <p className="text-[18px] font-bold tabular-nums mt-0.5" style={{ color: 'var(--sm-text-1)' }}>{fmtBRL(v as number)}</p>
-          </Card>
-        ))}
+        ].map(([label, v]) => <KpiTile key={label as string} label={label as string} value={isLoading ? '—' : fmtBRL(v as number)} />)}
       </div>
 
       {/* Filtros */}
@@ -133,7 +128,7 @@ export function EntriesTab() {
 
       <Card>
         {isLoading ? (
-          <p className="py-12 text-center text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Carregando...</p>
+          <div className="p-3 space-y-2">{[0, 1, 2, 3, 4].map(i => <Skeleton key={i} className="h-12" />)}</div>
         ) : list.length === 0 ? (
           <EmptyState title="Nada por aqui" text="Nenhum lançamento neste mês com esses filtros." />
         ) : (
