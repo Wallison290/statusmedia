@@ -151,7 +151,7 @@ function UsersTab({ search }: { search: string }) {
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium transition-all border ${
               filter === key
                 ? 'bg-[#2563EB] text-white border-transparent'
-                : 'bg-[#182233] text-[#94a3b8] hover:text-white hover:bg-[#1e293b] border-[#1e293b]'
+                : 'bg-[#182233] text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] border-[#1e293b]'
             }`}
           >
             {USER_FILTER_LABELS[key]}
@@ -448,7 +448,7 @@ export function AdminPanel() {
               className={`px-3.5 py-2 rounded-lg text-[12px] font-medium transition-all border flex items-center gap-1.5 ${
                 tab === 'users'
                   ? 'bg-[#2563EB] text-white border-transparent'
-                  : 'bg-[#182233] text-[#94a3b8] hover:text-white hover:bg-[#1e293b] border-[#1e293b]'
+                  : 'bg-[#182233] text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] border-[#1e293b]'
               }`}
             >
               <Users className="w-3.5 h-3.5" /> Usuários
@@ -458,7 +458,7 @@ export function AdminPanel() {
               className={`px-3.5 py-2 rounded-lg text-[12px] font-medium transition-all border flex items-center gap-1.5 ${
                 tab === 'clients'
                   ? 'bg-[#2563EB] text-white border-transparent'
-                  : 'bg-[#182233] text-[#94a3b8] hover:text-white hover:bg-[#1e293b] border-[#1e293b]'
+                  : 'bg-[#182233] text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] border-[#1e293b]'
               }`}
             >
               <Building2 className="w-3.5 h-3.5" /> Clientes
@@ -468,7 +468,7 @@ export function AdminPanel() {
               className={`px-3.5 py-2 rounded-lg text-[12px] font-medium transition-all border flex items-center gap-1.5 ${
                 tab === 'byAgency'
                   ? 'bg-[#2563EB] text-white border-transparent'
-                  : 'bg-[#182233] text-[#94a3b8] hover:text-white hover:bg-[#1e293b] border-[#1e293b]'
+                  : 'bg-[#182233] text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] border-[#1e293b]'
               }`}
             >
               <UsersRound className="w-3.5 h-3.5" /> Usuários & Clientes

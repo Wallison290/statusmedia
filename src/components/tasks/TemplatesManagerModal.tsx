@@ -126,7 +126,7 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {draft && (
-              <button onClick={() => setDraft(null)} className="text-[#94a3b8] hover:text-white"><ChevronLeft className="w-4 h-4" /></button>
+              <button onClick={() => setDraft(null)} className="text-[#94a3b8] hover:text-[color:var(--sm-text-1)]"><ChevronLeft className="w-4 h-4" /></button>
             )}
             {draft ? (draft.id ? 'Editar modelo' : 'Novo modelo') : 'Modelos de Tarefas'}
           </DialogTitle>
@@ -137,7 +137,7 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
           <div className="space-y-3 mt-1">
             <button
               onClick={() => setDraft(emptyDraft())}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#334155] text-[13px] font-medium text-[#9bb6dd] hover:border-[#29457a] hover:bg-[#182233] transition-all">
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#334155] text-[13px] font-medium text-[#2563EB] hover:border-[#2563EB] hover:bg-[#182233] transition-all">
               <Plus className="w-4 h-4" /> Criar modelo
             </button>
 
@@ -151,7 +151,7 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-[13px] font-semibold text-[#F8FAFC] truncate">{t.name}</p>
-                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${t.is_system ? 'bg-[#182233] text-[#64748b]' : 'bg-[#29457a]/30 text-[#9bb6dd]'}`}>
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${t.is_system ? 'bg-[#182233] text-[#64748b]' : 'bg-[#2563EB]/10 text-[#2563EB]'}`}>
                           {t.is_system ? 'Sistema' : 'Meu'}
                         </span>
                       </div>
@@ -159,20 +159,20 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button onClick={() => openEditor(t, true)} title="Duplicar" disabled={loadingEdit}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors">
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors">
                         <Copy className="w-3.5 h-3.5" />
                       </button>
                       {!t.is_system && (
                         <>
                           <button onClick={() => openEditor(t, false)} title="Editar" disabled={loadingEdit}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors">
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           {confirmDel === t.id ? (
-                            <button onClick={() => handleDelete(t.id)} className="px-2 h-7 rounded-lg text-[11px] text-red-400 hover:bg-red-500/10 font-medium">Confirmar?</button>
+                            <button onClick={() => handleDelete(t.id)} className="px-2 h-7 rounded-lg text-[11px] text-red-500 hover:bg-red-500/10 font-medium">Confirmar?</button>
                           ) : (
                             <button onClick={() => setConfirmDel(t.id)} title="Excluir"
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-500 hover:bg-red-500/10 transition-colors">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
@@ -209,7 +209,7 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide">Tarefas ({draft.items.length})</label>
                 <button onClick={() => setDraft(d => d && ({ ...d, items: [...d.items, emptyItem()] }))}
-                  className="inline-flex items-center gap-1 text-[12px] text-[#9bb6dd] hover:text-white"><Plus className="w-3.5 h-3.5" /> Adicionar tarefa</button>
+                  className="inline-flex items-center gap-1 text-[12px] text-[#2563EB] hover:text-[color:var(--sm-text-1)]"><Plus className="w-3.5 h-3.5" /> Adicionar tarefa</button>
               </div>
               <div className="space-y-2">
                 {draft.items.map((it, idx) => (
@@ -219,7 +219,7 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
                       <input value={it.title} onChange={e => setItem(idx, { title: e.target.value })} placeholder="Título da tarefa"
                         className="flex-1 h-8 px-2.5 rounded-lg border border-[#1e293b] bg-[#182233] text-[13px] text-[#E2E8F0] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40" />
                       <button onClick={() => setDraft(d => d && ({ ...d, items: d.items.filter((_, i) => i !== idx) }))}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#64748b] hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#64748b] hover:text-red-500 hover:bg-red-500/10 flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                     <input value={it.description} onChange={e => setItem(idx, { description: e.target.value })} placeholder="Descrição (opcional)"
                       className="w-full h-8 px-2.5 rounded-lg border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40" />

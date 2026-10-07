@@ -567,7 +567,7 @@ function TaskViewModal({
             <button
               onClick={onEdit}
               title="Editar"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#1e293b] text-[11px] text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors font-medium"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#1e293b] text-[11px] text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors font-medium"
             >
               <Pencil className="w-3 h-3" /> Editar
             </button>
@@ -1458,7 +1458,7 @@ function MemberCard({
             <button
               onClick={copyLink}
               title="Copiar link do portal"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-[#94a3b8] hover:bg-[#1e293b] hover:text-white transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-[#94a3b8] hover:bg-[#1e293b] hover:text-[color:var(--sm-text-1)] transition-colors"
             >
               <Copy className="w-3 h-3 flex-shrink-0" />
               <span className="text-[10px]">Portal</span>
@@ -1468,14 +1468,14 @@ function MemberCard({
               target="_blank"
               rel="noopener noreferrer"
               title="Abrir portal"
-              className="flex items-center p-1.5 rounded-lg text-[#94a3b8] hover:bg-[#1e293b] hover:text-white transition-colors"
+              className="flex items-center p-1.5 rounded-lg text-[#94a3b8] hover:bg-[#1e293b] hover:text-[color:var(--sm-text-1)] transition-colors"
             >
               <ExternalLink className="w-3 h-3" />
             </a>
             <button
               onClick={onEdit}
               title="Editar membro"
-              className="flex items-center p-1.5 rounded-lg text-[#94a3b8] hover:bg-[#1e293b] hover:text-white transition-colors"
+              className="flex items-center p-1.5 rounded-lg text-[#94a3b8] hover:bg-[#1e293b] hover:text-[color:var(--sm-text-1)] transition-colors"
             >
               <Pencil className="w-3 h-3" />
             </button>
@@ -1880,7 +1880,7 @@ function ViewTabs({ view, onChange }: { view: BoardView; onChange: (v: BoardView
           key={v}
           onClick={() => onChange(v)}
           className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-            view === v ? 'bg-[#1e293b] text-white border border-[#334155]' : 'text-[#94a3b8] hover:text-white'
+            view === v ? 'bg-[#1e293b] text-[color:var(--sm-text-1)] border border-[#334155]' : 'text-[#94a3b8] hover:text-[color:var(--sm-text-1)]'
           }`}
         >
           {label}
@@ -2056,7 +2056,7 @@ export function TeamPage() {
               key={t}
               onClick={() => setTab(t)}
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-[12px] font-medium whitespace-nowrap transition-all ${
-                tab === t ? 'bg-[#1e293b] text-white border border-[#334155]' : 'text-[#94a3b8] hover:text-white border border-transparent'
+                tab === t ? 'bg-[#1e293b] text-[color:var(--sm-text-1)] border border-[#334155]' : 'text-[#94a3b8] hover:text-[color:var(--sm-text-1)] border border-transparent'
               }`}
             >
               <Icon className={`w-3.5 h-3.5 ${tab === t ? 'text-[#60A5FA]' : ''}`} />

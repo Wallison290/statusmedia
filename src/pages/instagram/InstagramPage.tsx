@@ -408,7 +408,7 @@ function AccountDetailView({
       <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl border border-[#1F2937] bg-[#111827] flex items-center justify-center text-[#9CA3AF] hover:text-white hover:border-[#2563EB]/50 transition-colors flex-shrink-0"
+          className="w-9 h-9 rounded-xl border border-[#1F2937] bg-[#111827] flex items-center justify-center text-[#9CA3AF] hover:text-[color:var(--sm-text-1)] hover:border-[#2563EB]/50 transition-colors flex-shrink-0"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>

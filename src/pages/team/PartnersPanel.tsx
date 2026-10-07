@@ -206,7 +206,7 @@ export function PartnersPanel() {
                       onClick={() => resend.mutate(p)}
                       disabled={resend.isPending}
                       title="Reenviar convite"
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#182233]"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#182233]"
                     >
                       <RotateCw className={`w-3.5 h-3.5 ${resend.isPending ? 'animate-spin' : ''}`} />
                     </button>
@@ -260,7 +260,7 @@ export function PartnersPanel() {
                 </button>
                 <button
                   onClick={() => setRemoving(null)}
-                  className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#94a3b8] hover:text-white"
+                  className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#94a3b8] hover:text-[color:var(--sm-text-1)]"
                 >
                   Cancelar
                 </button>

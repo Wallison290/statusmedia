@@ -91,8 +91,8 @@ export function ApplyTemplateModal({ clientId, open, onClose, onApplied, initial
                   className={cn(
                     'text-left p-3 rounded-xl border transition-all',
                     selectedId === t.id
-                      ? 'border-[#29457a] bg-[#182233]'
-                      : 'border-[#1e293b] bg-[#111827] hover:border-[#334155]',
+                      ? 'border-[#2563EB] bg-[#182233]'
+                      : 'border-[#1e293b] bg-[#111827] hover:border-[#2563EB]/50',
                   )}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -116,9 +116,9 @@ export function ApplyTemplateModal({ clientId, open, onClose, onApplied, initial
                   <button
                     onClick={() => setMode('separate')}
                     className={cn('flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all',
-                      mode === 'separate' ? 'border-[#29457a] bg-[#182233]' : 'border-[#1e293b] bg-[#111827] hover:border-[#334155]')}
+                      mode === 'separate' ? 'border-[#2563EB] bg-[#182233]' : 'border-[#1e293b] bg-[#111827] hover:border-[#2563EB]/50')}
                   >
-                    <ListTodo className="w-4 h-4 text-[#6f93c9] flex-shrink-0" />
+                    <ListTodo className="w-4 h-4 text-[#2563EB] flex-shrink-0" />
                     <div>
                       <p className="text-[12px] font-medium text-[#E2E8F0]">Tarefas separadas</p>
                       <p className="text-[10px] text-[#64748b]">Uma tarefa por etapa, com prazo</p>
@@ -127,9 +127,9 @@ export function ApplyTemplateModal({ clientId, open, onClose, onApplied, initial
                   <button
                     onClick={() => setMode('checklist')}
                     className={cn('flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all',
-                      mode === 'checklist' ? 'border-[#29457a] bg-[#182233]' : 'border-[#1e293b] bg-[#111827] hover:border-[#334155]')}
+                      mode === 'checklist' ? 'border-[#2563EB] bg-[#182233]' : 'border-[#1e293b] bg-[#111827] hover:border-[#2563EB]/50')}
                   >
-                    <ListChecks className="w-4 h-4 text-[#6f93c9] flex-shrink-0" />
+                    <ListChecks className="w-4 h-4 text-[#2563EB] flex-shrink-0" />
                     <div>
                       <p className="text-[12px] font-medium text-[#E2E8F0]">1 tarefa com checklist</p>
                       <p className="text-[10px] text-[#64748b]">Os passos viram itens</p>
@@ -177,7 +177,7 @@ export function ApplyTemplateModal({ clientId, open, onClose, onApplied, initial
                         {it.is_recurring ? '↻' : it.due_offset_days != null ? `D+${it.due_offset_days}` : '—'}
                       </span>
                       <span className="text-[12px] text-[#CBD5E1] flex-1 min-w-0 truncate">{it.title}</span>
-                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#182233] text-[#9bb6dd] flex-shrink-0">
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#182233] text-[#2563EB] flex-shrink-0">
                         {PRIORITY_LABEL[it.priority]}
                       </span>
                       {it.is_recurring && <Repeat className="w-3 h-3 text-[#64748b] flex-shrink-0" />}

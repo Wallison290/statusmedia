@@ -1037,7 +1037,7 @@ function SnippetsTab() {
           className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all flex items-center gap-1.5 border ${
             activeCategory === 'all'
               ? 'bg-[#2563EB] text-white border-[#2563EB]'
-              : 'bg-[#182233] text-[#94a3b8] border-[#1e293b] hover:bg-[#1e293b] hover:text-white'
+              : 'bg-[#182233] text-[#94a3b8] border-[#1e293b] hover:bg-[#1e293b] hover:text-[color:var(--sm-text-1)]'
           }`}
         >
           <BookOpen className="w-3.5 h-3.5" /> Todos
@@ -1049,7 +1049,7 @@ function SnippetsTab() {
             className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all flex items-center gap-1.5 border ${
               activeCategory === cat.value
                 ? 'bg-[#2563EB] text-white border-[#2563EB]'
-                : 'bg-[#182233] text-[#94a3b8] border-[#1e293b] hover:bg-[#1e293b] hover:text-white'
+                : 'bg-[#182233] text-[#94a3b8] border-[#1e293b] hover:bg-[#1e293b] hover:text-[color:var(--sm-text-1)]'
             }`}
           >
             <cat.icon className={`w-3.5 h-3.5 ${activeCategory === cat.value ? 'text-white' : cat.color}`} />
@@ -1104,7 +1104,7 @@ function SnippetsTab() {
                       <div className="flex gap-1 flex-shrink-0">
                         <button
                           onClick={() => copyToClipboard(item.content).then(() => toast('Copiado!', 'success'))}
-                          className="text-[#64748b] hover:text-white transition-colors p-1"
+                          className="text-[#64748b] hover:text-[color:var(--sm-text-1)] transition-colors p-1"
                         >
                           <Copy className="w-3.5 h-3.5" />
                         </button>
@@ -1571,7 +1571,7 @@ function MateriaisTab({ addOpen, onAddClose }: { addOpen: boolean; onAddClose: (
                       href={mat.link_url || mat.file_url || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors"
                       title="Abrir"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -1579,7 +1579,7 @@ function MateriaisTab({ addOpen, onAddClose }: { addOpen: boolean; onAddClose: (
                   )}
                   <button
                     onClick={() => openEdit(mat)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors"
                     title="Editar"
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -1672,8 +1672,8 @@ export function Library() {
               onClick={() => setTab(key)}
               className={`px-4 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
                 tab === key
-                  ? 'bg-[#1e293b] text-white shadow-sm border border-[#334155]'
-                  : 'text-[#94a3b8] hover:text-white hover:bg-[#1e293b]/60'
+                  ? 'bg-[#1e293b] text-[color:var(--sm-text-1)] shadow-sm border border-[#334155]'
+                  : 'text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b]/60'
               }`}
             >
               {label}

@@ -2,16 +2,15 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, ChevronLeft, ChevronRight, Trash2,
-  User, CalendarDays, AlertCircle, Clock, Pencil,
+  User, CalendarDays, Clock, Pencil,
   ExternalLink, Link2, FileText, Folder, CheckCircle2,
-  MoreHorizontal, LayoutGrid, List, Calendar, Filter,
+  MoreHorizontal, LayoutGrid, List, Calendar,
   AlignLeft, ClipboardList, ArrowUpDown, CalendarOff, ChevronDown,
 } from 'lucide-react'
 import {
   startOfWeek, endOfWeek, eachDayOfInterval,
   format, addWeeks, subWeeks, isToday,
   getDaysInMonth, getDay, addMonths, subMonths,
-  isSameDay,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
@@ -28,66 +27,73 @@ import { useToast } from '@/components/ui/toast'
 import { isOverdue } from '@/utils/formatters'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
 
-// ─── Status config ─────────────────────────────────────────────────────────────
+// ─── Configs ──────────────────────────────────────────────────────────────────
+// Cores em hex (inline): funcionam igual no tema claro e no escuro. O status e a
+// prioridade aparecem como ponto + texto; a prioridade também vira a barra de
+// 3px à esquerda dos cartões.
 
-const STATUS_CFG: Record<TaskStatus, { label: string; bg: string; text: string; dot: string; border: string }> = {
-  a_fazer:      { label: 'A fazer',      bg: 'bg-[#f3f4f6]',   text: 'text-[#6b7280]',   dot: 'bg-[#9ca3af]',   border: 'border-[#e5e7eb]'   },
-  em_andamento: { label: 'Em andamento', bg: 'bg-blue-100',    text: 'text-blue-700',    dot: 'bg-blue-500',    border: 'border-blue-200'    },
-  revisao:      { label: 'Revisão',      bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-500',   border: 'border-amber-200'   },
-  concluido:    { label: 'Concluído',    bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', border: 'border-emerald-200' },
+const STATUS_CFG: Record<TaskStatus, { label: string; color: string }> = {
+  a_fazer:      { label: 'A fazer',      color: '#94A3B8' },
+  em_andamento: { label: 'Em andamento', color: '#2563EB' },
+  revisao:      { label: 'Revisão',      color: '#F59E0B' },
+  concluido:    { label: 'Concluído',    color: '#10B981' },
 }
 
-// ─── Priority config ───────────────────────────────────────────────────────────
-
-const PRIORITY_CFG: Record<TaskPriority, { label: string; color: string; pillBg: string; pillText: string; accent: string }> = {
-  baixa:   { label: 'Baixa',   color: '#475569', pillBg: 'bg-[#475569]', pillText: 'text-white', accent: '#64748b' },
-  media:   { label: 'Média',   color: '#7c3aed', pillBg: 'bg-[#7c3aed]', pillText: 'text-white', accent: '#8b5cf6' },
-  alta:    { label: 'Alta',    color: '#ea580c', pillBg: 'bg-[#ea580c]', pillText: 'text-white', accent: '#f59e0b' },
-  urgente: { label: 'Urgente', color: '#dc2626', pillBg: 'bg-[#dc2626]', pillText: 'text-white', accent: '#ef4444' },
+const PRIORITY_CFG: Record<TaskPriority, { label: string; color: string }> = {
+  baixa:   { label: 'Baixa',   color: '#94A3B8' },
+  media:   { label: 'Média',   color: '#2563EB' },
+  alta:    { label: 'Alta',    color: '#F97316' },
+  urgente: { label: 'Urgente', color: '#EF4444' },
 }
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 }
 
-// ─── Donut chart ───────────────────────────────────────────────────────────────
+const OVERDUE = '#EF4444'
+const card = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
+const primaryBtn = 'inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90 whitespace-nowrap'
+const ghostBtn = 'inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border text-[13px] font-medium hover:bg-black/5 transition-colors whitespace-nowrap'
+const ghostStyle = { borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' } as const
+const iconBtn = 'w-9 h-9 flex items-center justify-center hover:bg-black/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed'
+const eyebrow = 'text-[10.5px] font-semibold uppercase tracking-[0.08em]'
 
-function DonutProgress({ percent }: { percent: number }) {
-  const r    = 15
-  const circ = 2 * Math.PI * r
-  const dash = (percent / 100) * circ
+function Dot({ color, children, strong }: { color: string; children: React.ReactNode; strong?: boolean }) {
   return (
-    <svg width="42" height="42" viewBox="0 0 42 42" className="flex-shrink-0">
-      <circle cx="21" cy="21" r={r} fill="none" stroke="#1e293b" strokeWidth="4" />
-      <circle cx="21" cy="21" r={r} fill="none" stroke="#8b5cf6" strokeWidth="4"
-        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        transform="rotate(-90 21 21)" style={{ transition: 'stroke-dasharray 0.5s ease' }} />
-    </svg>
+    <span className={`inline-flex items-center gap-1.5 text-[11.5px] whitespace-nowrap ${strong ? 'font-semibold' : 'font-medium'}`}
+      style={{ color: strong ? color : 'var(--sm-text-2)' }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+      {children}
+    </span>
   )
 }
 
-// ─── Status pill ───────────────────────────────────────────────────────────────
+// ─── Status (ponto + texto) com menu ───────────────────────────────────────────
 
-function StatusPill({ status, onChange }: { status: TaskStatus; onChange: (s: TaskStatus) => void }) {
+function StatusPill({ status, onChange, up = true }: { status: TaskStatus; onChange: (s: TaskStatus) => void; up?: boolean }) {
   const [open, setOpen] = useState(false)
   const cfg = STATUS_CFG[status]
   return (
     <div className="relative flex-shrink-0">
-      <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer hover:opacity-80 transition-opacity border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+      <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }} title="Mudar status"
+        className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1.5 -ml-2 rounded-lg text-[11.5px] font-medium hover:bg-black/5 transition-colors"
+        style={{ color: 'var(--sm-text-2)' }}>
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
         {cfg.label}
+        <ChevronDown className="w-3 h-3" style={{ color: 'var(--sm-text-4)' }} />
       </button>
       <AnimatePresence>
         {open && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-10" onClick={e => { e.stopPropagation(); setOpen(false) }} />
             <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.12 }}
-              className="absolute bottom-full mb-1.5 left-0 z-20 w-40 bg-[#182233] border border-[#1e293b] rounded-xl shadow-xl overflow-hidden py-1.5">
+              className={`absolute ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 z-20 w-44 border rounded-xl shadow-xl overflow-hidden p-1`}
+              style={card}>
               {(Object.entries(STATUS_CFG) as [TaskStatus, typeof STATUS_CFG[TaskStatus]][]).map(([s, c]) => (
                 <button key={s} onClick={e => { e.stopPropagation(); onChange(s); setOpen(false) }}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-[#1e293b] text-left ${s === status ? 'font-semibold' : ''}`}>
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.dot}`} />
-                  <span className="text-[#CBD5E1]">{c.label}</span>
+                  className={`w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-black/5 text-left ${s === status ? 'font-semibold' : ''}`}
+                  style={{ color: 'var(--sm-text-1)' }}>
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                  {c.label}
                 </button>
               ))}
             </motion.div>
@@ -101,40 +107,42 @@ function StatusPill({ status, onChange }: { status: TaskStatus; onChange: (s: Ta
 // ─── Avatar ────────────────────────────────────────────────────────────────────
 
 function AvatarCircle({ name, sm }: { name: string; sm?: boolean }) {
-  const palette  = ['bg-blue-400','bg-violet-400','bg-emerald-400','bg-amber-400','bg-pink-400','bg-indigo-400','bg-cyan-400','bg-orange-400']
+  const palette  = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#06B6D4', '#F97316']
   const hash     = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
   const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
   return (
-    <span className={`${sm ? 'w-[18px] h-[18px] text-[8px]' : 'w-6 h-6 text-[10px]'} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 ${palette[hash % palette.length]}`}>
+    <span className={`${sm ? 'w-[18px] h-[18px] text-[8px]' : 'w-6 h-6 text-[10px]'} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0`}
+      style={{ background: palette[hash % palette.length] }}>
       {initials}
     </span>
   )
 }
 
-// ─── More menu ────────────────────────────────────────────────────────────────
+// ─── Menu "mais" ───────────────────────────────────────────────────────────────
 
-function MoreMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function MoreMenu({ onEdit, onDelete, up = true }: { onEdit: () => void; onDelete: () => void; up?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="relative flex-shrink-0">
-      <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        className="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
+      <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }} aria-label="Mais ações"
+        className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors" style={{ color: 'var(--sm-text-3)' }}>
         <MoreHorizontal className="w-4 h-4" />
       </button>
       <AnimatePresence>
         {open && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-10" onClick={e => { e.stopPropagation(); setOpen(false) }} />
             <motion.div initial={{ opacity: 0, y: 4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 4, scale: 0.95 }} transition={{ duration: 0.1 }}
-              className="absolute right-0 bottom-full mb-1 z-20 w-32 bg-[#182233] rounded-xl border border-[#1e293b] shadow-xl overflow-hidden py-1">
+              className={`absolute right-0 ${up ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 w-36 rounded-xl border shadow-xl overflow-hidden p-1`}
+              style={card}>
               <button onClick={e => { e.stopPropagation(); onEdit(); setOpen(false) }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-[#CBD5E1] hover:bg-[#1e293b]">
-                <Pencil className="w-3 h-3" /> Editar
+                className="w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-black/5" style={{ color: 'var(--sm-text-1)' }}>
+                <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} /> Editar
               </button>
               <button onClick={e => { e.stopPropagation(); onDelete(); setOpen(false) }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-[#f87171] hover:bg-[#ef4444]/10">
-                <Trash2 className="w-3 h-3" /> Excluir
+                className="w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-red-500/10" style={{ color: '#EF4444' }}>
+                <Trash2 className="w-3.5 h-3.5" /> Excluir
               </button>
             </motion.div>
           </>
@@ -144,7 +152,7 @@ function MoreMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => vo
   )
 }
 
-// ─── Task card ────────────────────────────────────────────────────────────────
+// ─── Cartão de tarefa (visão semanal) ─────────────────────────────────────────
 
 function TaskCard({
   task, onStatusChange, onDelete, onEdit, onView, dragging, onDragStart, onDragEnd,
@@ -157,6 +165,7 @@ function TaskCard({
   const overdueAndOpen = task.due_date ? isOverdue(task.due_date) && task.status !== 'concluido' : false
   const clientName     = (task.client as any)?.company_name
   const priCfg         = PRIORITY_CFG[task.priority]
+  const done           = task.status === 'concluido'
 
   return (
     <div draggable
@@ -165,52 +174,45 @@ function TaskCard({
       }}
       onDragEnd={() => { setTimeout(() => { dragStarted.current = false }, 50); onDragEnd() }}
       onClick={() => { if (!dragStarted.current) onView(task) }}
-      className={['w-full min-w-0 bg-white rounded-2xl p-4 shadow-sm border border-gray-100',
-        'cursor-pointer hover:shadow-md transition-all duration-150 select-none',
+      className={['relative w-full min-w-0 rounded-xl border pl-4 pr-3 py-3 overflow-hidden',
+        'cursor-pointer hover:border-[#2563EB]/50 transition-all duration-150 select-none',
         dragging ? 'opacity-40 scale-95' : ''].join(' ')}
-      style={{ borderLeftWidth: 4, borderLeftColor: priCfg.accent }}>
+      style={card}>
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r"
+        style={{ background: overdueAndOpen ? OVERDUE : done ? 'var(--sm-border)' : priCfg.color }} />
+
       {(task.due_time || overdueAndOpen) && (
-        <div className="flex items-center gap-1.5 mb-2.5">
-          <Clock className={`w-3.5 h-3.5 flex-shrink-0 ${overdueAndOpen ? 'text-red-400' : 'text-gray-400'}`} />
-          <span className={`text-[12px] font-medium ${overdueAndOpen ? 'text-red-500' : 'text-gray-500'}`}>
-            {task.due_time ? task.due_time.slice(0, 5) : ''}
-            {overdueAndOpen && <span className="ml-1">· Atrasada</span>}
-          </span>
-        </div>
+        <p className="flex items-center gap-1 text-[11.5px] font-medium mb-1 tabular-nums"
+          style={{ color: overdueAndOpen ? OVERDUE : 'var(--sm-text-3)' }}>
+          <Clock className="w-3 h-3" />
+          {task.due_time ? task.due_time.slice(0, 5) : ''}
+          {overdueAndOpen && <span>{task.due_time ? ' · ' : ''}Atrasada</span>}
+        </p>
       )}
-      <p className="text-[14px] font-bold text-gray-900 leading-snug mb-3 line-clamp-2">{task.title}</p>
-      <div className="flex items-center gap-1.5 flex-wrap mb-3">
-        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${priCfg.pillBg} ${priCfg.pillText}`}>{priCfg.label}</span>
-        {clientName && (
-          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700">{clientName}</span>
-        )}
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        {task.assignee ? (
-          <div className="flex items-center gap-2 min-w-0">
-            <AvatarCircle name={task.assignee} />
-            <span className="text-[12px] text-gray-600 truncate">{task.assignee}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <User className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="text-[12px]">Agência</span>
-          </div>
-        )}
-        <div onClick={e => e.stopPropagation()}>
-          <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
-        </div>
-      </div>
-      {task.status !== 'a_fazer' && (
-        <div className="mt-3 pt-2.5 border-t border-gray-100" onClick={e => e.stopPropagation()}>
+      <p className={`text-[13.5px] font-semibold leading-snug line-clamp-2 ${done ? 'line-through' : ''}`}
+        style={{ color: done ? 'var(--sm-text-4)' : 'var(--sm-text-1)' }}>{task.title}</p>
+      <p className="text-[11.5px] mt-1 truncate" style={{ color: 'var(--sm-text-4)' }}>
+        {priCfg.label}{clientName && <> · <span style={{ color: 'var(--sm-text-3)' }}>{clientName}</span></>}
+      </p>
+
+      <div className="flex items-center justify-between gap-2 mt-2.5">
+        <div onClick={e => e.stopPropagation()} className="min-w-0">
           <StatusPill status={task.status} onChange={s => onStatusChange(task.id, s)} />
         </div>
-      )}
+        <div className="flex items-center gap-1 min-w-0">
+          {task.assignee
+            ? <span title={task.assignee}><AvatarCircle name={task.assignee} /></span>
+            : <span className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>Agência</span>}
+          <div onClick={e => e.stopPropagation()}>
+            <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-// ─── Day column ───────────────────────────────────────────────────────────────
+// ─── Coluna do dia ────────────────────────────────────────────────────────────
 
 function DayColumn({
   day, tasks, draggingId, onDrop, onDragStart, onDragEnd,
@@ -225,41 +227,44 @@ function DayColumn({
   const today    = isToday(day)
   const fullLabel = format(day, 'EEEE', { locale: ptBR })
   const dayName  = fullLabel.charAt(0).toUpperCase() + fullLabel.slice(1).split('-')[0]
-  const dayNum   = format(day, 'd')
-  const monthAbbr = format(day, 'MMM', { locale: ptBR }).replace('.', '')
 
   return (
     <div
-      className={['w-full min-w-0 self-start flex flex-col rounded-2xl border p-3 transition-colors min-h-[440px]',
-        isDragOver ? 'border-[#2563EB]/50 bg-[#2563EB]/5' : 'border-[#1e293b] bg-[#0d1424]'].join(' ')}
-      style={!isDragOver ? { background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' } : undefined}
+      className="w-full min-w-0 self-start flex flex-col rounded-2xl border p-2.5 transition-colors min-h-[440px]"
+      style={isDragOver
+        ? { background: 'rgba(37,99,235,0.05)', borderColor: 'rgba(37,99,235,0.5)' }
+        : { background: 'var(--sm-bg-alt)', borderColor: today ? 'rgba(37,99,235,0.45)' : 'var(--sm-border)' }}
       onDragOver={e => { e.preventDefault(); setIsDragOver(true) }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false) }}
       onDrop={e => { e.preventDefault(); setIsDragOver(false); const id = e.dataTransfer.getData('taskId'); if (id) onDrop(id, day) }}
     >
-      {/* Header do dia */}
-      <div className="flex items-center justify-between gap-1 px-1 pb-3 min-w-0">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-[15px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{dayName}</p>
-            {today && <span className="text-[8px] font-black px-1.5 py-0.5 bg-[#2563EB] text-white rounded-full uppercase tracking-wider leading-none flex-shrink-0">Hoje</span>}
-          </div>
-          <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>{dayNum} {monthAbbr}</p>
+      {/* Cabeçalho do dia: número grande + dia da semana */}
+      <div className="flex items-end justify-between gap-1 px-1.5 pt-1 pb-3 min-w-0">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="font-display text-[26px] font-bold leading-none tabular-nums" style={{ color: today ? '#2563EB' : 'var(--sm-text-1)' }}>
+            {format(day, 'd')}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold truncate leading-tight" style={{ color: 'var(--sm-text-1)' }}>{dayName}</span>
+            <span className="block text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: today ? '#2563EB' : 'var(--sm-text-4)' }}>
+              {today ? 'Hoje' : format(day, 'MMM', { locale: ptBR }).replace('.', '')}
+            </span>
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {tasks.length > 0 && (
-            <span className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold bg-violet-600 text-white">{tasks.length}</span>
+            <span className="text-[12px] font-semibold tabular-nums px-1.5" style={{ color: 'var(--sm-text-3)' }}>{tasks.length}</span>
           )}
-          <button onClick={() => onAddTask(day)}
-            className="w-7 h-7 rounded-full text-[#94a3b8] hover:text-white flex items-center justify-center transition-all border border-[#1e293b] bg-[#182233] hover:bg-[#1e293b]"
+          <button onClick={() => onAddTask(day)} aria-label={`Nova tarefa em ${format(day, 'dd/MM')}`}
+            className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-black/5 transition-colors"
+            style={{ ...card, color: 'var(--sm-text-2)' }}
             title={`Nova tarefa — ${format(day, 'dd/MM')}`}>
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Corpo — cresce com o conteúdo (sem scroll interno) */}
-      <div className="flex-1 flex flex-col space-y-2.5">
+      <div className="flex-1 flex flex-col space-y-2">
         <AnimatePresence>
           {tasks.map(task => (
             <motion.div key={task.id} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.14 }}>
@@ -270,17 +275,16 @@ function DayColumn({
 
         {tasks.length === 0 && !isDragOver && (
           <button onClick={() => onAddTask(day)}
-            className="w-full flex-1 rounded-2xl flex flex-col items-center justify-center gap-2 transition-colors group hover:bg-white/[0.02]">
-            <span className="w-11 h-11 rounded-full border border-dashed border-[#334155] flex items-center justify-center group-hover:border-[#2563EB]/60 transition-colors">
-              <Plus className="w-5 h-5 text-[#64748b] group-hover:text-[#60A5FA]" />
-            </span>
-            <p className="text-[12px] text-[#64748b] group-hover:text-[#94a3b8]">Adicionar tarefa</p>
+            className="w-full flex-1 rounded-xl border border-dashed flex flex-col items-center justify-center gap-1.5 transition-colors hover:border-[#2563EB]/50 hover:bg-black/[0.02]"
+            style={{ borderColor: 'var(--sm-border)' }}>
+            <Plus className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />
+            <span className="text-[12px]" style={{ color: 'var(--sm-text-4)' }}>Adicionar tarefa</span>
           </button>
         )}
 
         {isDragOver && (
-          <div className="h-16 rounded-2xl border-2 border-dashed border-[#2563EB]/50 bg-[#2563EB]/5 flex items-center justify-center">
-            <p className="text-[11px] text-[#60A5FA] font-semibold">Soltar aqui</p>
+          <div className="h-16 rounded-xl border-2 border-dashed flex items-center justify-center" style={{ borderColor: 'rgba(37,99,235,0.5)' }}>
+            <p className="text-[12px] font-semibold" style={{ color: '#2563EB' }}>Soltar aqui</p>
           </div>
         )}
       </div>
@@ -288,7 +292,7 @@ function DayColumn({
   )
 }
 
-// ─── View: Semanal (kanban) ───────────────────────────────────────────────────
+// ─── Visão semanal (kanban) ───────────────────────────────────────────────────
 
 function WeeklyView({ tasks, days, weekDays, draggingId, onDrop, onDragStart, onDragEnd, onStatusChange, onDelete, onEdit, onView, onAddTask }: {
   tasks: Task[]; days: Date[]; weekDays: Date[]; draggingId: string | null
@@ -317,13 +321,15 @@ function WeeklyView({ tasks, days, weekDays, draggingId, onDrop, onDragStart, on
   return (
     <div className="flex-1 overflow-hidden flex flex-col min-h-0">
       {thisWeekTotal === 0 && tasks.length > 0 && (
-        <div className="mx-4 mb-2 px-4 py-2 bg-[#F5A623]/10 border border-[#F5A623]/30 rounded-xl text-[12px] text-[#F5A623] flex-shrink-0">
-          ⚠ Nenhuma tarefa nesta semana — você tem <strong>{tasks.length}</strong> tarefa{tasks.length !== 1 ? 's' : ''} em outras semanas. Use as setas de semana ou a aba <strong>Lista</strong>.
+        <div className="relative mx-4 md:mx-6 mb-3 pl-4 pr-3 py-2.5 rounded-xl border text-[12.5px] flex-shrink-0 overflow-hidden"
+          style={{ ...card, color: 'var(--sm-text-2)' }}>
+          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r" style={{ background: '#F59E0B' }} />
+          Nenhuma tarefa nesta semana. Você tem <strong style={{ color: 'var(--sm-text-1)' }}>{tasks.length}</strong> tarefa{tasks.length !== 1 ? 's' : ''} em outras semanas: use as setas de semana ou a aba <strong style={{ color: 'var(--sm-text-1)' }}>Lista</strong>.
         </div>
       )}
 
-      {/* ── Desktop: grid com janela de 4 dias ── */}
-      <div className="hidden lg:block overflow-y-auto overflow-x-hidden flex-1 min-h-0 px-4 md:px-5">
+      {/* Desktop: janela de 4 dias */}
+      <div className="hidden lg:block overflow-y-auto overflow-x-hidden flex-1 min-h-0 px-4 md:px-6">
         <div className="grid gap-3 items-start pb-4" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
           {days.map(day => (
             <DayColumn key={day.toISOString()} {...columnProps(day)} />
@@ -331,7 +337,7 @@ function WeeklyView({ tasks, days, weekDays, draggingId, onDrop, onDragStart, on
         </div>
       </div>
 
-      {/* ── Mobile: rolagem horizontal pelos 7 dias, colunas grandes (snap) ── */}
+      {/* Celular: rolagem horizontal pelos 7 dias (snap) */}
       <div className="lg:hidden flex-1 min-h-0 flex gap-3 px-4 pb-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden">
         {weekDays.map(day => (
           <div key={day.toISOString()} className="min-w-[86vw] max-w-[86vw] flex-shrink-0 snap-center h-full overflow-y-auto [&::-webkit-scrollbar]:hidden">
@@ -343,14 +349,13 @@ function WeeklyView({ tasks, days, weekDays, draggingId, onDrop, onDragStart, on
   )
 }
 
-// ─── View: Linha do tempo ─────────────────────────────────────────────────────
+// ─── Linha do tempo ───────────────────────────────────────────────────────────
 
-function TimelineView({ tasks, days, onView, onEdit, onDelete, onStatusChange, onAddTask }: {
+function TimelineView({ tasks, days, onView }: {
   tasks: Task[]; days: Date[]
   onView: (t: Task) => void; onEdit: (t: Task) => void; onDelete: (id: string) => void
   onStatusChange: (id: string, s: TaskStatus) => void; onAddTask: (d: Date) => void
 }) {
-  // Show ALL tasks sorted by date, rows = tasks, columns = days of current week
   const sorted = [...tasks].sort((a, b) => {
     if (!a.due_date && !b.due_date) return 0
     if (!a.due_date) return 1
@@ -365,96 +370,90 @@ function TimelineView({ tasks, days, onView, onEdit, onDelete, onStatusChange, o
 
   const weekStart = days[0]
   const weekEnd   = days[6]
+  const border = { borderColor: 'var(--sm-border)' }
 
   return (
-    <div className="flex-1 overflow-auto px-4 pb-4">
-      {/* Grid header */}
-      <div className="flex sticky top-0 bg-[#0B1020] z-10 border-b border-[#1e293b] mb-1">
-        <div className="w-44 lg:w-72 flex-shrink-0 px-3 py-2.5">
-          <span className="text-[11px] font-bold text-[#64748b] uppercase tracking-wide">Tarefa</span>
-        </div>
-        {days.map((day, di) => (
-          <div key={di} className={`flex-1 min-w-[56px] sm:min-w-[44px] text-center py-2.5 border-l border-[#1e293b] ${isToday(day) ? 'bg-[#2563EB]/10' : ''}`}>
-            <p className={`text-[10px] font-bold capitalize ${isToday(day) ? 'text-[#60A5FA]' : 'text-[#64748b]'}`}>
-              {format(day, 'EEE', { locale: ptBR })}
-            </p>
-            <p className={`text-[14px] font-bold ${isToday(day) ? 'text-[#60A5FA]' : 'text-[#CBD5E1]'}`}>
-              {format(day, 'd')}
-            </p>
+    <div className="flex-1 overflow-auto px-4 md:px-6 pb-4">
+      <div className="rounded-2xl border overflow-hidden min-w-[560px]" style={card}>
+        <div className="flex sticky top-0 z-10 border-b" style={{ ...border, background: 'var(--sm-bg-alt)' }}>
+          <div className="w-44 lg:w-72 flex-shrink-0 px-4 py-2.5">
+            <span className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Tarefa</span>
           </div>
-        ))}
-      </div>
-
-      {/* Task rows */}
-      {sorted.map(task => {
-        const priCfg  = PRIORITY_CFG[task.priority]
-        const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
-        const sCfg    = STATUS_CFG[task.status]
-        const clientName = (task.client as any)?.company_name
-
-        // Find which day index this task falls on (within current week view)
-        const dueDayIdx = task.due_date
-          ? days.findIndex(d => format(d, 'yyyy-MM-dd') === task.due_date)
-          : -1
-
-        // Is task outside current week?
-        const beforeWeek = task.due_date ? task.due_date < format(weekStart, 'yyyy-MM-dd') : false
-        const afterWeek  = task.due_date ? task.due_date > format(weekEnd, 'yyyy-MM-dd') : false
-        const outsideWeek = beforeWeek || afterWeek
-
-        return (
-          <div key={task.id} className="flex items-stretch border-b border-[#1e293b] hover:bg-white/[0.02] transition-colors group min-h-[56px]">
-            {/* Task info */}
-            <div className="w-44 lg:w-72 flex-shrink-0 px-3 py-2 cursor-pointer flex flex-col justify-center" onClick={() => onView(task)}>
-              <p className="text-[13px] font-semibold text-[#F8FAFC] truncate">{task.title}</p>
-              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${priCfg.pillBg} ${priCfg.pillText}`}>{priCfg.label}</span>
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${sCfg.bg} ${sCfg.text}`}>{sCfg.label}</span>
-                {clientName && <span className="text-[10px] text-[#64748b] truncate">{clientName}</span>}
-                {overdue && <span className="text-[10px] text-[#f87171] font-semibold">⚠ Atrasada</span>}
-              </div>
+          {days.map((day, di) => (
+            <div key={di} className="flex-1 min-w-[56px] sm:min-w-[44px] text-center py-2 border-l"
+              style={{ ...border, background: isToday(day) ? 'rgba(37,99,235,0.08)' : undefined }}>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: isToday(day) ? '#2563EB' : 'var(--sm-text-4)' }}>
+                {format(day, 'EEE', { locale: ptBR }).replace('.', '')}
+              </p>
+              <p className="font-display text-[16px] font-bold tabular-nums" style={{ color: isToday(day) ? '#2563EB' : 'var(--sm-text-1)' }}>
+                {format(day, 'd')}
+              </p>
             </div>
-
-            {/* Day columns */}
-            {days.map((day, di) => (
-              <div key={di} className={`flex-1 min-w-[56px] sm:min-w-[44px] border-l border-[#1e293b] px-1 py-2 flex items-center justify-center ${isToday(day) ? 'bg-[#2563EB]/5' : ''}`}>
-                {dueDayIdx === di && (
-                  <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    className={`w-full rounded-lg px-2 py-1.5 cursor-pointer text-white ${
-                      task.status === 'concluido' ? 'bg-emerald-600'
-                      : overdue ? 'bg-red-600'
-                      : `${priCfg.pillBg} ${priCfg.pillText}`}`}
-                    onClick={() => onView(task)}>
-                    {task.status === 'concluido'
-                      ? <CheckCircle2 className="w-3.5 h-3.5 mx-auto" />
-                      : task.due_time
-                        ? <p className="text-[11px] font-semibold truncate text-center">{task.due_time.slice(0, 5)}</p>
-                        : <Clock className="w-3.5 h-3.5 mx-auto opacity-90" />}
-                  </motion.div>
-                )}
-                {/* Show indicator for tasks outside this week */}
-                {outsideWeek && di === (beforeWeek ? 0 : 6) && (
-                  <div className="text-center">
-                    <span className="text-[9px] text-[#475569]">{beforeWeek ? '◀' : '▶'}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )
-      })}
-
-      {tasks.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-[#64748b]">
-          <ClipboardList className="w-10 h-10 mb-2 opacity-30" />
-          <p className="text-[13px]">Nenhuma tarefa encontrada</p>
+          ))}
         </div>
-      )}
+
+        {sorted.map((task, i) => {
+          const priCfg  = PRIORITY_CFG[task.priority]
+          const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
+          const sCfg    = STATUS_CFG[task.status]
+          const clientName = (task.client as any)?.company_name
+          const dueDayIdx = task.due_date ? days.findIndex(d => format(d, 'yyyy-MM-dd') === task.due_date) : -1
+          const beforeWeek = task.due_date ? task.due_date < format(weekStart, 'yyyy-MM-dd') : false
+          const afterWeek  = task.due_date ? task.due_date > format(weekEnd, 'yyyy-MM-dd') : false
+          const outsideWeek = beforeWeek || afterWeek
+          const markColor = task.status === 'concluido' ? '#10B981' : overdue ? OVERDUE : priCfg.color
+
+          return (
+            <div key={task.id} className={`flex items-stretch hover:bg-black/[0.02] transition-colors min-h-[56px] ${i > 0 ? 'border-t' : ''}`} style={border}>
+              <div className="w-44 lg:w-72 flex-shrink-0 px-4 py-2 cursor-pointer flex flex-col justify-center min-w-0" onClick={() => onView(task)}>
+                <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{task.title}</p>
+                <div className="flex items-center gap-x-3 gap-y-0.5 mt-0.5 flex-wrap">
+                  <Dot color={sCfg.color}>{sCfg.label}</Dot>
+                  {overdue
+                    ? <Dot color={OVERDUE} strong>Atrasada</Dot>
+                    : <span className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>{priCfg.label}</span>}
+                  {clientName && <span className="text-[11px] truncate" style={{ color: 'var(--sm-text-4)' }}>{clientName}</span>}
+                </div>
+              </div>
+
+              {days.map((day, di) => (
+                <div key={di} className="flex-1 min-w-[56px] sm:min-w-[44px] border-l px-1 py-2 flex items-center justify-center"
+                  style={{ ...border, background: isToday(day) ? 'rgba(37,99,235,0.04)' : undefined }}>
+                  {dueDayIdx === di && (
+                    <motion.button initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      className="w-full h-7 rounded-lg px-1.5 cursor-pointer text-white flex items-center justify-center"
+                      style={{ background: markColor }}
+                      onClick={() => onView(task)} aria-label={`Abrir ${task.title}`}>
+                      {task.status === 'concluido'
+                        ? <CheckCircle2 className="w-3.5 h-3.5" />
+                        : task.due_time
+                          ? <span className="text-[11px] font-semibold truncate tabular-nums">{task.due_time.slice(0, 5)}</span>
+                          : <Clock className="w-3.5 h-3.5 opacity-90" />}
+                    </motion.button>
+                  )}
+                  {outsideWeek && di === (beforeWeek ? 0 : 6) && (
+                    <span className="text-[10px]" style={{ color: 'var(--sm-text-4)' }} title={beforeWeek ? 'Antes desta semana' : 'Depois desta semana'}>
+                      {beforeWeek ? '◀' : '▶'}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+
+        {tasks.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <ClipboardList className="w-7 h-7 mb-2" style={{ color: 'var(--sm-text-4)' }} />
+            <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Nenhuma tarefa encontrada</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-// ─── Day tasks modal ──────────────────────────────────────────────────────────
+// ─── Modal: tarefas do dia ────────────────────────────────────────────────────
 
 function DayTasksModal({
   date, tasks, open, onClose, onView, onEdit, onDelete, onStatusChange, onAddTask,
@@ -468,7 +467,6 @@ function DayTasksModal({
   const rawLabel  = format(date, "EEEE, d 'de' MMMM", { locale: ptBR })
   const dateLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1)
 
-  // Sort tasks by time then title
   const sorted = [...tasks].sort((a, b) => {
     if (!a.due_time && !b.due_time) return a.title.localeCompare(b.title)
     if (!a.due_time) return 1
@@ -480,69 +478,41 @@ function DayTasksModal({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[15px] font-bold text-white">{dateLabel}</DialogTitle>
-          <p className="text-[12px] text-[#64748b] mt-0.5">
+          <DialogTitle className="font-display text-[19px] font-bold text-[color:var(--sm-text-1)]">{dateLabel}</DialogTitle>
+          <p className="text-[12.5px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
             {sorted.length} tarefa{sorted.length !== 1 ? 's' : ''} neste dia
           </p>
         </DialogHeader>
 
-        <div className="space-y-2 mt-1 max-h-[52vh] overflow-y-auto pr-0.5">
-          {sorted.map(task => {
+        <div className="mt-1 max-h-[52vh] overflow-y-auto rounded-xl border" style={{ borderColor: 'var(--sm-border)' }}>
+          {sorted.map((task, i) => {
             const pc      = PRIORITY_CFG[task.priority]
-            const sc      = STATUS_CFG[task.status]
             const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
             const clientName = (task.client as any)?.company_name
 
             return (
-              <div key={task.id}
-                className="group flex items-start gap-3 bg-[#182233] rounded-xl border border-[#1e293b] p-3 hover:border-[#2563EB]/40 transition-all">
-
-                {/* Task info — click to view detail */}
+              <div key={task.id} className={`relative group flex items-start gap-2 pl-4 pr-2 py-3 ${i > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+                <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: overdue ? OVERDUE : pc.color }} />
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onClose(); onView(task) }}>
-                  <p className="text-[13px] font-semibold text-[#F8FAFC] leading-snug mb-1.5">{task.title}</p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pc.pillBg} ${pc.pillText}`}>{pc.label}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sc.bg} ${sc.text} ${sc.border}`}>{sc.label}</span>
-                    {clientName && <span className="text-[10px] text-[#64748b]">{clientName}</span>}
-                    {overdue && <span className="text-[10px] text-[#f87171] font-semibold">⚠ Atrasada</span>}
+                  <p className="text-[13px] font-semibold leading-snug" style={{ color: 'var(--sm-text-1)' }}>{task.title}</p>
+                  <p className="text-[11.5px] mt-0.5 flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--sm-text-4)' }}>
+                    {task.due_time && <span className="tabular-nums">{task.due_time.slice(0, 5)}</span>}
+                    <span>{pc.label}</span>
+                    {clientName && <span>· {clientName}</span>}
+                    {task.assignee && <span>· {task.assignee}</span>}
+                    {overdue && <span className="font-semibold" style={{ color: OVERDUE }}>· Atrasada</span>}
+                  </p>
+                  <div onClick={e => e.stopPropagation()} className="mt-1.5">
+                    <StatusPill status={task.status} onChange={s => onStatusChange(task.id, s)} up={false} />
                   </div>
-                  {(task.due_time || task.assignee) && (
-                    <div className="flex items-center gap-3 mt-1.5">
-                      {task.due_time && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-[#64748b]" />
-                          <span className="text-[11px] text-[#94a3b8]">{task.due_time.slice(0, 5)}</span>
-                        </div>
-                      )}
-                      {task.assignee && (
-                        <div className="flex items-center gap-1.5">
-                          <AvatarCircle name={task.assignee} />
-                          <span className="text-[11px] text-[#94a3b8]">{task.assignee}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-
-                {/* Status pill — inline change */}
-                <div onClick={e => e.stopPropagation()} className="flex-shrink-0 pt-0.5">
-                  <StatusPill status={task.status} onChange={s => onStatusChange(task.id, s)} />
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => { onClose(); onEdit(task) }}
-                    title="Editar"
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#64748b] hover:text-[#60A5FA] hover:bg-[#2563EB]/10 transition-colors"
-                  >
+                <div className="flex items-center gap-0.5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
+                  <button onClick={() => { onClose(); onEdit(task) }} title="Editar" aria-label="Editar"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => onDelete(task.id)}
-                    title="Excluir"
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#64748b] hover:text-[#f87171] hover:bg-[#ef4444]/10 transition-colors"
-                  >
+                  <button onClick={() => onDelete(task.id)} title="Excluir" aria-label="Excluir"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -551,28 +521,25 @@ function DayTasksModal({
           })}
 
           {sorted.length === 0 && (
-            <div className="flex flex-col items-center py-8 text-[#64748b]">
-              <ClipboardList className="w-8 h-8 mb-2 opacity-30" />
-              <p className="text-[13px]">Nenhuma tarefa neste dia</p>
+            <div className="flex flex-col items-center py-8">
+              <ClipboardList className="w-6 h-6 mb-2" style={{ color: 'var(--sm-text-4)' }} />
+              <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Nenhuma tarefa neste dia</p>
             </div>
           )}
         </div>
 
-        <DialogFooter className="border-t border-[#1e293b] pt-3 gap-2 flex-row">
-          <Button variant="outline" size="sm" onClick={onClose} className="flex-shrink-0">
-            Fechar
-          </Button>
-          <Button size="sm" onClick={() => { onClose(); onAddTask(date) }}
-            className="flex-1 bg-[#2563EB] hover:bg-[#1D4ED8] text-white">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Nova tarefa neste dia
-          </Button>
+        <DialogFooter className="pt-1 gap-2 flex-row">
+          <button onClick={onClose} className={`${ghostBtn} h-9 flex-shrink-0`} style={ghostStyle}>Fechar</button>
+          <button onClick={() => { onClose(); onAddTask(date) }} className={`${primaryBtn} h-9 flex-1 justify-center`} style={{ background: '#2563EB' }}>
+            <Plus className="w-3.5 h-3.5" /> Nova tarefa neste dia
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-// ─── View: Calendário mensal ──────────────────────────────────────────────────
+// ─── Calendário mensal ────────────────────────────────────────────────────────
 
 function MonthView({ tasks, onView, onEdit, onDelete, onStatusChange, onAddTask }: {
   tasks: Task[]
@@ -603,84 +570,73 @@ function MonthView({ tasks, onView, onEdit, onDelete, onStatusChange, onAddTask 
 
   const handleDayClick = (date: Date) => {
     const dayTasks = tasksByDate(date)
-    if (dayTasks.length > 0) {
-      // Has tasks → open day modal
-      setSelectedDay(date)
-      setDayModalOpen(true)
-    } else {
-      // Empty → open new task form directly
-      onAddTask(date)
-    }
+    if (dayTasks.length > 0) { setSelectedDay(date); setDayModalOpen(true) }
+    else onAddTask(date)
   }
 
   const selectedDayTasks = selectedDay ? tasksByDate(selectedDay) : []
 
   return (
     <>
-      <div className="flex-1 overflow-auto px-4 pb-4">
-        {/* Month header */}
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setMonthBase(m => subMonths(m, 1))}
-            className="w-9 h-9 rounded-xl border border-[#1e293b] bg-[#182233] flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <h2 className="text-[16px] font-bold text-[#F8FAFC] capitalize">{monthLabel}</h2>
-          <button onClick={() => setMonthBase(m => addMonths(m, 1))}
-            className="w-9 h-9 rounded-xl border border-[#1e293b] bg-[#182233] flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-colors">
-            <ChevronRight className="w-4 h-4" />
-          </button>
+      <div className="flex-1 overflow-auto px-4 md:px-6 pb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-[20px] font-bold capitalize" style={{ color: 'var(--sm-text-1)' }}>{monthLabel}</h2>
+          <div className="flex items-center rounded-xl border overflow-hidden" style={card}>
+            <button onClick={() => setMonthBase(m => subMonths(m, 1))} aria-label="Mês anterior" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => setMonthBase(new Date())} className="h-9 px-3 text-[12.5px] font-semibold border-x hover:bg-black/5"
+              style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+              Hoje
+            </button>
+            <button onClick={() => setMonthBase(m => addMonths(m, 1))} aria-label="Próximo mês" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Day header */}
-        <div className="grid grid-cols-7 mb-1">
-          {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d => (
-            <div key={d} className="text-center text-[11px] font-bold text-[#64748b] py-2">{d}</div>
-          ))}
-        </div>
-
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((date, i) => {
-            if (!date) return <div key={i} className="h-28 rounded-xl bg-white/[0.02]" />
-            const dayTasks = tasksByDate(date)
-            const today    = isToday(date)
-            const hasTasks = dayTasks.length > 0
-            return (
-              <div key={i}
-                onClick={() => handleDayClick(date)}
-                className={[
-                  'h-28 rounded-xl border p-2 cursor-pointer transition-all',
-                  today
-                    ? 'border-[#2563EB]/50 bg-[#2563EB]/10 hover:border-[#2563EB]'
-                    : hasTasks
-                      ? 'border-[#1e293b] bg-[#182233] hover:border-[#2563EB]/40'
-                      : 'border-[#1e293b] bg-[#0d1424] hover:border-[#334155]',
-                ].join(' ')}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold mb-1 ${today ? 'bg-[#2563EB] text-white' : 'text-[#CBD5E1]'}`}>
-                  {format(date, 'd')}
-                </div>
-                <div className="space-y-0.5 overflow-hidden">
-                  {dayTasks.slice(0, 3).map(task => {
-                    const priCfg = PRIORITY_CFG[task.priority]
-                    return (
-                      <div key={task.id}
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate ${priCfg.pillBg} ${priCfg.pillText}`}>
-                        {task.title}
-                      </div>
-                    )
-                  })}
-                  {dayTasks.length > 3 && (
-                    <p className="text-[9px] text-[#64748b] font-medium pl-0.5">+{dayTasks.length - 3} mais</p>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        {/* Grade do mês: folha única com linhas finas (seg → dom) */}
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-border)' }}>
+          <div className="grid grid-cols-7 gap-px">
+            {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
+              <div key={d} className={`text-center py-2 ${eyebrow}`} style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-4)' }}>{d}</div>
+            ))}
+            {days.map((date, i) => {
+              if (!date) return <div key={i} className="min-h-[96px] md:min-h-[112px]" style={{ background: 'var(--sm-bg-alt)' }} />
+              const dayTasks = tasksByDate(date)
+              const today    = isToday(date)
+              return (
+                <button key={i} onClick={() => handleDayClick(date)}
+                  className="min-h-[96px] md:min-h-[112px] p-1.5 md:p-2 text-left align-top transition-colors hover:bg-black/[0.02] flex flex-col"
+                  style={{ background: 'var(--sm-bg-card)' }}>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold mb-1 tabular-nums ${today ? 'text-white' : ''}`}
+                    style={today ? { background: '#2563EB' } : { color: 'var(--sm-text-2)' }}>
+                    {format(date, 'd')}
+                  </span>
+                  <span className="space-y-0.5 overflow-hidden w-full block">
+                    {dayTasks.slice(0, 3).map(task => {
+                      const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
+                      const done = task.status === 'concluido'
+                      return (
+                        <span key={task.id} className="flex items-center gap-1 text-[10.5px] font-medium px-1 py-0.5 rounded truncate"
+                          style={{ background: 'var(--sm-bg-alt)', color: done ? 'var(--sm-text-4)' : 'var(--sm-text-1)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{ background: done ? '#10B981' : overdue ? OVERDUE : PRIORITY_CFG[task.priority].color }} />
+                          <span className={`truncate ${done ? 'line-through' : ''}`}>{task.title}</span>
+                        </span>
+                      )
+                    })}
+                    {dayTasks.length > 3 && (
+                      <span className="block text-[10px] font-medium pl-1" style={{ color: 'var(--sm-text-4)' }}>+{dayTasks.length - 3} mais</span>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Day tasks modal */}
       <DayTasksModal
         date={selectedDay}
         tasks={selectedDayTasks}
@@ -696,11 +652,14 @@ function MonthView({ tasks, onView, onEdit, onDelete, onStatusChange, onAddTask 
   )
 }
 
-// ─── View: Lista ──────────────────────────────────────────────────────────────
+// ─── Lista ────────────────────────────────────────────────────────────────────
 
 type SortKey = 'due_date' | 'priority' | 'status' | 'title'
 
-function ListView({ tasks, onView, onEdit, onDelete, onStatusChange, onNewTask }: {
+// Colunas fixas da tabela: tudo alinhado na vertical.
+const LIST_COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_120px_96px_140px_150px_130px_36px] md:items-center md:gap-x-4'
+
+function ListView({ tasks, onView, onEdit, onDelete, onStatusChange }: {
   tasks: Task[]; onView: (t: Task) => void; onEdit: (t: Task) => void
   onDelete: (id: string) => void; onStatusChange: (id: string, s: TaskStatus) => void
   onNewTask: () => void
@@ -733,162 +692,106 @@ function ListView({ tasks, onView, onEdit, onDelete, onStatusChange, onNewTask }
   })
 
   const SortBtn = ({ k, label }: { k: SortKey; label: string }) => (
-    <button onClick={() => handleSort(k)} className="flex items-center gap-1 text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide hover:text-white transition-colors">
+    <button onClick={() => handleSort(k)} className={`flex items-center gap-1 ${eyebrow} hover:opacity-80 transition-opacity`}
+      style={{ color: sortKey === k ? 'var(--sm-text-1)' : 'var(--sm-text-4)' }}>
       {label}
-      {sortKey === k ? (sortAsc ? ' ↑' : ' ↓') : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+      {sortKey === k ? (sortAsc ? ' ↑' : ' ↓') : <ArrowUpDown className="w-3 h-3 opacity-50" />}
     </button>
   )
 
+  const contagem = (s: TaskStatus | 'all') => s === 'all' ? tasks.length : tasks.filter(t => t.status === s).length
+
   return (
-    <div className="flex-1 overflow-hidden flex flex-col px-4">
-      {/* Filters */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="text-[12px] font-semibold text-[#94a3b8]">Status:</span>
-        {(['all', 'a_fazer', 'em_andamento', 'revisao', 'concluido'] as const).map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${filterStatus === s ? 'bg-[#2563EB] text-white' : 'bg-[#182233] text-[#CBD5E1] hover:bg-[#1e293b]'}`}>
-            {s === 'all' ? 'Todos' : STATUS_CFG[s].label}
-          </button>
-        ))}
-        <span className="ml-auto text-[12px] text-[#64748b]">{sorted.length} tarefa{sorted.length !== 1 ? 's' : ''}</span>
+    <div className="flex-1 overflow-hidden flex flex-col px-4 md:px-6">
+      {/* Filtro de status: abas finas com contagem */}
+      <div className="flex items-center gap-1 mb-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        {(['all', 'a_fazer', 'em_andamento', 'revisao', 'concluido'] as const).map(s => {
+          const ativo = filterStatus === s
+          return (
+            <button key={s} onClick={() => setFilterStatus(s)} aria-pressed={ativo}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] whitespace-nowrap transition-colors hover:bg-black/5"
+              style={ativo
+                ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: 'inset 0 0 0 1px var(--sm-border)' }
+                : { color: 'var(--sm-text-3)', fontWeight: 500 }}>
+              {s !== 'all' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_CFG[s].color }} />}
+              {s === 'all' ? 'Todas' : STATUS_CFG[s].label}
+              <span className="tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{contagem(s)}</span>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Celular: cartões — a tabela de 7 colunas não cabe e obrigava a rolar de lado */}
-      <div className="md:hidden flex-1 overflow-auto space-y-2 pb-4">
-        {sorted.map(task => {
+      <div className="flex-1 overflow-auto rounded-2xl border mb-4" style={card}>
+        <div className={`max-md:hidden sticky top-0 z-10 px-4 py-2.5 border-b ${LIST_COLS}`}
+          style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+          <SortBtn k="title" label="Tarefa" />
+          <SortBtn k="due_date" label="Prazo" />
+          <SortBtn k="priority" label="Prioridade" />
+          <SortBtn k="status" label="Status" />
+          <span className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Cliente</span>
+          <span className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Responsável</span>
+          <span />
+        </div>
+
+        {sorted.map((task, i) => {
           const priCfg     = PRIORITY_CFG[task.priority]
           const overdue    = isOverdue(task.due_date) && task.status !== 'concluido'
           const clientName = (task.client as any)?.company_name
+          const done       = task.status === 'concluido'
           return (
             <div key={task.id} onClick={() => onView(task)}
-              className="cursor-pointer rounded-xl border border-[#1e293b] bg-[#0d1424] p-3 active:bg-white/[0.02]">
-              <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#F8FAFC] line-clamp-2">{task.title}</p>
-                  {task.description && <p className="text-[11px] text-[#64748b] truncate mt-0.5">{task.description}</p>}
+              className={`relative cursor-pointer px-4 py-3 hover:bg-black/[0.02] transition-colors ${LIST_COLS} ${i > 0 ? 'border-t' : ''}`}
+              style={{ borderColor: 'var(--sm-border)' }}>
+              <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r"
+                style={{ background: overdue ? OVERDUE : done ? 'transparent' : priCfg.color }} />
+
+              <div className="min-w-0 flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[13.5px] font-semibold truncate ${done ? 'line-through' : ''}`}
+                    style={{ color: done ? 'var(--sm-text-4)' : 'var(--sm-text-1)' }}>{task.title}</p>
+                  {task.description && <p className="text-[11.5px] truncate mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{task.description}</p>}
                 </div>
-                <div onClick={e => e.stopPropagation()} className="flex-shrink-0">
-                  <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
+                <div className="md:hidden flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} up={false} />
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap mt-2.5">
+
+              {/* No celular estes campos viram uma linha só embaixo do título */}
+              <div className="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1 max-md:mt-1.5 md:contents">
+                <span className="text-[12px] tabular-nums whitespace-nowrap" style={{ color: overdue ? OVERDUE : 'var(--sm-text-2)', fontWeight: overdue ? 600 : 400 }}>
+                  {task.due_date
+                    ? <>{format(new Date(task.due_date + 'T00:00:00'), "d MMM yyyy", { locale: ptBR })}{task.due_time && <span style={{ color: 'var(--sm-text-4)' }}> · {task.due_time.slice(0, 5)}</span>}</>
+                    : <span style={{ color: 'var(--sm-text-4)' }}>—</span>}
+                </span>
+                <span><Dot color={priCfg.color}>{priCfg.label}</Dot></span>
                 <span onClick={e => e.stopPropagation()}>
-                  <StatusPill status={task.status} onChange={st => onStatusChange(task.id, st)} />
+                  <StatusPill status={task.status} onChange={s => onStatusChange(task.id, s)} up={i > 2} />
                 </span>
-                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${priCfg.pillBg} ${priCfg.pillText}`}>
-                  {priCfg.label}
+                <span className="text-[12px] truncate" style={{ color: clientName ? 'var(--sm-text-2)' : 'var(--sm-text-4)' }}>{clientName || (<span className="max-md:hidden">—</span>)}</span>
+                <span className="flex items-center gap-2 min-w-0">
+                  {task.assignee
+                    ? <><AvatarCircle name={task.assignee} sm /><span className="text-[12px] truncate" style={{ color: 'var(--sm-text-2)' }}>{task.assignee}</span></>
+                    : <span className="text-[12px] max-md:hidden" style={{ color: 'var(--sm-text-4)' }}>—</span>}
                 </span>
-                {task.due_date && (
-                  <span className={`text-[11px] font-medium ${overdue ? 'text-[#f87171]' : 'text-[#CBD5E1]'}`}>
-                    {format(new Date(task.due_date + 'T00:00:00'), "d MMM", { locale: ptBR })}
-                    {task.due_time && ` · ${task.due_time.slice(0, 5)}`}
-                    {overdue && ' · Atrasada'}
-                  </span>
-                )}
               </div>
-              {(clientName || task.assignee) && (
-                <div className="flex items-center gap-2 mt-2 text-[11px] text-[#94a3b8] min-w-0">
-                  {clientName && <span className="truncate">{clientName}</span>}
-                  {clientName && task.assignee && <span className="text-[#475569]">·</span>}
-                  {task.assignee && <span className="truncate flex-shrink-0 max-w-[45%]">{task.assignee}</span>}
-                </div>
-              )}
+              <span className="max-md:hidden justify-self-end" onClick={e => e.stopPropagation()}>
+                <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} up={i > 2} />
+              </span>
             </div>
           )
         })}
+
         {sorted.length === 0 && (
-          <p className="text-center py-16 text-[#64748b] text-[13px]">
+          <p className="text-center py-16 text-[13px]" style={{ color: 'var(--sm-text-3)' }}>
             {tasks.length === 0 ? 'Nenhuma tarefa criada ainda.' : 'Nenhuma tarefa com esse filtro.'}
           </p>
         )}
-      </div>
-
-      {/* Table */}
-      <div className="hidden md:block flex-1 overflow-auto rounded-xl border border-[#1e293b]">
-        <table className="w-full">
-          <thead className="bg-[#182233] sticky top-0 z-10">
-            <tr>
-              <th className="text-left px-4 py-3 border-b border-[#1e293b]"><SortBtn k="title" label="Tarefa" /></th>
-              <th className="text-left px-4 py-3 border-b border-[#1e293b]"><SortBtn k="due_date" label="Prazo" /></th>
-              <th className="text-left px-4 py-3 border-b border-[#1e293b]"><SortBtn k="priority" label="Prioridade" /></th>
-              <th className="text-left px-4 py-3 border-b border-[#1e293b]"><SortBtn k="status" label="Status" /></th>
-              <th className="text-left px-4 py-3 border-b border-[#1e293b]">
-                <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide">Cliente</span>
-              </th>
-              <th className="text-left px-4 py-3 border-b border-[#1e293b]">
-                <span className="text-[11px] font-bold text-[#94a3b8] uppercase tracking-wide">Responsável</span>
-              </th>
-              <th className="px-4 py-3 border-b border-[#1e293b]" />
-            </tr>
-          </thead>
-          <tbody className="bg-[#0d1424] divide-y divide-[#1e293b]">
-            {sorted.map(task => {
-              const priCfg     = PRIORITY_CFG[task.priority]
-              const sCfg       = STATUS_CFG[task.status]
-              const overdue    = isOverdue(task.due_date) && task.status !== 'concluido'
-              const clientName = (task.client as any)?.company_name
-              return (
-                <tr key={task.id} onClick={() => onView(task)}
-                  className="cursor-pointer hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="text-[13px] font-semibold text-[#F8FAFC] max-w-[280px] truncate">{task.title}</p>
-                    {task.description && <p className="text-[11px] text-[#64748b] truncate max-w-[280px] mt-0.5">{task.description}</p>}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {task.due_date ? (
-                      <div>
-                        <p className={`text-[12px] font-medium ${overdue ? 'text-[#f87171]' : 'text-[#CBD5E1]'}`}>
-                          {format(new Date(task.due_date + 'T00:00:00'), "d MMM yyyy", { locale: ptBR })}
-                        </p>
-                        {task.due_time && <p className="text-[11px] text-[#64748b]">{task.due_time.slice(0, 5)}</p>}
-                        {overdue && <p className="text-[10px] text-[#f87171] font-semibold">Atrasada</p>}
-                      </div>
-                    ) : <span className="text-[12px] text-[#475569]">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${priCfg.pillBg} ${priCfg.pillText}`}>
-                      {priCfg.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <StatusPill status={task.status} onChange={s => onStatusChange(task.id, s)} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {clientName ? (
-                      <span className="text-[12px] font-medium text-[#CBD5E1]">{clientName}</span>
-                    ) : <span className="text-[12px] text-[#475569]">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {task.assignee ? (
-                      <div className="flex items-center gap-2">
-                        <AvatarCircle name={task.assignee} />
-                        <span className="text-[12px] text-[#CBD5E1]">{task.assignee}</span>
-                      </div>
-                    ) : <span className="text-[12px] text-[#475569]">—</span>}
-                  </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <MoreMenu onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
-                  </td>
-                </tr>
-              )
-            })}
-            {sorted.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center py-16 text-[#64748b] text-[13px]">
-                  {tasks.length === 0 ? 'Nenhuma tarefa criada ainda.' : 'Nenhuma tarefa com esse filtro.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
       </div>
     </div>
   )
 }
 
-// ─── No-date pills ────────────────────────────────────────────────────────────
-
-// ─── Task view modal ──────────────────────────────────────────────────────────
+// ─── Modal: ver tarefa ─────────────────────────────────────────────────────────
 
 function TaskViewModal({ task, members, open, onClose, onEdit, onDelete, onStatusChange }: {
   task: Task | null; members: { id: string; name: string; color: string }[]
@@ -897,83 +800,74 @@ function TaskViewModal({ task, members, open, onClose, onEdit, onDelete, onStatu
 }) {
   if (!task) return null
   const pCfg    = PRIORITY_CFG[task.priority]
-  const sCfg    = STATUS_CFG[task.status]
   const member  = members.find(m => m.id === (task as any).assignee_id)
   const overdue = isOverdue(task.due_date) && task.status !== 'concluido'
   const clientName = (task.client as any)?.company_name
   const links: { id: string; label: string; url: string; type: string }[] =
     Array.isArray((task as any).task_links) ? (task as any).task_links : []
+  const box = { background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }
+  const lbl = `${eyebrow} mb-1.5 flex items-center gap-1`
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <div className="pr-6">
-            <DialogTitle className="text-[16px] font-semibold text-[#F8FAFC] leading-snug">{task.title}</DialogTitle>
+            {clientName && <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--sm-text-4)' }}>{clientName}</p>}
+            <DialogTitle className="font-display text-[19px] font-bold leading-snug text-[color:var(--sm-text-1)]">{task.title}</DialogTitle>
           </div>
         </DialogHeader>
         <div className="space-y-4 mt-1 overflow-y-auto max-h-[60vh] pr-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-              style={{ color: pCfg.color, backgroundColor: `${pCfg.color}22` }}>
-              {task.priority === 'urgente' && <AlertCircle className="w-3 h-3" />}{pCfg.label}
-            </span>
-            <div className="relative inline-flex items-center">
-              <select
-                value={task.status}
-                onChange={e => { const next = e.target.value as TaskStatus; if (next !== task.status) onStatusChange(task.id, next) }}
-                title="Mudar status"
-                className={`appearance-none cursor-pointer rounded-full border pl-2.5 pr-7 py-1 text-[11px] font-medium outline-none transition-colors ${sCfg.bg} ${sCfg.text} ${sCfg.border}`}
-              >
-                {(Object.keys(STATUS_CFG) as TaskStatus[]).map(s => (
-                  <option key={s} value={s} className="bg-[#0d0f14] text-[#F8FAFC]">{STATUS_CFG[s].label}</option>
-                ))}
-              </select>
-              <ChevronDown className={`w-3 h-3 absolute right-1.5 pointer-events-none ${sCfg.text}`} />
-            </div>
-            {overdue && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium" style={{ background: '#dc2626', color: '#ffffff' }}>⚠ Atrasada</span>}
-            {clientName && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium" style={{ background: '#2563EB', color: '#ffffff' }}>{clientName}</span>}
+          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+            <Dot color={pCfg.color}>Prioridade {pCfg.label.toLowerCase()}</Dot>
+            <StatusPill status={task.status} up={false}
+              onChange={next => { if (next !== task.status) onStatusChange(task.id, next) }} />
+            {overdue && <Dot color={OVERDUE} strong>Atrasada</Dot>}
           </div>
+
           {task.description && (
-            <div className="bg-[#182233] rounded-xl p-3.5 border border-[#1e293b]">
-              <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wide mb-1.5">Descrição</p>
-              <p className="text-[13px] text-[#CBD5E1] leading-relaxed whitespace-pre-wrap">{task.description}</p>
+            <div className="rounded-xl p-3.5 border" style={box}>
+              <p className={lbl} style={{ color: 'var(--sm-text-4)' }}>Descrição</p>
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-1)' }}>{task.description}</p>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#182233] rounded-xl p-3 border border-[#1e293b]">
-              <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wide mb-1.5 flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Prazo</p>
+
+          <dl className="grid grid-cols-2 rounded-xl border overflow-hidden" style={box}>
+            <div className="p-3">
+              <dt className={lbl} style={{ color: 'var(--sm-text-4)' }}><CalendarDays className="w-3 h-3" /> Prazo</dt>
               {task.due_date ? (
-                <>
-                  <p className={`text-[13px] font-medium ${overdue ? 'text-[#f87171]' : 'text-[#F8FAFC]'}`}>
+                <dd>
+                  <p className="text-[13px] font-medium" style={{ color: overdue ? OVERDUE : 'var(--sm-text-1)' }}>
                     {format(new Date(task.due_date + 'T00:00:00'), "d 'de' MMMM yyyy", { locale: ptBR })}
                   </p>
-                  {task.due_time && <p className="text-[12px] text-[#94a3b8] mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3" /> {task.due_time.slice(0, 5)}</p>}
-                </>
-              ) : <p className="text-[13px] text-[#64748b]">Sem prazo</p>}
+                  {task.due_time && <p className="text-[12px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--sm-text-3)' }}><Clock className="w-3 h-3" /> {task.due_time.slice(0, 5)}</p>}
+                </dd>
+              ) : <dd className="text-[13px]" style={{ color: 'var(--sm-text-4)' }}>Sem prazo</dd>}
             </div>
-            <div className="bg-[#182233] rounded-xl p-3 border border-[#1e293b]">
-              <p className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wide mb-1.5 flex items-center gap-1"><User className="w-3 h-3" /> Responsável</p>
-              {member ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0" style={{ backgroundColor: member.color }}>{member.name.charAt(0).toUpperCase()}</span>
-                  <span className="text-[13px] font-medium text-[#F8FAFC]">{member.name}</span>
-                </div>
-              ) : task.assignee ? <p className="text-[13px] text-[#CBD5E1]">{task.assignee}</p>
-                : <p className="text-[13px] text-[#64748b]">Agência</p>}
+            <div className="p-3 border-l" style={{ borderColor: 'var(--sm-border)' }}>
+              <dt className={lbl} style={{ color: 'var(--sm-text-4)' }}><User className="w-3 h-3" /> Responsável</dt>
+              <dd>
+                {member ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: member.color }}>{member.name.charAt(0).toUpperCase()}</span>
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>{member.name}</span>
+                  </span>
+                ) : <span className="text-[13px]" style={{ color: task.assignee ? 'var(--sm-text-1)' : 'var(--sm-text-4)' }}>{task.assignee || 'Agência'}</span>}
+              </dd>
             </div>
-          </div>
+          </dl>
+
           {links.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide mb-2">Referências ({links.length})</p>
+              <p className={`${eyebrow} mb-2`} style={{ color: 'var(--sm-text-4)' }}>Referências ({links.length})</p>
               <div className="space-y-2">
                 {links.map(link => {
                   if (link.type === 'imagem') return (
-                    <div key={link.id} className="rounded-xl overflow-hidden border border-[#1e293b]">
+                    <div key={link.id} className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--sm-border)' }}>
                       <img src={link.url} alt={link.label} className="w-full max-h-48 object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      <div className="flex items-center justify-between px-3 py-2 bg-[#182233]">
-                        <span className="text-[11px] font-medium text-[#CBD5E1] truncate flex-1">{link.label}</span>
-                        <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[#64748b] hover:text-white ml-2"><ExternalLink className="w-3 h-3" /></a>
+                      <div className="flex items-center justify-between px-3 py-2" style={{ background: 'var(--sm-bg-card)' }}>
+                        <span className="text-[11.5px] font-medium truncate flex-1" style={{ color: 'var(--sm-text-2)' }}>{link.label}</span>
+                        <a href={link.url} target="_blank" rel="noopener noreferrer" className="ml-2 hover:opacity-70" style={{ color: 'var(--sm-text-4)' }}><ExternalLink className="w-3 h-3" /></a>
                       </div>
                     </div>
                   )
@@ -981,34 +875,37 @@ function TaskViewModal({ task, members, open, onClose, onEdit, onDelete, onStatu
                   const Icon = iconMap[link.type] ?? Link2
                   return (
                     <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-xl border border-[#1e293b] bg-[#182233] hover:border-[#2563EB]/50 transition-all group">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#2563EB' }}><Icon className="w-4 h-4 text-white" /></div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium text-[#CBD5E1] truncate group-hover:text-white">{link.label}</p>
-                        <p className="text-[10px] text-[#64748b] truncate">{link.url}</p>
-                      </div>
-                      <ExternalLink className="w-3 h-3 text-[#475569] group-hover:text-[#60A5FA] flex-shrink-0" />
+                      className="flex items-center gap-3 p-3 rounded-xl border hover:border-[#2563EB]/50 transition-colors"
+                      style={{ borderColor: 'var(--sm-border)' }}>
+                      <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)' }}><Icon className="w-4 h-4" /></span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[12.5px] font-medium truncate" style={{ color: 'var(--sm-text-1)' }}>{link.label}</span>
+                        <span className="block text-[10.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>{link.url}</span>
+                      </span>
+                      <ExternalLink className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
                     </a>
                   )
                 })}
               </div>
             </div>
           )}
+
           {((task as any).collaborator_note || (task as any).delivery_url) && (
-            <div className="bg-[#8B5CF6]/10 rounded-xl p-3.5 border border-[#8B5CF6]/30 space-y-1.5">
-              <p className="text-[10px] font-semibold text-[#a78bfa] uppercase tracking-wider">Entrega do colaborador</p>
-              {(task as any).collaborator_note && <p className="text-[12px] text-[#c4b5fd] leading-relaxed">📝 {(task as any).collaborator_note}</p>}
+            <div className="relative rounded-xl p-3.5 pl-4 border space-y-1.5 overflow-hidden" style={box}>
+              <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: '#8B5CF6' }} />
+              <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Entrega do colaborador</p>
+              {(task as any).collaborator_note && <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--sm-text-1)' }}>{(task as any).collaborator_note}</p>}
               {(task as any).delivery_url && (
                 <a href={(task as any).delivery_url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[11px] text-[#a78bfa] hover:text-[#c4b5fd] font-medium">
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: '#2563EB' }}>
                   <ExternalLink className="w-3 h-3" /> Ver entrega enviada
                 </a>
               )}
             </div>
           )}
-          <p className="text-[11px] text-[#64748b]">Criada em {format(new Date(task.created_at), "d 'de' MMMM yyyy 'às' HH:mm", { locale: ptBR })}</p>
+          <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>Criada em {format(new Date(task.created_at), "d 'de' MMMM yyyy 'às' HH:mm", { locale: ptBR })}</p>
         </div>
-        <DialogFooter className="gap-2 border-t border-[#1e293b] pt-3">
+        <DialogFooter className="gap-2 border-t pt-3 border-[color:var(--sm-border)]">
           <Button variant="outline" size="sm" className="text-red-600 border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60"
             onClick={() => { onClose(); onDelete(task.id) }}>
             <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
@@ -1022,7 +919,7 @@ function TaskViewModal({ task, members, open, onClose, onEdit, onDelete, onStatu
   )
 }
 
-// ─── Task dialog ──────────────────────────────────────────────────────────────
+// ─── Modal: criar / editar tarefa ─────────────────────────────────────────────
 
 const blankForm = {
   title: '', description: '', due_date: '', due_time: '',
@@ -1040,6 +937,7 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
   const [saving, setSaving] = useState(false)
   const isEdit = !!editingTask
   const set = (k: keyof TaskForm, v: unknown) => setForm(p => ({ ...p, [k]: v }))
+  const lbl = `block ${eyebrow} mb-1.5 text-[color:var(--sm-text-4)]`
 
   useEffect(() => {
     if (!open) return
@@ -1068,13 +966,13 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>{isEdit ? 'Editar tarefa' : 'Nova tarefa'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-display text-[19px] font-bold">{isEdit ? 'Editar tarefa' : 'Nova tarefa'}</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-1">
           <Input label="Título *" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Descrição da tarefa..." />
           <Textarea label="Descrição" value={form.description} onChange={e => set('description', e.target.value)} rows={2} placeholder="Detalhes opcionais..." />
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Prioridade</label>
+              <label className={lbl}>Prioridade</label>
               <Select value={form.priority} onValueChange={v => set('priority', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1084,7 +982,7 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
               </Select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Status</label>
+              <label className={lbl}>Status</label>
               <Select value={form.status} onValueChange={v => set('status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1097,17 +995,18 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
           <div className="grid grid-cols-2 gap-3">
             <Input label="Data" type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} />
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Horário</label>
+              <label className={lbl}>Horário</label>
               <div className="relative">
-                <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b] pointer-events-none z-10" />
+                <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none z-10" style={{ color: 'var(--sm-text-4)' }} />
                 <input type="time" value={form.due_time} onChange={e => set('due_time', e.target.value)}
-                  className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#1e293b] bg-[#182233] text-[13px] text-[#E2E8F0] focus:outline-none focus:border-[#2563EB]/50 focus:ring-2 focus:ring-[#2563EB]/20 tabular-nums [color-scheme:dark]" />
+                  className="w-full h-9 pl-8 pr-3 rounded-lg border text-[13px] focus:outline-none focus:border-[#2563EB]/50 focus:ring-2 focus:ring-[#2563EB]/20 tabular-nums [color-scheme:light_dark]"
+                  style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
               </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Responsável</label>
+              <label className={lbl}>Responsável</label>
               <Select value={form.assignee_id || '__none__'} onValueChange={v => {
                 if (v === '__none__') { set('assignee_id', null); set('assignee', '') }
                 else { const m = members.find(m => m.id === v); set('assignee_id', v); set('assignee', m?.name || '') }
@@ -1124,7 +1023,7 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
               </Select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-[#737373] mb-1.5 uppercase tracking-wide">Cliente (opcional)</label>
+              <label className={lbl}>Cliente (opcional)</label>
               <Select value={form.client_id || '__none__'} onValueChange={v => set('client_id', v === '__none__' ? null : v)}>
                 <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
                 <SelectContent>
@@ -1254,149 +1153,129 @@ export function Tasks() {
 
   const showNoDate = (activeTab === 'semanal' || activeTab === 'timeline') && tasksWithoutDate.length > 0
 
+  const kpis = [
+    { label: 'Total', value: String(totalCount), hint: 'tarefas' },
+    { label: 'Concluídas', value: String(doneCount), hint: `${progressPct}% do total`, bar: progressPct },
+    { label: 'Atrasadas', value: String(overdueCount), hint: overdueCount > 0 ? 'precisam de atenção' : 'tudo em dia', alert: overdueCount > 0 },
+    { label: 'Sem data', value: String(tasksWithoutDate.length), hint: 'sem prazo definido' },
+  ]
+
   return (
-    <div className="flex flex-col h-full bg-[#0B1020] overflow-x-hidden">
+    <div className="flex flex-col h-full overflow-x-hidden" style={{ background: 'var(--sm-bg-page)' }}>
 
-      {/* ── Local header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between flex-wrap gap-3 px-4 md:px-6 pt-5 pb-3 flex-shrink-0 border-b border-[#1e293b] bg-[#0B1020]">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#F8FAFC]">Tarefas</h1>
-          <p className="text-[12px] text-[#64748b] mt-0.5">Gerencie e acompanhe todas as tarefas</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setTemplatesOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-medium border border-[#1e293b] bg-[#111827] text-[#CBD5E1] hover:border-[#334155] transition-all whitespace-nowrap">
-            <ClipboardList className="w-4 h-4" /> Modelos
-          </button>
-          <button onClick={handleNewTask}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-95 transition-all shadow-lg shadow-[#2563EB]/20 whitespace-nowrap">
-            <Plus className="w-4 h-4" /> Nova tarefa
-          </button>
-        </div>
-      </div>
-
-      {/* ── Stats + date nav ─────────────────────────────────────────────── */}
-      <div className="px-4 md:px-6 pt-3 pb-3 flex-shrink-0 bg-[#0B1020] border-b border-[#1e293b]">
-        <div className="flex items-center gap-3 flex-wrap">
-
-          {/* Week navigator */}
-          <div className="flex items-center bg-[#182233] border border-[#1e293b] rounded-xl overflow-hidden">
-            <button onClick={() => setWeekBase(d => subWeeks(d, 1))}
-              className="w-9 h-9 flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-all border-r border-[#1e293b]">
-              <ChevronLeft className="w-4 h-4" />
+      {/* ── Cabeçalho (no celular, ao lado do menu) ───────────────────────── */}
+      <div className="px-4 md:px-6 pt-4 md:pt-6 flex-shrink-0">
+        <header className="mb-5 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Operação</p>
+            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+              Tarefas
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setTemplatesOpen(true)} className={ghostBtn} style={ghostStyle}>
+              <ClipboardList className="w-4 h-4" /> Modelos
             </button>
-            <div className="flex items-center gap-2 px-4">
-              <CalendarDays className="w-3.5 h-3.5 text-[#64748b]" />
-              <span className="text-[13px] font-bold text-[#F8FAFC] whitespace-nowrap">{weekLabel}</span>
-            </div>
-            <button onClick={() => setWeekBase(d => addWeeks(d, 1))}
-              className="w-9 h-9 flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-all border-l border-[#1e293b]">
-              <ChevronRight className="w-4 h-4" />
+            <button onClick={handleNewTask} className={primaryBtn} style={{ background: '#2563EB' }}>
+              <Plus className="w-4 h-4" /> Nova tarefa
             </button>
           </div>
+        </header>
 
-          <button onClick={() => setWeekBase(new Date())}
-            className="px-4 py-2 text-[12px] font-semibold rounded-xl border border-[#1e293b] bg-[#182233] text-[#CBD5E1] hover:border-[#2563EB]/50 hover:text-white transition-colors">
-            Hoje
-          </button>
-
-          {/* Metric cards */}
-          <div className="w-full sm:w-auto sm:ml-auto grid grid-cols-2 sm:flex sm:items-center gap-2 sm:flex-wrap">
-            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#2563EB' }}>
-                <ClipboardList className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[18px] font-bold text-[#F8FAFC] leading-none">{totalCount}</p>
-                <p className="text-[10px] text-[#64748b] mt-0.5">Total de tarefas</p>
-              </div>
+        {/* ── Números em uma faixa com divisórias ── */}
+        <div className="rounded-2xl border grid grid-cols-2 lg:grid-cols-4 gap-px overflow-hidden mb-5"
+          style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+          {kpis.map(k => (
+            <div key={k.label} className="relative px-4 md:px-5 py-3.5" style={{ background: 'var(--sm-bg-card)' }}>
+              {k.alert && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: OVERDUE }} />}
+              <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>{k.label}</p>
+              <p className="font-display text-[26px] font-bold leading-tight tabular-nums mt-0.5"
+                style={{ color: k.alert ? OVERDUE : 'var(--sm-text-1)' }}>{k.value}</p>
+              {k.bar != null ? (
+                <div className="h-1 rounded-full overflow-hidden mt-1.5" style={{ background: 'var(--sm-bg-alt)' }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${k.bar}%`, background: '#10B981' }} />
+                </div>
+              ) : (
+                <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>{k.hint}</p>
+              )}
             </div>
-            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#059669' }}>
-                <CheckCircle2 className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[18px] font-bold text-[#F8FAFC] leading-none">{doneCount}</p>
-                <p className="text-[10px] text-[#64748b] mt-0.5">Concluídas</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#b45309' }}>
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[18px] font-bold text-[#F8FAFC] leading-none">{overdueCount}</p>
-                <p className="text-[10px] text-[#64748b] mt-0.5">Atrasada{overdueCount !== 1 ? 's' : ''}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 px-3 sm:px-4 py-2 bg-[#182233] border border-[#1e293b] rounded-xl min-w-0">
-              <DonutProgress percent={progressPct} />
-              <div>
-                <p className="text-[18px] font-bold text-[#F8FAFC] leading-none">{progressPct}%</p>
-                <p className="text-[10px] text-[#64748b] mt-0.5">Progresso semanal</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
-      </div>
 
-      {/* ── View tabs ───────────────────────────────────────────────────── */}
-      <div className="px-2 sm:px-5 md:px-6 mt-0 border-b border-[#1e293b] flex-shrink-0 bg-[#0B1020]">
-        <div className="flex items-center justify-between gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-          <div className="flex items-center flex-shrink-0">
-            {TABS.map(({ id, label, short, Icon }) => (
-              <button key={id} onClick={() => setActiveTab(id)}
-                className={['flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 px-3 sm:px-4 py-2.5 text-[13px] font-medium transition-all border-b-2',
-                  activeTab === id ? 'text-[#60A5FA] border-[#2563EB]' : 'text-[#64748b] border-transparent hover:text-[#CBD5E1]'].join(' ')}>
-                <Icon className="hidden sm:block w-3.5 h-3.5" />
-                <span className="sm:hidden">{short}</span>
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
+        {/* ── Abas de visão + navegação da semana ── */}
+        <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b mb-4" style={{ borderColor: 'var(--sm-border)' }}>
+          <div className="flex items-center overflow-x-auto [&::-webkit-scrollbar]:hidden -mb-px">
+            {TABS.map(({ id, label, short, Icon }) => {
+              const ativo = activeTab === id
+              return (
+                <button key={id} onClick={() => setActiveTab(id)} aria-current={ativo ? 'page' : undefined}
+                  className="flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 px-3 h-10 text-[13px] transition-colors border-b-2"
+                  style={{ borderColor: ativo ? '#2563EB' : 'transparent', color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
+                  <Icon className="hidden sm:block w-4 h-4" style={{ color: ativo ? '#2563EB' : 'var(--sm-text-4)' }} />
+                  <span className="sm:hidden">{short}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              )
+            })}
           </div>
-          <div className="flex items-center gap-2 mb-1 flex-shrink-0">
-            {/* Setas de janela de dias (só na visão semanal) */}
-            {activeTab === 'semanal' && (
-              <div className="hidden lg:flex items-center bg-[#182233] border border-[#1e293b] rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setDayWindow(w => Math.max(0, w - 1))}
-                  disabled={dayWindow === 0}
-                  title="Dias anteriores"
-                  className="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-all border-r border-[#1e293b] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent">
+
+          <div className="flex items-center gap-2 pb-2 flex-wrap">
+            {(activeTab === 'semanal' || activeTab === 'timeline') && (
+              <div className="flex items-center rounded-xl border overflow-hidden" style={card}>
+                <button onClick={() => setWeekBase(d => subWeeks(d, 1))} aria-label="Semana anterior" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setDayWindow(w => Math.min(maxDayWindow, w + 1))}
-                  disabled={dayWindow === maxDayWindow}
-                  title="Próximos dias"
-                  className="w-8 h-8 flex items-center justify-center text-[#94a3b8] hover:text-white hover:bg-[#1e293b] transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent">
+                <span className="px-3 h-9 flex items-center gap-1.5 text-[12.5px] font-semibold whitespace-nowrap border-x"
+                  style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>
+                  <CalendarDays className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} /> {weekLabel}
+                </span>
+                <button onClick={() => setWeekBase(d => addWeeks(d, 1))} aria-label="Próxima semana" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             )}
-            {/* Tarefas sem data — dropdown */}
+            {(activeTab === 'semanal' || activeTab === 'timeline') && (
+              <button onClick={() => setWeekBase(new Date())} className={`${ghostBtn} h-9 text-[12.5px]`} style={ghostStyle}>Hoje</button>
+            )}
+
+            {/* Janela de dias (só na visão semanal, no computador) */}
+            {activeTab === 'semanal' && (
+              <div className="hidden lg:flex items-center rounded-xl border overflow-hidden" style={card}>
+                <button onClick={() => setDayWindow(w => Math.max(0, w - 1))} disabled={dayWindow === 0}
+                  title="Dias anteriores" aria-label="Dias anteriores" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="h-9 px-2 flex items-center text-[11.5px] border-x tabular-nums" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}>
+                  {format(visibleDays[0], 'EEE', { locale: ptBR }).replace('.', '')}–{format(visibleDays[visibleDays.length - 1], 'EEE', { locale: ptBR }).replace('.', '')}
+                </span>
+                <button onClick={() => setDayWindow(w => Math.min(maxDayWindow, w + 1))} disabled={dayWindow === maxDayWindow}
+                  title="Próximos dias" aria-label="Próximos dias" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Tarefas sem data */}
             {showNoDate && (
               <div className="relative">
-                <button
-                  onClick={() => setNoDateOpen(o => !o)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#94a3b8] border border-[#1e293b] rounded-lg hover:border-[#2563EB]/50 hover:text-white transition-all">
+                <button onClick={() => setNoDateOpen(o => !o)} aria-expanded={noDateOpen} className={`${ghostBtn} h-9 text-[12.5px]`} style={ghostStyle}>
                   <CalendarOff className="w-3.5 h-3.5" /> Sem data
-                  <span className="text-[10px] font-bold text-[#94a3b8] bg-[#1e293b] px-1.5 py-0.5 rounded-full">{tasksWithoutDate.length}</span>
+                  <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{tasksWithoutDate.length}</span>
                 </button>
                 {noDateOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setNoDateOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 z-40 w-72 max-h-80 overflow-y-auto bg-[#182233] border border-[#1e293b] rounded-xl shadow-2xl p-2 space-y-1.5">
-                      <p className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wide px-1 pb-0.5">Tarefas sem data</p>
+                    <div className="absolute right-0 top-full mt-1.5 z-40 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto border rounded-xl shadow-2xl p-1.5" style={card}>
+                      <p className={`${eyebrow} px-2 pt-1 pb-1.5`} style={{ color: 'var(--sm-text-4)' }}>Tarefas sem data</p>
                       {tasksWithoutDate.map(task => {
                         const priCfg = PRIORITY_CFG[task.priority]
                         return (
                           <div key={task.id} onClick={() => { setViewingTask(task); setNoDateOpen(false) }}
-                            className="flex items-center gap-2 px-2.5 py-2 bg-[#0d1424] border border-[#1e293b] rounded-lg cursor-pointer hover:border-[#2563EB]/50 transition-all">
-                            <span className="text-[12px] font-medium text-[#CBD5E1] flex-1 min-w-0 truncate">{task.title}</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${priCfg.pillBg} ${priCfg.pillText}`}>{priCfg.label}</span>
+                            className="flex items-center gap-2 pl-2.5 pr-1 py-1.5 rounded-lg cursor-pointer hover:bg-black/5 transition-colors">
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: priCfg.color }} title={priCfg.label} />
+                            <span className="text-[12.5px] font-medium flex-1 min-w-0 truncate" style={{ color: 'var(--sm-text-1)' }}>{task.title}</span>
                             <div onClick={e => e.stopPropagation()}>
-                              <MoreMenu onEdit={() => { handleEditTask(task); setNoDateOpen(false) }} onDelete={() => handleDelete(task.id)} />
+                              <MoreMenu up={false} onEdit={() => { handleEditTask(task); setNoDateOpen(false) }} onDelete={() => handleDelete(task.id)} />
                             </div>
                           </div>
                         )
@@ -1406,16 +1285,12 @@ export function Tasks() {
                 )}
               </div>
             )}
-
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#94a3b8] border border-[#1e293b] rounded-lg hover:border-[#2563EB]/50 hover:text-white transition-all">
-              <Filter className="w-3.5 h-3.5" /> Filtrar
-            </button>
           </div>
         </div>
       </div>
 
-      {/* ── Content area ────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden flex flex-col min-h-0 pt-3">
+      {/* ── Conteúdo ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
 
         {activeTab === 'semanal' && (
           <WeeklyView tasks={tasks} days={visibleDays} weekDays={days} draggingId={draggingId}
@@ -1441,7 +1316,7 @@ export function Tasks() {
         )}
       </div>
 
-      {/* ── Dialogs ─────────────────────────────────────────────────────── */}
+      {/* ── Modais ─────────────────────────────────────────────────────── */}
       <TaskDialog open={dialogOpen} onClose={() => { setDialogOpen(false); setEditingTask(null) }}
         prefillDate={prefillDate} clients={clients} members={activeMembers}
         editingTask={editingTask} onCreate={handleCreate} onUpdate={handleUpdate} />

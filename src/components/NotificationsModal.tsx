@@ -211,7 +211,7 @@ export function NotificationsModal({ open, onClose, onView }: NotificationsModal
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${
                   onlyUnread
                     ? 'bg-[#29457a]/30 border-[#29457a] text-[#9bb6dd]'
-                    : 'bg-[#182233] border-[#1e293b] text-[#94a3b8] hover:text-white'
+                    : 'bg-[#182233] border-[#1e293b] text-[#94a3b8] hover:text-[color:var(--sm-text-1)]'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${onlyUnread ? 'bg-[#6f93c9]' : 'bg-[#475569]'}`} />
@@ -243,7 +243,7 @@ export function NotificationsModal({ open, onClose, onView }: NotificationsModal
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-medium whitespace-nowrap transition-all ${
                         active
                           ? 'bg-[#29457a] text-white'
-                          : 'bg-[#182233] text-[#94a3b8] hover:text-white'
+                          : 'bg-[#182233] text-[#94a3b8] hover:text-[color:var(--sm-text-1)]'
                       }`}
                     >
                       {label}
