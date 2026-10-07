@@ -114,10 +114,10 @@ export function PartnersPanel() {
       {/* Explicação */}
       <div className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5 flex gap-4">
         <div className="w-10 h-10 rounded-xl bg-[#2563EB]/15 flex items-center justify-center flex-shrink-0">
-          <ShieldCheck className="w-5 h-5 text-[#60A5FA]" />
+          <ShieldCheck className="w-5 h-5 text-[#2563EB]" />
         </div>
         <div className="space-y-1.5">
-          <h3 className="text-[15px] font-bold text-[#F8FAFC]">Sócios da agência</h3>
+          <h3 className="font-display text-[17px] font-bold text-[#F8FAFC]">Sócios da agência</h3>
           <p className="text-[13px] text-[#94a3b8] leading-relaxed">
             O sócio entra com <strong className="text-[#E2E8F0]">login próprio</strong> e tem acesso completo ao
             sistema: clientes, planejamento, Instagram, CRM, financeiro, relatórios, equipe e assinatura. Todos os
@@ -146,7 +146,7 @@ export function PartnersPanel() {
           onSubmit={e => { e.preventDefault(); if (email.trim()) invite.mutate() }}
           className="bg-[#111827] rounded-2xl border border-[#1e293b] p-5 space-y-3"
         >
-          <p className="text-[13px] font-semibold text-[#F8FAFC]">Convidar sócio</p>
+          <p className="font-display text-[15px] font-bold text-[#F8FAFC]">Convidar sócio</p>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_auto] gap-2">
             <input
               value={name}
@@ -184,7 +184,7 @@ export function PartnersPanel() {
           letter={initial(data.owner.name, data.owner.email)}
           title={data.owner.name || data.owner.email || 'Sócio'}
           subtitle={data.owner.email}
-          tag={<span className="text-[10px] font-semibold text-emerald-400">Sócio</span>}
+          tag={<span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: 'var(--sm-text-2)' }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />Sócio</span>}
           you={data.me === data.owner.id}
         />
         {data.partners.map(p => {
@@ -197,8 +197,8 @@ export function PartnersPanel() {
               subtitle={p.name ? p.email : null}
               you={data.me === p.partner_user_id}
               tag={pending
-                ? <span className="flex items-center gap-1 text-[10px] font-semibold text-[#94a3b8]"><Mail className="w-3 h-3" /> Convite pendente</span>
-                : <span className="text-[10px] font-semibold text-emerald-400">Sócio · último acesso {formatDate(p.last_sign_in_at!)}</span>}
+                ? <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: 'var(--sm-text-2)' }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#F59E0B' }} />Convite pendente</span>
+                : <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: 'var(--sm-text-2)' }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />Sócio · último acesso {formatDate(p.last_sign_in_at!)}</span>}
               actions={data.plan_ok && data.me !== p.partner_user_id && (
                 <div className="flex items-center gap-1">
                   {pending && (
@@ -206,7 +206,7 @@ export function PartnersPanel() {
                       onClick={() => resend.mutate(p)}
                       disabled={resend.isPending}
                       title="Reenviar convite"
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#182233]"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-black/5"
                     >
                       <RotateCw className={`w-3.5 h-3.5 ${resend.isPending ? 'animate-spin' : ''}`} />
                     </button>
@@ -214,7 +214,7 @@ export function PartnersPanel() {
                   <button
                     onClick={() => setRemoving(p)}
                     title="Remover sócio"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-400 hover:bg-[#182233]"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-500 hover:bg-black/5"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -243,7 +243,7 @@ export function PartnersPanel() {
                   <AlertCircle className="w-5 h-5 text-red-500" />
                 </div>
                 <div>
-                  <p className="text-[14px] font-bold text-[#F8FAFC]">Remover sócio?</p>
+                  <p className="font-display text-[17px] font-bold text-[#F8FAFC]">Remover sócio?</p>
                   <p className="text-[12px] text-[#64748b] mt-1">
                     <strong>{removing.name || removing.email}</strong> perde o acesso à agência na hora. Nada do que
                     ele fez é apagado.
