@@ -159,47 +159,42 @@ function CreateReportModal({
 
 // ── Anexo (item + modal de adicionar) ────────────────────────────────────
 
-function AttachmentItem({ att, onDelete }: { att: ReportAttachment; onDelete: () => void }) {
+function AttachmentItem({ att, first, onDelete }: { att: ReportAttachment; first: boolean; onDelete: () => void }) {
   const [imgOpen, setImgOpen] = useState(false)
   const isImg = att.type === 'imagem'
+  const href = att.type === 'link' ? att.link_url : att.file_url
+  const iconBtn = 'w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-colors'
 
   return (
     <>
       <div
         onClick={() => isImg && setImgOpen(true)}
-        className={`group flex items-center gap-3 p-3 rounded-xl transition-all ${isImg ? 'cursor-pointer' : ''}`}
-        style={{ background: 'var(--sm-bg-alt)', border: '1px solid var(--sm-border)' }}
+        className={`group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-black/[0.02] ${isImg ? 'cursor-pointer' : ''} ${first ? '' : 'border-t'}`}
+        style={{ borderColor: 'var(--sm-border)' }}
       >
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
-          style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: 'var(--sm-bg-alt)' }}>
           {isImg && att.file_url
-            ? <img src={att.file_url} alt={att.title} className="w-full h-full object-cover" />
-            : att.type === 'pdf' ? <FileText className="w-4 h-4 text-red-500" />
-            : att.type === 'link' ? <Link2 className="w-4 h-4 text-blue-500" />
-            : <File className="w-4 h-4" style={{ color: 'var(--sm-text-2)' }} />}
+            ? <img src={att.file_url} alt="" className="w-full h-full object-cover" />
+            : att.type === 'pdf' ? <FileText className="w-4 h-4" style={{ color: '#EF4444' }} />
+            : att.type === 'link' ? <Link2 className="w-4 h-4" style={{ color: '#2563EB' }} />
+            : <File className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-medium truncate" style={{ color: 'var(--sm-text-1)' }}>{att.title}</p>
-          {att.description && <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--sm-text-2)' }}>{att.description}</p>}
-          <p className="text-[10px] mt-0.5 uppercase tracking-wide" style={{ color: 'var(--sm-text-2)' }}>
+          <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{att.title}</p>
+          <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>
             {att.type === 'imagem' ? 'Imagem' : att.type === 'pdf' ? 'PDF' : 'Link'}
+            {att.description && <span style={{ color: 'var(--sm-text-3)' }}> · {att.description}</span>}
           </p>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          {att.type === 'link' && att.link_url && (
-            <a href={att.link_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-              className="w-7 h-7 flex items-center justify-center rounded transition-colors" style={{ color: 'var(--sm-text-2)' }}>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-          {att.file_url && att.type !== 'link' && (
-            <a href={att.file_url} download target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-              className="w-7 h-7 flex items-center justify-center rounded transition-colors" style={{ color: 'var(--sm-text-2)' }}>
+        <div className="flex items-center gap-0.5 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity" style={{ color: 'var(--sm-text-3)' }}>
+          {href && (
+            <a href={href} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+              className={iconBtn} title="Abrir" aria-label="Abrir" {...(att.type !== 'link' ? { download: true } : {})}>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
           <button onClick={e => { e.stopPropagation(); onDelete() }}
-            className="w-7 h-7 flex items-center justify-center rounded hover:text-red-400 transition-colors" style={{ color: 'var(--sm-text-2)' }}>
+            className={`${iconBtn} hover:text-red-500`} title="Excluir anexo" aria-label="Excluir anexo">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -327,36 +322,33 @@ function AddAttachmentModal({
   )
 }
 
-// ── KPI pequeno pro resumo do mês ──────────────────────────────────────────
+// ── KPI do resumo do mês ───────────────────────────────────────────────────
 
 function PctBadge({ current, prev }: { current: number | null | undefined; prev: number | null | undefined }) {
   if (current == null || prev == null || prev === 0) return null
   const diff = Math.round(((current - prev) / Math.abs(prev)) * 100)
   if (diff === 0) {
     return (
-      <span className="text-[10px] font-medium flex items-center gap-0.5" style={{ color: 'var(--sm-text-2)' }}>
-        <Minus className="w-2.5 h-2.5" /> 0%
+      <span className="text-[11px] font-medium inline-flex items-center gap-0.5" style={{ color: 'var(--sm-text-4)' }}>
+        <Minus className="w-3 h-3" /> 0%
       </span>
     )
   }
   const up = diff > 0
   return (
-    <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${up ? 'text-emerald-500' : 'text-red-500'}`}>
-      {up ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />} {Math.abs(diff)}%
+    <span className="text-[11px] font-semibold inline-flex items-center gap-0.5 tabular-nums" style={{ color: up ? '#16A34A' : '#EF4444' }}>
+      {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />} {Math.abs(diff)}%
     </span>
   )
 }
 
-function KpiPill({ icon, label, value, delta }: { icon: React.ReactNode; label: string; value: string; delta?: React.ReactNode }) {
+function KpiCell({ label, value, delta }: { label: string; value: string; delta?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5" style={{ background: 'var(--sm-bg-alt)', border: '1px solid var(--sm-border)' }}>
-      <div className="opacity-70">{icon}</div>
-      <div>
-        <div className="flex items-center gap-1.5">
-          <p className="text-[14px] font-bold leading-tight" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-          {delta}
-        </div>
-        <p className="text-[10px]" style={{ color: 'var(--sm-text-2)' }}>{label}</p>
+    <div className="px-4 py-3.5 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] truncate" style={{ color: 'var(--sm-text-4)' }}>{label}</p>
+      <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+        <p className="font-display text-[22px] font-bold leading-none tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+        {delta}
       </div>
     </div>
   )
@@ -365,15 +357,47 @@ function KpiPill({ icon, label, value, delta }: { icon: React.ReactNode; label: 
 function StatRow({ label, count, total }: { label: string; count: number; total: number }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] w-20 flex-shrink-0 truncate" style={{ color: 'var(--sm-text-2)' }}>{label}</span>
-      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--sm-bg)' }}>
-        <div className="h-full rounded-full bg-violet-500" style={{ width: `${pct}%` }} />
+    <div className="flex items-center gap-2.5">
+      <span className="text-[12px] w-24 flex-shrink-0 truncate" style={{ color: 'var(--sm-text-3)' }}>{label}</span>
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--sm-bg-alt)' }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#2563EB' }} />
       </div>
-      <span className="text-[11px] font-semibold w-6 text-right flex-shrink-0" style={{ color: 'var(--sm-text-1)' }}>{count}</span>
+      <span className="text-[12px] font-semibold w-6 text-right flex-shrink-0 tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{count}</span>
     </div>
   )
 }
+
+// Seção numerada com título display e linha fina abaixo do cabeçalho.
+function Secao({ n, title, aside, accent, children }: {
+  n: string; title: string; aside?: React.ReactNode; accent?: string; children: React.ReactNode
+}) {
+  return (
+    <section className="relative rounded-2xl border overflow-hidden" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+      {accent && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: accent }} />}
+      <div className="px-5 py-3.5 flex items-center justify-between gap-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+        <h2 className="flex items-baseline gap-2 min-w-0">
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+          <span className="font-display text-[15px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
+        </h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function Fato({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1" style={{ color: 'var(--sm-text-4)' }}>{label}</p>
+      <p className="text-[15px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+    </div>
+  )
+}
+
+const primaryBtn = 'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60'
+const ghostBtn = 'inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12.5px] font-medium hover:bg-black/5 transition-colors disabled:opacity-60'
+const ghostStyle = { borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' } as const
 
 // ── Página ────────────────────────────────────────────────────────────────
 
@@ -525,13 +549,11 @@ export function ReportsWorkspace() {
 
   if (!subData?.plan.hasReports) {
     return (
-      <div className="min-h-full flex items-center justify-center p-6">
-        <div className="flex flex-col items-center text-center gap-4 max-w-sm">
-          <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center">
-            <BarChart3 className="w-6 h-6 text-violet-400" />
-          </div>
-          <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Relatórios disponíveis no Pro e Agency</p>
-          <a href="/assinatura" className="px-4 py-2 rounded-xl bg-violet-600 text-white text-[12px] font-semibold hover:bg-violet-700 transition-colors">
+      <div className="min-h-full flex items-center justify-center p-6" style={{ background: 'var(--sm-bg-page)' }}>
+        <div className="flex flex-col items-center text-center gap-3 max-w-sm">
+          <BarChart3 className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
+          <p className="font-display text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Relatórios no Pro e Agency</p>
+          <a href="/assinatura" className="h-10 px-4 inline-flex items-center rounded-xl text-white text-[13px] font-semibold hover:opacity-90" style={{ background: '#2563EB' }}>
             Ver planos
           </a>
         </div>
@@ -541,132 +563,155 @@ export function ReportsWorkspace() {
 
   const showPaid = selected ? (hasPaid(selected) || editMode) : false
   const atts = selected?.attachments ?? []
+  let secao = 0
+  const proxima = () => String(++secao).padStart(2, '0')
 
   return (
-    <div className="min-h-full p-6" style={{ background: 'var(--sm-bg)' }}>
-      <div className="max-w-4xl mx-auto space-y-5">
+    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
+      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5">
 
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => navigate('/reports')}
-              className="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 transition-colors"
-              style={{ color: 'var(--sm-text-2)' }}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-[18px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{client?.company_name ?? 'Cliente'}</h1>
-              <p className="text-[12px]" style={{ color: 'var(--sm-text-2)' }}>Relatório combinado — Instagram, planejamento e IA</p>
-            </div>
-          </div>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-3 h-3" /> Novo relatório
-          </Button>
+        {/* ── Barra de topo (no celular, ao lado do menu) ── */}
+        <div className="flex items-center justify-between gap-3 max-md:pl-12 max-md:-mt-[3.25rem] max-md:min-h-[44px]">
+          <button onClick={() => navigate('/reports')}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium hover:underline" style={{ color: 'var(--sm-text-3)' }}>
+            <ArrowLeft className="w-4 h-4" /> Relatórios
+          </button>
+          <button onClick={() => setCreateOpen(true)} className={primaryBtn} style={{ background: '#2563EB' }}>
+            <Plus className="w-3.5 h-3.5" /> Novo relatório
+          </button>
         </div>
 
+        {/* ── Cabeçalho do cliente ── */}
+        <header className="flex items-center gap-4">
+          {client?.logo_url ? (
+            <img src={client.logo_url} alt="" className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
+          ) : (
+            <span className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-display font-bold text-[20px]"
+              style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-3)', border: '1px solid var(--sm-border)' }}>
+              {(client?.company_name ?? '?').slice(0, 2).toUpperCase()}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Relatório mensal</p>
+            <h1 className="font-display text-[26px] md:text-[32px] font-bold leading-[1.05] tracking-[-0.02em] truncate" style={{ color: 'var(--sm-text-1)' }}>
+              {client?.company_name ?? 'Cliente'}
+            </h1>
+          </div>
+        </header>
+
         {reportsLoading ? (
-          <div className="py-16 text-center text-[12px]" style={{ color: 'var(--sm-text-2)' }}>Carregando...</div>
+          <div className="space-y-3" aria-busy="true">
+            <div className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+            <div className="h-24 rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+            <div className="h-56 rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+          </div>
         ) : reports.length === 0 ? (
           <div className="text-center py-16 rounded-2xl border border-dashed" style={{ borderColor: 'var(--sm-border)' }}>
-            <BarChart3 className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--sm-text-2)' }} />
-            <p className="text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>Nenhum relatório ainda</p>
-            <p className="text-[11px] mt-1 mb-4" style={{ color: 'var(--sm-text-2)' }}>Crie o primeiro relatório mensal para este cliente.</p>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="w-3 h-3" /> Criar primeiro relatório
-            </Button>
+            <BarChart3 className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+            <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum relatório ainda</p>
+            <p className="text-[12.5px] mt-1 mb-4" style={{ color: 'var(--sm-text-3)' }}>Crie o primeiro relatório mensal para este cliente.</p>
+            <button onClick={() => setCreateOpen(true)} className={primaryBtn} style={{ background: '#2563EB' }}>
+              <Plus className="w-3.5 h-3.5" /> Criar primeiro relatório
+            </button>
           </div>
         ) : (
           <>
-            {/* ── Lista de meses ── */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {reports.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => setSelectedId(r.id)}
-                  className="flex-shrink-0 text-left px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all"
-                  style={r.id === selectedId
-                    ? { background: '#1e293b', color: '#fff', border: '1px solid #1e293b' }
-                    : { background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', border: '1px solid var(--sm-border)' }}
-                >
-                  {monthLabel(r.month, r.year)}
-                </button>
-              ))}
+            {/* ── Meses como abas sublinhadas ── */}
+            <div className="flex items-end gap-1 border-b overflow-x-auto scrollbar-none" style={{ borderColor: 'var(--sm-border)' }}>
+              {reports.map(r => {
+                const ativo = r.id === selectedId
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedId(r.id)}
+                    aria-current={ativo ? 'true' : undefined}
+                    className="flex-shrink-0 h-10 px-3 border-b-2 -mb-px text-[13px] whitespace-nowrap transition-colors"
+                    style={{ borderColor: ativo ? '#2563EB' : 'transparent', color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}
+                  >
+                    {monthLabel(r.month, r.year)}
+                  </button>
+                )
+              })}
             </div>
 
             {selected && form && (
               <div className="space-y-5">
 
-                {/* ── Ações ── */}
-                <div className="flex items-center justify-end gap-2">
-                  {editMode ? (
-                    <>
-                      <Button variant="outline" size="sm" onClick={() => { setEditMode(false); setForm(toForm(selected)) }}>
-                        <X className="w-3 h-3" /> Cancelar
-                      </Button>
-                      <Button size="sm" onClick={handleSave} disabled={updateReport.isPending}>
-                        <Save className="w-3 h-3" /> Salvar
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      {confirmDel ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px]" style={{ color: 'var(--sm-text-2)' }}>Excluir relatório de {monthLabel(selected.month, selected.year)}?</span>
-                          <Button variant="outline" size="sm" onClick={() => setConfirmDel(false)}>Não</Button>
-                          <Button size="sm" onClick={handleDelete} disabled={deleteReport.isPending}
-                            className="bg-red-50 text-red-800 border-red-200 hover:bg-red-100">
-                            Sim, excluir
-                          </Button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setConfirmDel(true)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors hover:text-red-500"
-                          style={{ color: 'var(--sm-text-2)' }}
-                          title="Excluir relatório deste mês">
-                          <Trash2 className="w-3.5 h-3.5" />
+                {/* ── Título do mês + ações ── */}
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="font-display text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{monthLabel(selected.month, selected.year)}</h2>
+                    <p className="text-[12px] flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: selected.ig_synced_at ? '#22C55E' : 'var(--sm-border-alt)' }} />
+                      {selected.ig_synced_at
+                        ? `Sincronizado com o Instagram em ${new Date(selected.ig_synced_at).toLocaleDateString('pt-BR')}`
+                        : 'Ainda não sincronizado com o Instagram'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {editMode ? (
+                      <>
+                        <button onClick={() => { setEditMode(false); setForm(toForm(selected)) }} className={ghostBtn} style={ghostStyle}>
+                          <X className="w-3.5 h-3.5" /> Cancelar
                         </button>
-                      )}
-                      <Button variant="outline" size="sm" onClick={handleAutoGenerate} disabled={syncing}
-                        title="Preencher com os dados reais da conta de Instagram conectada">
-                        {syncing
-                          ? <><RefreshCw className="w-3 h-3 animate-spin" /> Sincronizando...</>
-                          : <><Instagram className="w-3 h-3" /> Gerar do Instagram</>}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
-                        <Pencil className="w-3 h-3" /> Editar
-                      </Button>
-                    </>
+                        <button onClick={handleSave} disabled={updateReport.isPending} className={primaryBtn} style={{ background: '#2563EB' }}>
+                          <Save className="w-3.5 h-3.5" /> Salvar
+                        </button>
+                      </>
+                    ) : confirmDel ? (
+                      <>
+                        <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>Excluir o relatório de {monthLabel(selected.month, selected.year)}?</span>
+                        <button onClick={() => setConfirmDel(false)} className={ghostBtn} style={ghostStyle}>Não</button>
+                        <button onClick={handleDelete} disabled={deleteReport.isPending} className={primaryBtn} style={{ background: '#EF4444' }}>
+                          Sim, excluir
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => setConfirmDel(true)} title="Excluir relatório deste mês" aria-label="Excluir relatório deste mês"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                          style={{ color: 'var(--sm-text-3)' }}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setEditMode(true)} className={ghostBtn} style={ghostStyle}>
+                          <Pencil className="w-3.5 h-3.5" /> Editar
+                        </button>
+                        <button onClick={handleAutoGenerate} disabled={syncing} className={primaryBtn} style={{ background: '#2563EB' }}
+                          title="Preencher com os dados reais da conta de Instagram conectada">
+                          {syncing
+                            ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sincronizando...</>
+                            : <><Instagram className="w-3.5 h-3.5" /> Gerar do Instagram</>}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Resumo do mês: uma faixa com divisórias ── */}
+                <div>
+                  <div className="rounded-2xl border grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px overflow-hidden [&>*]:bg-[color:var(--sm-bg-card)]"
+                    style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+                    <KpiCell label="Seguidores" value={followerDiff(selected)}
+                      delta={<PctBadge current={selected.followers_end} prev={prevReport?.followers_end} />} />
+                    <KpiCell label="Alcance" value={fmt(selected.reach)}
+                      delta={<PctBadge current={selected.reach} prev={prevReport?.reach} />} />
+                    <KpiCell label="Engajamento" value={selected.engagement != null ? `${selected.engagement}%` : '—'}
+                      delta={<PctBadge current={selected.engagement} prev={prevReport?.engagement} />} />
+                    <KpiCell label="Posts publicados" value={fmt(selected.posts_published)}
+                      delta={<PctBadge current={selected.posts_published} prev={prevReport?.posts_published} />} />
+                    <KpiCell label="Planejados" value={String(planning.data?.total ?? 0)} />
+                    <KpiCell label="Publicados no calendário" value={String(planning.data?.published.length ?? 0)} />
+                  </div>
+                  {!prevReport && (
+                    <p className="text-[11.5px] mt-1.5" style={{ color: 'var(--sm-text-4)' }}>
+                      Sem relatório de {prevMonthLabel} para comparar a variação.
+                    </p>
                   )}
                 </div>
 
-                {/* ── Resumo do mês ── */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                  <KpiPill icon={<Users className="w-4 h-4 text-green-600" />} label="Seguidores" value={followerDiff(selected)}
-                    delta={<PctBadge current={selected.followers_end} prev={prevReport?.followers_end} />} />
-                  <KpiPill icon={<Eye className="w-4 h-4 text-blue-600" />} label="Alcance" value={fmt(selected.reach)}
-                    delta={<PctBadge current={selected.reach} prev={prevReport?.reach} />} />
-                  <KpiPill icon={<Heart className="w-4 h-4 text-pink-600" />} label="Engajamento" value={selected.engagement != null ? `${selected.engagement}%` : '—'}
-                    delta={<PctBadge current={selected.engagement} prev={prevReport?.engagement} />} />
-                  <KpiPill icon={<Instagram className="w-4 h-4 text-violet-600" />} label="Posts publicados" value={fmt(selected.posts_published)}
-                    delta={<PctBadge current={selected.posts_published} prev={prevReport?.posts_published} />} />
-                  <KpiPill icon={<Calendar className="w-4 h-4 text-amber-600" />} label="Planejados" value={String(planning.data?.total ?? 0)} />
-                  <KpiPill icon={<CheckCircle2 className="w-4 h-4 text-teal-600" />} label="Publicados (calendário)" value={String(planning.data?.published.length ?? 0)} />
-                </div>
-                {!prevReport && (
-                  <p className="text-[10px] -mt-3" style={{ color: 'var(--sm-text-2)' }}>
-                    Sem relatório de {prevMonthLabel} pra comparar a variação.
-                  </p>
-                )}
-
-                {/* ── Instagram ── */}
-                <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                  <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-                    <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-2)' }} />
-                    <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Redes sociais</p>
-                  </div>
-                  <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {/* ── Redes sociais ── */}
+                <Secao n={proxima()} title="Redes sociais">
+                  <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5">
                     {editMode ? (
                       <>
                         <Input label="Seguidores (início)" type="number" value={form.followers_start} onChange={f('followers_start')} placeholder="0" />
@@ -684,42 +729,34 @@ export function ReportsWorkspace() {
                         ['Engajamento', selected.engagement != null ? `${selected.engagement}%` : '—'],
                         ['Impressões', fmt(selected.impressions)],
                         ['Posts publicados', fmt(selected.posts_published)],
-                      ] as [string, string][]).map(([label, value]) => (
-                        <div key={label}>
-                          <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--sm-text-2)' }}>{label}</p>
-                          <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-                        </div>
-                      ))
+                      ] as [string, string][]).map(([label, value]) => <Fato key={label} label={label} value={value} />)
                     )}
                   </div>
-                </section>
+                </Secao>
 
                 <IgInsights report={selected} isDark={isDark} />
 
                 {/* ── Planejamento ── */}
-                <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                  <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-                    <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-2)' }} />
-                    <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Planejamento</p>
-                  </div>
-                  <div className="p-5 space-y-5">
+                <Secao n={proxima()} title="Planejamento"
+                  aside={<button onClick={() => navigate('/planner')} className="text-[12px] font-semibold hover:underline" style={{ color: '#2563EB' }}>Abrir planejamento</button>}>
+                  <div className="p-5 space-y-6">
                     {planning.isLoading ? (
-                      <p className="text-[12px]" style={{ color: 'var(--sm-text-2)' }}>Carregando...</p>
+                      <div className="h-20 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-alt)' }} />
                     ) : !planning.data || planning.data.total === 0 ? (
-                      <p className="text-[12px] italic" style={{ color: 'var(--sm-text-2)' }}>
+                      <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>
                         Nenhum item planejado para este cliente neste mês.
                       </p>
                     ) : (
                       <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-2)' }}>Por status</p>
+                          <div className="space-y-2.5">
+                            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>Por status</p>
                             {Object.entries(planning.data.byStatus).map(([status, count]) => (
                               <StatRow key={status} label={statusLabels[status] ?? status} count={count} total={planning.data!.total} />
                             ))}
                           </div>
-                          <div className="space-y-2">
-                            <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-2)' }}>Por tipo de conteúdo</p>
+                          <div className="space-y-2.5">
+                            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>Por tipo de conteúdo</p>
                             {Object.entries(planning.data.byContentType).map(([type, count]) => (
                               <StatRow key={type} label={contentTypeLabels[type] ?? type} count={count} total={planning.data!.total} />
                             ))}
@@ -728,17 +765,17 @@ export function ReportsWorkspace() {
 
                         {planning.data.published.length > 0 && (
                           <div>
-                            <p className="text-[10px] uppercase tracking-wide mb-2" style={{ color: 'var(--sm-text-2)' }}>Publicados no mês</p>
-                            <div className="space-y-1">
-                              {planning.data.published.map(item => (
+                            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-2" style={{ color: 'var(--sm-text-4)' }}>Publicados no mês</p>
+                            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)' }}>
+                              {planning.data.published.map((item, i) => (
                                 <button
                                   key={item.id}
                                   onClick={() => navigate('/planner')}
-                                  className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-left hover:opacity-80 transition-opacity"
-                                  style={{ background: 'var(--sm-bg-alt)' }}
+                                  className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-black/[0.02] transition-colors ${i > 0 ? 'border-t' : ''}`}
+                                  style={{ borderColor: 'var(--sm-border)' }}
                                 >
-                                  <span className="text-[12px] truncate" style={{ color: 'var(--sm-text-1)' }}>{item.title}</span>
-                                  <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--sm-text-2)' }}>{contentTypeLabels[item.content_type] ?? item.content_type}</span>
+                                  <span className="text-[12.5px] truncate" style={{ color: 'var(--sm-text-1)' }}>{item.title}</span>
+                                  <span className="text-[11px] flex-shrink-0" style={{ color: 'var(--sm-text-4)' }}>{contentTypeLabels[item.content_type] ?? item.content_type}</span>
                                 </button>
                               ))}
                             </div>
@@ -747,16 +784,12 @@ export function ReportsWorkspace() {
                       </>
                     )}
                   </div>
-                </section>
+                </Secao>
 
                 {/* ── Tráfego pago ── */}
                 {showPaid && (
-                  <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                    <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-                      <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-2)' }} />
-                      <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Tráfego pago</p>
-                    </div>
-                    <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <Secao n={proxima()} title="Tráfego pago">
+                    <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-5">
                       {editMode ? (
                         <>
                           <Input label="Investimento (R$)" type="number" value={form.paid_investment} onChange={f('paid_investment')} placeholder="0,00" />
@@ -772,38 +805,22 @@ export function ReportsWorkspace() {
                           ['CPL', fmtBRL(selected.paid_cpl)],
                           ['Conversões', fmt(selected.paid_conversions)],
                           ['ROAS', selected.paid_roas != null ? `${selected.paid_roas}x` : '—'],
-                        ] as [string, string][]).map(([label, value]) => (
-                          <div key={label}>
-                            <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--sm-text-2)' }}>{label}</p>
-                            <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-                          </div>
-                        ))
+                        ] as [string, string][]).map(([label, value]) => <Fato key={label} label={label} value={value} />)
                       )}
                     </div>
-                  </section>
+                  </Secao>
                 )}
 
                 {/* ── Análise por IA ── */}
-                <section className="rounded-2xl overflow-hidden" style={{
-                  background: isDark ? 'rgba(99,102,241,0.08)' : '#eef2ff',
-                  border: isDark ? '1px solid rgba(99,102,241,0.25)' : '1px solid #c7d2fe',
-                }}>
-                  <div className="px-5 py-4 flex items-center justify-between gap-2"
-                    style={{ borderBottom: isDark ? '1px solid rgba(99,102,241,0.2)' : '1px solid #ddd6fe' }}>
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                      <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Análise do mês</p>
-                    </div>
-                    {!editMode && (
-                      <Button size="sm" onClick={handleAiAnalysis} disabled={aiLoading}
-                        className="bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
-                        title="Gera uma narrativa combinando Instagram e execução do planejamento">
-                        {aiLoading
-                          ? <><RefreshCw className="w-3 h-3 animate-spin" /> Gerando...</>
-                          : <><Sparkles className="w-3 h-3" /> {selected.analysis_text ? 'Refazer com IA' : 'Gerar com IA'}</>}
-                      </Button>
-                    )}
-                  </div>
+                <Secao n={proxima()} title="Análise do mês" accent="#2563EB"
+                  aside={!editMode && (
+                    <button onClick={handleAiAnalysis} disabled={aiLoading} className={primaryBtn} style={{ background: '#2563EB' }}
+                      title="Gera uma narrativa combinando Instagram e execução do planejamento">
+                      {aiLoading
+                        ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Gerando...</>
+                        : <><Sparkles className="w-3.5 h-3.5" /> {selected.analysis_text ? 'Refazer com IA' : 'Gerar com IA'}</>}
+                    </button>
+                  )}>
                   <div className="p-5">
                     {editMode ? (
                       <Textarea
@@ -813,41 +830,30 @@ export function ReportsWorkspace() {
                         rows={6}
                       />
                     ) : selected.analysis_text ? (
-                      <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-1)' }}>{selected.analysis_text}</p>
+                      <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap max-w-[72ch]" style={{ color: 'var(--sm-text-1)' }}>{selected.analysis_text}</p>
                     ) : (
-                      <p className="text-[12px] italic" style={{ color: isDark ? '#a5b4fc' : '#6366f1b3' }}>
-                        Nenhuma análise ainda. Clique em <strong>Gerar com IA</strong> pra um resumo automático combinando Instagram e planejamento.
+                      <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>
+                        Nenhuma análise ainda. Clique em <strong style={{ color: 'var(--sm-text-1)' }}>Gerar com IA</strong> para um resumo automático combinando Instagram e planejamento.
                       </p>
                     )}
                   </div>
-                </section>
+                </Secao>
 
                 {/* ── Anexos ── */}
-                <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                  <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-2)' }} />
-                      <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Anexos</p>
-                      {atts.length > 0 && <span className="text-[11px]" style={{ color: 'var(--sm-text-2)' }}>{atts.length}</span>}
+                <Secao n={proxima()} title={atts.length > 0 ? `Anexos · ${atts.length}` : 'Anexos'}
+                  aside={<button onClick={() => setAttOpen(true)} className={ghostBtn} style={ghostStyle}><Plus className="w-3.5 h-3.5" /> Adicionar</button>}>
+                  {atts.length === 0 ? (
+                    <p className="text-[12.5px] text-center py-6 px-5" style={{ color: 'var(--sm-text-3)' }}>
+                      Nenhum anexo ainda. Adicione prints, PDFs ou links de relatórios.
+                    </p>
+                  ) : (
+                    <div>
+                      {atts.map((att, i) => (
+                        <AttachmentItem key={att.id} att={att} first={i === 0} onDelete={() => handleDeleteAtt(att)} />
+                      ))}
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => setAttOpen(true)}>
-                      <Plus className="w-3 h-3" /> Adicionar
-                    </Button>
-                  </div>
-                  <div className="p-5">
-                    {atts.length === 0 ? (
-                      <p className="text-[12px] text-center py-4" style={{ color: 'var(--sm-text-2)' }}>
-                        Nenhum anexo ainda. Adicione prints, PDFs ou links de relatórios.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {atts.map(att => (
-                          <AttachmentItem key={att.id} att={att} onDelete={() => handleDeleteAtt(att)} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </section>
+                  )}
+                </Secao>
 
               </div>
             )}

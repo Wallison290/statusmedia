@@ -31,17 +31,19 @@ function fmt(n: number | null | undefined): string {
   return String(n)
 }
 
+// Cartão neutro: a cor do tom fica só no ícone (mesmo visual dos KPIs do sistema).
 function MetricCard({ icon: Icon, tone, label, value, isDark }: {
   icon: React.ElementType; tone: Tone; label: string; value: string; isDark: boolean
 }) {
   const t = TONE[tone]
   return (
-    <div className={`rounded-2xl border p-4 flex flex-col gap-2.5 ${isDark ? t.dark : t.light}`}>
-      <Icon className={`w-4 h-4 ${isDark ? t.iconDark : t.icon}`} />
-      <div>
-        <p className="text-[11px] font-medium" style={{ color: isDark ? '#CBD5E1' : '#334155' }}>{label}</p>
-        <p className="text-[20px] font-bold leading-tight mt-0.5" style={{ color: isDark ? '#F8FAFC' : '#0f0f0f' }}>{value}</p>
+    <div className="rounded-2xl border p-4 flex flex-col gap-2"
+      style={{ background: isDark ? '#182233' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0' }}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{label}</p>
+        <Icon className={`w-4 h-4 flex-shrink-0 ${isDark ? t.iconDark : t.icon}`} />
       </div>
+      <p className="font-display text-[24px] font-bold leading-tight tabular-nums" style={{ color: isDark ? '#F8FAFC' : '#0f0f0f' }}>{value}</p>
     </div>
   )
 }
@@ -52,7 +54,7 @@ function Bar({ label, value, max, isDark }: { label: string; value: number; max:
     <div className="flex items-center gap-2">
       <span className="text-[11px] w-24 flex-shrink-0 truncate" style={{ color: isDark ? '#CBD5E1' : '#475569' }}>{label}</span>
       <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: isDark ? '#1e293b' : '#e2e8f0' }}>
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: isDark ? '#60A5FA' : '#1e3a8a' }} />
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#2563EB' }} />
       </div>
       <span className="text-[11px] font-semibold w-14 text-right flex-shrink-0" style={{ color: isDark ? '#F8FAFC' : '#0f0f0f' }}>{fmt(value)}</span>
     </div>
