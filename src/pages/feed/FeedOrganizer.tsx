@@ -36,103 +36,64 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
   return result
 }
 
-// ─── Mini Feed Preview (gallery card) ────────────────────────────────────────
+// ─── Estilos comuns ──────────────────────────────────────────────────────────
 
-function MiniFeedPreview({ posts }: { posts: FeedPost[] }) {
-  const cells = Array.from({ length: 9 }, (_, i) => posts[i] ?? null)
+const IG_RING = 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'
+const card = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
+const field = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
+const primaryBtn = 'inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60'
+const ghostBtn = 'inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12.5px] font-medium hover:bg-black/5 transition-colors'
 
+function usernameOf(client: Client) {
+  return client.instagram
+    ? client.instagram.replace(/^@/, '')
+    : client.company_name.toLowerCase().replace(/\s+/g, '_')
+}
+
+function Avatar({ client, size, ring = false }: { client: Client; size: number; ring?: boolean }) {
+  const inner = client.logo_url ? (
+    <img src={client.logo_url} alt="" className="w-full h-full rounded-full object-cover" />
+  ) : (
+    <span className="w-full h-full rounded-full flex items-center justify-center font-bold"
+      style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)', fontSize: Math.round(size * 0.36) }}>
+      {client.company_name.charAt(0).toUpperCase()}
+    </span>
+  )
+  if (!ring) return <span className="block flex-shrink-0" style={{ width: size, height: size }}>{inner}</span>
   return (
-    <div className="grid grid-cols-3 gap-[1.5px] bg-[#1e293b] rounded-lg overflow-hidden">
-      {cells.map((post, i) => (
-        <div key={i} className="aspect-square bg-[#101A2B]">
-          {post ? (
-            <img src={post.image_url} alt="" className="w-full h-full object-cover" draggable={false} />
-          ) : (
-            <div className="w-full h-full bg-[#0B1020]" />
-          )}
+    <span className="block rounded-full p-[2px] flex-shrink-0" style={{ width: size, height: size, background: IG_RING }}>
+      <span className="block w-full h-full rounded-full p-[2px]" style={{ background: 'var(--sm-bg-card)' }}>{inner}</span>
+    </span>
+  )
+}
+
+function IgStats({ posts }: { posts: number }) {
+  return (
+    <div className="flex items-center gap-5">
+      {[
+        { label: 'posts', value: posts },
+        { label: 'seguidores', value: '—' },
+        { label: 'seguindo', value: '—' },
+      ].map(s => (
+        <div key={s.label} className="text-center">
+          <p className="text-[13.5px] font-bold leading-none tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{s.value}</p>
+          <p className="text-[10.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>{s.label}</p>
         </div>
       ))}
     </div>
   )
 }
 
-// ─── Gallery card (one per client with feed) ──────────────────────────────────
-
-function FeedGalleryCard({
-  client, versions, onEdit,
-}: {
-  client: Client
-  versions: FeedVersion[]
-  onEdit: () => void
-}) {
-  const activeVersion = versions[0] ?? null
-  const posts = activeVersion?.posts ?? []
-  const initial = client.company_name.charAt(0).toUpperCase()
-
+function BioLink({ link }: { link: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-[#182233] rounded-2xl border border-[#1e293b] shadow-sm overflow-hidden hover:border-[#2f3b52] transition-all duration-200"
-    >
-      {/* Client header */}
-      <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
-        <div className="w-8 h-8 rounded-full p-[1.5px] flex-shrink-0"
-          style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
-          <div className="w-full h-full rounded-full bg-[#182233] p-[1.5px]">
-            {client.logo_url ? (
-              <img src={client.logo_url} alt="" className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <div className="w-full h-full rounded-full bg-[#101A2B] flex items-center justify-center">
-                <span className="text-[11px] font-bold text-[#94a3b8]">{initial}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-semibold text-[#F8FAFC] truncate">{client.company_name}</p>
-          <p className="text-[10px] text-[#64748b] truncate">
-            {versions.length} {versions.length === 1 ? 'versão' : 'versões'} · {posts.length} posts
-          </p>
-        </div>
-      </div>
-
-      {/* Mini grid preview */}
-      <div className="px-3 pb-2">
-        <MiniFeedPreview posts={posts} />
-      </div>
-
-      {/* Version chips */}
-      <div className="px-3 pb-2 flex gap-1 flex-wrap">
-        {versions.slice(0, 3).map((v, i) => (
-          <span key={v.id} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-            i === 0 ? '' : 'text-[#94a3b8] bg-[#101A2B]'
-          }`} style={i === 0 ? { background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' } : undefined}>
-            {v.name}
-          </span>
-        ))}
-        {versions.length > 3 && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full text-[#64748b] bg-[#101A2B]">
-            +{versions.length - 3}
-          </span>
-        )}
-      </div>
-
-      {/* Edit button */}
-      <div className="border-t border-[#1e293b] px-3 py-2">
-        <button
-          onClick={onEdit}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[#1D4ED8]"
-          style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}
-        >
-          <Pencil className="w-3 h-3" /> Editar feed
-        </button>
-      </div>
-    </motion.div>
+    <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: '#2563EB' }}>
+      <Link2 className="w-3 h-3" /> {link.replace(/^https?:\/\//, '')}
+    </a>
   )
 }
 
-// ─── Instagram Profile Header ─────────────────────────────────────────────────
+// ─── Instagram Profile Header (editor) ────────────────────────────────────────
 
 function InstagramHeader({
   client, postsCount, meta, onMetaChange,
@@ -145,7 +106,6 @@ function InstagramHeader({
   const [editingBio, setEditingBio] = useState(false)
   const [bioValue,   setBioValue]   = useState(meta.bio)
   const [linkValue,  setLinkValue]  = useState(meta.link)
-  const initial = client.company_name.charAt(0).toUpperCase()
 
   const saveBio = () => {
     onMetaChange({ bio: bioValue.trim(), link: linkValue.trim() })
@@ -153,57 +113,26 @@ function InstagramHeader({
   }
 
   return (
-    <div className="bg-[#182233] rounded-2xl border border-[#1e293b] shadow-sm px-6 py-5">
-      <div className="flex items-start gap-6">
-        {/* Avatar */}
-        <div className="flex-shrink-0">
-          <div className="w-20 h-20 rounded-full p-[2px]"
-            style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
-            <div className="w-full h-full rounded-full bg-[#182233] p-[2px]">
-              {client.logo_url ? (
-                <img src={client.logo_url} alt={client.company_name} className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <div className="w-full h-full rounded-full bg-[#101A2B] flex items-center justify-center">
-                  <span className="text-2xl font-bold text-[#94a3b8]">{initial}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+    <section className="rounded-2xl border px-5 py-5 md:px-6" style={card}>
+      <div className="flex items-start gap-5">
+        <Avatar client={client} size={80} ring />
 
-        {/* Info */}
         <div className="flex-1 min-w-0 space-y-2.5">
           <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-[15px] font-semibold text-[#F8FAFC] leading-none">
-              {client.instagram
-                ? client.instagram.replace(/^@/, '')
-                : client.company_name.toLowerCase().replace(/\s+/g, '_')}
-            </h2>
+            <h2 className="text-[16px] font-semibold leading-none" style={{ color: 'var(--sm-text-1)' }}>{usernameOf(client)}</h2>
             {!editingBio && (
               <button
                 onClick={() => { setEditingBio(true); setBioValue(meta.bio); setLinkValue(meta.link) }}
-                className="flex items-center gap-1 text-[11px] text-[#94a3b8] hover:text-[#F8FAFC] transition-colors"
+                className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-[12px] font-medium hover:bg-black/5"
+                style={{ color: 'var(--sm-text-3)' }}
               >
                 <Pencil className="w-3 h-3" /> Editar bio
               </button>
             )}
           </div>
 
-          {/* Stats */}
-          <div className="flex items-center gap-6">
-            {[
-              { label: 'posts',     value: postsCount },
-              { label: 'seguidores', value: '—' },
-              { label: 'seguindo',  value: '—' },
-            ].map(s => (
-              <div key={s.label} className="text-center">
-                <p className="text-[13px] font-semibold text-[#F8FAFC]">{s.value}</p>
-                <p className="text-[11px] text-[#94a3b8]">{s.label}</p>
-              </div>
-            ))}
-          </div>
+          <IgStats posts={postsCount} />
 
-          {/* Bio */}
           {editingBio ? (
             <div className="space-y-2">
               <textarea
@@ -212,59 +141,44 @@ function InstagramHeader({
                 onChange={e => setBioValue(e.target.value)}
                 placeholder="Escreva a bio do cliente..."
                 rows={3}
-                className="w-full text-sm text-[#F8FAFC] border border-[#1e293b] rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] placeholder:text-[#64748b] bg-[#101A2B]"
+                className="w-full text-[13px] border rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]/50 placeholder:text-[color:var(--sm-text-4)]"
+                style={field}
               />
               <input
                 value={linkValue}
                 onChange={e => setLinkValue(e.target.value)}
                 placeholder="Link (ex: linktr.ee/cliente)"
-                className="w-full text-sm text-[#F8FAFC] border border-[#1e293b] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] placeholder:text-[#64748b] bg-[#101A2B]"
+                className="w-full h-9 text-[13px] border rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]/50 placeholder:text-[color:var(--sm-text-4)]"
+                style={field}
               />
               <div className="flex items-center gap-2">
-                <button onClick={saveBio}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:bg-[#1D4ED8] transition-colors"
-                  style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}>
+                <button onClick={saveBio} className={primaryBtn} style={{ background: '#2563EB' }}>
                   <Check className="w-3.5 h-3.5" /> Salvar
                 </button>
-                <button onClick={() => setEditingBio(false)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[#94a3b8] border border-[#1e293b] hover:bg-[#101A2B] transition-colors">
-                  <X className="w-3.5 h-3.5" /> Cancelar
+                <button onClick={() => setEditingBio(false)} className={ghostBtn} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+                  Cancelar
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-0.5">
+            <div className="space-y-1">
+              <p className="text-[12.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{client.company_name}</p>
               {meta.bio ? (
-                <p className="text-sm text-[#F8FAFC] leading-relaxed whitespace-pre-wrap">{meta.bio}</p>
+                <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-2)' }}>{meta.bio}</p>
               ) : (
-                <p className="text-sm text-[#64748b] cursor-pointer hover:text-[#94a3b8] transition-colors"
-                  onClick={() => setEditingBio(true)}>
-                  Clique em "Editar bio" para adicionar uma descrição...
-                </p>
+                <button className="text-[13px] text-left hover:underline" style={{ color: 'var(--sm-text-4)' }} onClick={() => setEditingBio(true)}>
+                  Sem bio ainda. Clique para escrever.
+                </button>
               )}
-              {meta.link && (
-                <div className="flex items-center gap-1.5 mt-1">
-                  <Link2 className="w-3 h-3 text-[#60A5FA]" />
-                  <a href={meta.link.startsWith('http') ? meta.link : `https://${meta.link}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="text-[12px] text-[#60A5FA] font-medium hover:underline">
-                    {meta.link.replace(/^https?:\/\//, '')}
-                  </a>
-                </div>
+              {meta.link && <div><BioLink link={meta.link} /></div>}
+              {client.niche && (
+                <p className="text-[11.5px] pt-1" style={{ color: 'var(--sm-text-4)' }}>{client.niche}</p>
               )}
             </div>
           )}
         </div>
       </div>
-
-      {client.niche && (
-        <div className="mt-3 pt-3 border-t border-[#1e293b]">
-          <span className="inline-flex items-center gap-1 text-[11px] text-[#94a3b8] bg-[#101A2B] px-2.5 py-1 rounded-full">
-            <Instagram className="w-3 h-3 text-pink-500" /> {client.niche}
-          </span>
-        </div>
-      )}
-    </div>
+    </section>
   )
 }
 
@@ -275,38 +189,31 @@ function DraggableCard({ post, index, onRemove, isActive }: {
 }) {
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: post.id, data: { post, index } })
   const { setNodeRef: dropRef, isOver } = useDroppable({ id: `cell-${index}` })
-  const [hover, setHover] = useState(false)
 
   return (
     <div
       ref={el => { setNodeRef(el); dropRef(el) }}
-      className={`relative aspect-square rounded-[2px] overflow-hidden cursor-grab active:cursor-grabbing transition-all duration-150 select-none
+      className={`group relative aspect-square overflow-hidden cursor-grab active:cursor-grabbing transition-all duration-150 select-none
         ${isDragging ? 'opacity-0 scale-95' : ''}
-        ${isOver && !isActive ? 'ring-2 ring-blue-400 ring-inset scale-[1.03]' : ''}`}
-      style={{ touchAction: 'none' }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+        ${isOver && !isActive ? 'ring-2 ring-[#2563EB] ring-inset scale-[1.03]' : ''}`}
+      style={{ touchAction: 'none', background: 'var(--sm-bg-alt)' }}
       {...listeners} {...attributes}
     >
       <img src={post.image_url} alt={post.caption || `Post ${index + 1}`}
         className="w-full h-full object-cover pointer-events-none" draggable={false} />
-      <AnimatePresence>
-        {hover && !isDragging && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-black/40 flex items-start justify-end p-1.5">
-            <button
-              onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); onRemove() }}
-              className="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-red-500/80 transition-colors">
-              <X className="w-3 h-3" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <div className="absolute bottom-1 left-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center">
-        <span className="text-[9px] text-white font-bold">{index + 1}</span>
+      {/* Sobre a foto: fundo preto translúcido fixo, legível em qualquer tema */}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-1.5">
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onRemove() }}
+          title="Remover do feed" aria-label="Remover do feed"
+          className="w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-red-500 transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
+      <span className="absolute bottom-1 left-1 min-w-[20px] h-5 px-1 rounded-full bg-black/60 flex items-center justify-center text-[9.5px] text-white font-bold tabular-nums">
+        {index + 1}
+      </span>
     </div>
   )
 }
@@ -314,15 +221,19 @@ function DraggableCard({ post, index, onRemove, isActive }: {
 function EmptySlot({ index, onAdd }: { index: number; onAdd: () => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cell-${index}` })
   return (
-    <div ref={setNodeRef} onClick={onAdd}
-      className={`aspect-square rounded-[2px] border-2 border-dashed flex items-center justify-center cursor-pointer transition-all duration-150
-        ${isOver ? 'border-[#2563EB] bg-[#2563EB]/10 scale-[1.03]' : 'border-[#1e293b] hover:border-[#2f3b52] hover:bg-[#101A2B]'}`}>
-      <Plus className={`w-5 h-5 ${isOver ? 'text-[#60A5FA]' : 'text-[#475569]'}`} />
-    </div>
+    <button ref={setNodeRef} onClick={onAdd} aria-label="Adicionar post"
+      className={`aspect-square flex items-center justify-center transition-all duration-150 ${isOver ? 'scale-[1.03]' : 'hover:bg-black/5'}`}
+      style={{
+        background: isOver ? 'rgba(37,99,235,0.10)' : 'var(--sm-bg-card)',
+        outline: `1.5px dashed ${isOver ? '#2563EB' : 'var(--sm-border)'}`,
+        outlineOffset: -6,
+      }}>
+      <Plus className="w-5 h-5" style={{ color: isOver ? '#2563EB' : 'var(--sm-text-4)' }} />
+    </button>
   )
 }
 
-// ─── Version chip ─────────────────────────────────────────────────────────────
+// ─── Versão (aba sublinhada com menu) ────────────────────────────────────────
 
 function VersionChip({ version, isActive, onClick, onRename, onDelete, onDuplicate }: {
   version: FeedVersion; isActive: boolean; onClick: () => void
@@ -332,24 +243,27 @@ function VersionChip({ version, isActive, onClick, onRename, onDelete, onDuplica
   const [value,   setValue]   = useState(version.name)
   const [menu,    setMenu]    = useState(false)
   const save = () => { const t = value.trim(); if (t) onRename(t); setEditing(false) }
+  const item = 'w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-black/5'
 
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0">
       <div
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium cursor-pointer transition-all whitespace-nowrap
-          ${isActive ? 'shadow-sm' : 'bg-[#101A2B] text-[#94a3b8] hover:bg-[#1e293b]'}`}
-        style={isActive ? { background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' } : undefined}
+        className="flex items-center gap-1 h-10 pl-3 pr-1.5 border-b-2 -mb-px cursor-pointer whitespace-nowrap transition-colors"
+        style={{ borderColor: isActive ? '#2563EB' : 'transparent' }}
         onClick={onClick}
       >
         {editing ? (
           <input autoFocus value={value} onChange={e => setValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
             onBlur={save} onClick={e => e.stopPropagation()}
-            className="bg-transparent outline-none w-20 text-[12px]" style={{ color: '#ffffff' }} />
-        ) : <span>{version.name}</span>}
-        <button onClick={e => { e.stopPropagation(); setMenu(m => !m) }}
-          className={`rounded-full p-0.5 ${isActive ? 'hover:bg-white/20' : 'hover:bg-[#1e293b]'}`}>
-          <ChevronDown className="w-3 h-3" />
+            className="h-7 px-2 rounded-md border outline-none w-28 text-[13px]" style={field} />
+        ) : (
+          <span className={`text-[13px] ${isActive ? 'font-semibold' : 'font-medium'}`}
+            style={{ color: isActive ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>{version.name}</span>
+        )}
+        <button onClick={e => { e.stopPropagation(); setMenu(m => !m) }} aria-label={`Opções de ${version.name}`}
+          className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/5" style={{ color: 'var(--sm-text-4)' }}>
+          <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
       <AnimatePresence>
@@ -358,18 +272,15 @@ function VersionChip({ version, isActive, onClick, onRename, onDelete, onDuplica
             <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
             <motion.div initial={{ opacity: 0, y: -4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -4, scale: 0.95 }} transition={{ duration: 0.1 }}
-              className="absolute top-full left-0 mt-1 z-20 bg-[#101A2B] border border-[#1e293b] rounded-xl shadow-lg py-1 min-w-[140px]">
-              <button onClick={() => { setEditing(true); setMenu(false); onClick() }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[#F8FAFC] hover:bg-[#182233]">
-                <Pencil className="w-3.5 h-3.5 text-[#94a3b8]" /> Renomear
+              className="absolute top-full left-0 mt-1 z-20 border rounded-xl shadow-lg p-1 min-w-[150px]" style={card}>
+              <button onClick={() => { setEditing(true); setMenu(false); onClick() }} className={item} style={{ color: 'var(--sm-text-1)' }}>
+                <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} /> Renomear
               </button>
-              <button onClick={() => { onDuplicate(); setMenu(false) }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[#F8FAFC] hover:bg-[#182233]">
-                <Copy className="w-3.5 h-3.5 text-[#94a3b8]" /> Duplicar
+              <button onClick={() => { onDuplicate(); setMenu(false) }} className={item} style={{ color: 'var(--sm-text-1)' }}>
+                <Copy className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} /> Duplicar
               </button>
-              <div className="border-t border-[#1e293b] my-1" />
-              <button onClick={() => { onDelete(); setMenu(false) }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-red-400 hover:bg-red-500/10">
+              <div className="border-t my-1" style={{ borderColor: 'var(--sm-border)' }} />
+              <button onClick={() => { onDelete(); setMenu(false) }} className={`${item} hover:bg-red-500/10`} style={{ color: '#EF4444' }}>
                 <Trash2 className="w-3.5 h-3.5" /> Excluir
               </button>
             </motion.div>
@@ -381,6 +292,33 @@ function VersionChip({ version, isActive, onClick, onRename, onDelete, onDuplica
 }
 
 // ─── Asset picker dialog ──────────────────────────────────────────────────────
+
+function PickerEmpty({ Icon, text }: { Icon: React.ElementType; text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed" style={{ borderColor: 'var(--sm-border)' }}>
+      <Icon className="w-7 h-7 mb-2" style={{ color: 'var(--sm-text-4)' }} />
+      <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>{text}</p>
+    </div>
+  )
+}
+
+function PickerTile({ url, title, onPick }: { url: string; title: string; onPick: () => void }) {
+  return (
+    <button onClick={onPick}
+      className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#2563EB] transition-all group relative"
+      style={{ background: 'var(--sm-bg-alt)' }}>
+      <img src={url} alt={title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+      <span onClick={(e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener') }}
+        title="Ver em resolução original"
+        className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/55 text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-all">
+        <ZoomIn className="w-3.5 h-3.5" />
+      </span>
+      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-[10.5px] text-white font-medium line-clamp-2 text-left">{title}</span>
+      </span>
+    </button>
+  )
+}
 
 function AssetPickerDialog({ open, onClose, clientId, onSelect, onUpload, onSelectMedia }: {
   open: boolean; onClose: () => void; clientId: string | null
@@ -420,41 +358,38 @@ function AssetPickerDialog({ open, onClose, clientId, onSelect, onUpload, onSele
     return out
   }, [plannerItems])
 
+  const TABS = [
+    { id: 'arsenal', label: 'Arsenal', icon: Images },
+    { id: 'planner', label: 'Do planejamento', icon: LayoutGrid },
+    { id: 'upload',  label: 'Upload', icon: Upload },
+  ] as const
+
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="sm:max-w-3xl max-h-[85vh] !flex flex-col overflow-hidden">
-        <DialogHeader><DialogTitle>Adicionar post ao feed</DialogTitle></DialogHeader>
-        <div className="flex gap-1 p-1 bg-[#101A2B] rounded-xl mb-4">
-          {[{ id: 'arsenal', label: 'Arsenal', icon: Images }, { id: 'planner', label: 'Do planejamento', icon: LayoutGrid }, { id: 'upload', label: 'Upload', icon: Upload }].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as 'arsenal' | 'planner' | 'upload')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-medium transition-all
-                ${tab === t.id ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94a3b8] hover:text-[#F8FAFC]'}`}>
-              <t.icon className="w-3.5 h-3.5" /> {t.label}
-            </button>
-          ))}
+        <DialogHeader>
+          <DialogTitle className="font-display text-[18px] font-bold text-[color:var(--sm-text-1)]">Adicionar post ao feed</DialogTitle>
+        </DialogHeader>
+        <div className="flex gap-1 border-b mb-4" style={{ borderColor: 'var(--sm-border)' }}>
+          {TABS.map(t => {
+            const ativo = tab === t.id
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className="flex items-center gap-1.5 h-10 px-3 border-b-2 -mb-px text-[13px] transition-colors"
+                style={{ borderColor: ativo ? '#2563EB' : 'transparent', color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
+                <t.icon className="w-3.5 h-3.5" style={{ color: ativo ? '#2563EB' : 'var(--sm-text-4)' }} /> {t.label}
+              </button>
+            )
+          })}
         </div>
         {tab === 'arsenal' ? (
           <div className="flex-1 overflow-y-auto min-h-0">
             {assets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#64748b]">
-                <Images className="w-10 h-10 mb-3 opacity-40" />
-                <p className="text-sm">Nenhuma imagem no arsenal</p>
-              </div>
+              <PickerEmpty Icon={Images} text="Nenhuma imagem no arsenal" />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {assets.map(asset => (
-                  <button key={asset.id} onClick={() => { onSelect(asset); onClose() }}
-                    className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#2563EB] transition-all hover:scale-[1.02] group relative">
-                    <img src={asset.media_url!} alt={asset.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                    <span onClick={(e) => { e.stopPropagation(); window.open(asset.media_url!, '_blank', 'noopener') }}
-                      title="Ver em resolução original"
-                      className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/55 text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-all">
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </span>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] text-white font-medium line-clamp-2">{asset.title}</span>
-                    </div>
-                  </button>
+                  <PickerTile key={asset.id} url={asset.media_url!} title={asset.title} onPick={() => { onSelect(asset); onClose() }} />
                 ))}
               </div>
             )}
@@ -462,44 +397,28 @@ function AssetPickerDialog({ open, onClose, clientId, onSelect, onUpload, onSele
         ) : tab === 'planner' ? (
           <div className="flex-1 overflow-y-auto min-h-0">
             {!clientId ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#64748b]">
-                <LayoutGrid className="w-10 h-10 mb-3 opacity-40" />
-                <p className="text-sm">Selecione um cliente para ver o planejamento</p>
-              </div>
+              <PickerEmpty Icon={LayoutGrid} text="Selecione um cliente para ver o planejamento" />
             ) : plannerMedia.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#64748b]">
-                <LayoutGrid className="w-10 h-10 mb-3 opacity-40" />
-                <p className="text-sm">Nenhuma mídia no planejamento deste cliente</p>
-              </div>
+              <PickerEmpty Icon={LayoutGrid} text="Nenhuma mídia no planejamento deste cliente" />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {plannerMedia.map(m => (
-                  <button key={m.url} onClick={() => { onSelectMedia({ url: m.url, caption: m.caption }); onClose() }}
-                    className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#2563EB] transition-all hover:scale-[1.02] group relative bg-[#101A2B]">
-                    <img src={m.url} alt={m.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                    <span onClick={(e) => { e.stopPropagation(); window.open(m.url, '_blank', 'noopener') }}
-                      title="Ver em resolução original"
-                      className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/55 text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-all">
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </span>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] text-white font-medium line-clamp-2">{m.title}</span>
-                    </div>
-                  </button>
+                  <PickerTile key={m.url} url={m.url} title={m.title} onPick={() => { onSelectMedia({ url: m.url, caption: m.caption }); onClose() }} />
                 ))}
               </div>
             )}
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 py-8">
-            <div onClick={() => fileRef.current?.click()}
-              className="w-full max-w-sm aspect-video border-2 border-dashed border-[#1e293b] rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#2563EB] hover:bg-[#2563EB]/10 transition-all">
-              <Upload className="w-8 h-8 text-[#475569]" />
-              <div className="text-center">
-                <p className="text-sm text-[#94a3b8] font-medium">Clique para selecionar</p>
-                <p className="text-xs text-[#64748b] mt-0.5">JPG, PNG, WEBP — máx. 10 MB</p>
-              </div>
-            </div>
+            <button onClick={() => fileRef.current?.click()}
+              className="w-full max-w-sm aspect-video border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-all"
+              style={{ borderColor: 'var(--sm-border)' }}>
+              <Upload className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
+              <span className="text-center">
+                <span className="block text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Clique para selecionar</span>
+                <span className="block text-[12px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>JPG, PNG, WEBP · até 10 MB</span>
+              </span>
+            </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) { onUpload(f); onClose() } }} />
           </div>
@@ -689,29 +608,41 @@ export function FeedOrganizer() {
   // ══════════════════════════════════════════════════════════════════════════
 
   if (view === 'gallery') {
-    return (
-      <div className="min-h-full bg-[#0B1020]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    const idx = Math.min(galleryIdx, Math.max(clientsWithFeeds.length - 1, 0))
+    const activeClient = clientsWithFeeds[idx]
 
-          {/* Top bar */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h2 className="text-[15px] font-semibold text-[#F8FAFC]">Feeds criados</h2>
-              <p className="text-xs text-[#64748b] mt-0.5">
+    const sectionTitle = (n: string, text: string, aside?: React.ReactNode) => (
+      <div className="flex items-end justify-between gap-3 mb-2.5">
+        <h2 className="flex items-baseline gap-2">
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+          <span className="font-display text-[16px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{text}</span>
+        </h2>
+        {aside}
+      </div>
+    )
+
+    return (
+      <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
+        <div className="max-w-6xl mx-auto p-4 md:p-6">
+
+          {/* Cabeçalho (no celular, ao lado do menu) */}
+          <header className="mb-6 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Conteúdo</p>
+              <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+                Feed do Perfil
+              </h1>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
                 {clientsWithFeeds.length === 0
-                  ? 'Nenhum feed criado ainda'
+                  ? 'Monte a grade do Instagram antes de publicar.'
                   : `${clientsWithFeeds.length} cliente${clientsWithFeeds.length > 1 ? 's' : ''} com feed organizado`}
               </p>
             </div>
 
-            {/* New feed dropdown */}
             <div className="relative">
-              <button
-                onClick={() => setClientMenuOpen(m => !m)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-medium transition-colors hover:bg-[#1D4ED8]"
-                style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}
-              >
-                <Plus className="w-3.5 h-3.5" /> Novo feed
+              <button onClick={() => setClientMenuOpen(m => !m)} aria-expanded={clientMenuOpen}
+                className={`${primaryBtn} h-10 px-4 text-[13px]`} style={{ background: '#2563EB' }}>
+                <Plus className="w-4 h-4" /> Novo feed
               </button>
 
               <AnimatePresence>
@@ -723,24 +654,20 @@ export function FeedOrganizer() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.97 }}
                       transition={{ duration: 0.12 }}
-                      className="absolute top-full right-0 mt-1 z-20 bg-[#101A2B] border border-[#1e293b] rounded-xl shadow-lg py-1 min-w-[220px] max-h-64 overflow-y-auto"
+                      className="absolute top-full right-0 mt-1.5 z-20 border rounded-xl shadow-2xl p-1.5 w-[240px] max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto"
+                      style={card}
                     >
-                      <p className="px-3 py-1.5 text-[10px] text-[#64748b] uppercase tracking-wide font-medium">
-                        Selecionar cliente
+                      <p className="px-2.5 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>
+                        Escolha o cliente
                       </p>
                       {(clients || []).length === 0 ? (
-                        <p className="px-3 py-2 text-sm text-[#64748b]">Nenhum cliente cadastrado</p>
+                        <p className="px-2.5 py-2 text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Nenhum cliente cadastrado</p>
                       ) : (
                         (clients || []).map(c => (
                           <button key={c.id} onClick={() => { setClientMenuOpen(false); openEditor(c.id) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#F8FAFC] hover:bg-[#182233] transition-colors">
-                            {c.logo_url ? (
-                              <img src={c.logo_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                            ) : (
-                              <div className="w-6 h-6 rounded-full bg-[#1e293b] flex items-center justify-center text-[10px] font-bold text-[#94a3b8] flex-shrink-0">
-                                {c.company_name.charAt(0)}
-                              </div>
-                            )}
+                            className="w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[13px] hover:bg-black/5 transition-colors"
+                            style={{ color: 'var(--sm-text-1)' }}>
+                            <Avatar client={c} size={24} />
                             <span className="truncate">{c.company_name}</span>
                           </button>
                         ))
@@ -750,186 +677,127 @@ export function FeedOrganizer() {
                 )}
               </AnimatePresence>
             </div>
-          </div>
+          </header>
 
-          {/* Clients WITH feeds — prévia central com setas */}
-          {clientsWithFeeds.length > 0 && (() => {
-            const idx = Math.min(galleryIdx, clientsWithFeeds.length - 1)
-            const activeClient   = clientsWithFeeds[idx]
-            const activeVersions = versionsByClient[activeClient.id] ?? []
-            const activePosts    = activeVersions[0]?.posts ?? []
-            const activeMeta     = feedMeta?.[activeClient.id] ?? { bio: '', link: '' }
-            const initial        = activeClient.company_name.charAt(0).toUpperCase()
-            const username       = activeClient.instagram
-              ? activeClient.instagram.replace(/^@/, '')
-              : activeClient.company_name.toLowerCase().replace(/\s+/g, '_')
-            const go = (d: 1 | -1) => setGalleryIdx(i => {
-              const n = Math.min(galleryIdx, clientsWithFeeds.length - 1)
-              return (n + d + clientsWithFeeds.length) % clientsWithFeeds.length
-            })
-            const cells = Array.from({ length: Math.max(9, Math.ceil(activePosts.length / 3) * 3) }, (_, i) => activePosts[i] ?? null)
+          {clientsWithFeeds.length === 0 ? (
+            <div className="rounded-2xl border border-dashed py-16 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+              <LayoutGrid className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+              <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum feed criado ainda</p>
+              <p className="text-[12.5px] mt-1 max-w-xs mx-auto" style={{ color: 'var(--sm-text-3)' }}>
+                Clique em “Novo feed” e escolha um cliente para organizar a grade do Instagram.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-6 lg:gap-8 items-start">
 
-            return (
-              <div className="flex items-center justify-center gap-3 sm:gap-5">
-                {/* Seta esquerda */}
-                {clientsWithFeeds.length > 1 && (
-                  <button
-                    onClick={() => go(-1)}
-                    aria-label="Feed anterior"
-                    className="flex-shrink-0 w-10 h-10 rounded-full bg-[#182233] border border-[#1e293b] flex items-center justify-center text-[#94a3b8] hover:text-white hover:border-[#2563EB]/50 transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                )}
-
-                {/* Prévia central (estilo perfil do Instagram) */}
-                <div className="w-full max-w-md bg-[#111827] rounded-3xl border border-[#1e293b] overflow-hidden shadow-xl">
-                  {/* Header do perfil */}
-                  <div className="px-5 pt-5 pb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-[72px] h-[72px] rounded-full p-[2px] flex-shrink-0"
-                        style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
-                        <div className="w-full h-full rounded-full bg-[#111827] p-[2px]">
-                          {activeClient.logo_url ? (
-                            <img src={activeClient.logo_url} alt="" className="w-full h-full rounded-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full rounded-full bg-[#0B1020] flex items-center justify-center text-xl font-bold text-[#94a3b8]">{initial}</div>
-                          )}
+              {/* Prévia do perfil escolhido (no celular vem primeiro) */}
+              {activeClient && (() => {
+                const activeVersions = versionsByClient[activeClient.id] ?? []
+                const activePosts    = activeVersions[0]?.posts ?? []
+                const activeMeta     = feedMeta?.[activeClient.id] ?? { bio: '', link: '' }
+                const cells = Array.from({ length: Math.max(9, Math.ceil(activePosts.length / 3) * 3) }, (_, i) => activePosts[i] ?? null)
+                return (
+                  <motion.div key={activeClient.id}
+                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    className="lg:order-2 lg:sticky lg:top-4 w-full max-w-md mx-auto lg:max-w-none rounded-3xl border overflow-hidden"
+                    style={{ ...card, boxShadow: '0 18px 40px -24px rgba(15,23,42,0.35)' }}>
+                    <div className="px-5 pt-5 pb-4">
+                      <div className="flex items-center gap-4">
+                        <Avatar client={activeClient} size={72} ring />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{usernameOf(activeClient)}</p>
+                          <div className="mt-2"><IgStats posts={activePosts.length} /></div>
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-semibold text-[#F8FAFC] truncate">{username}</p>
-                        <div className="flex items-center gap-5 mt-1.5">
-                          <div className="text-center">
-                            <p className="text-[13px] font-bold text-[#F8FAFC] leading-none">{activePosts.length}</p>
-                            <p className="text-[10px] text-[#94a3b8] mt-0.5">posts</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-[13px] font-bold text-[#F8FAFC] leading-none">—</p>
-                            <p className="text-[10px] text-[#94a3b8] mt-0.5">seguidores</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-[13px] font-bold text-[#F8FAFC] leading-none">—</p>
-                            <p className="text-[10px] text-[#94a3b8] mt-0.5">seguindo</p>
-                          </div>
-                        </div>
+                      <div className="mt-3 space-y-1">
+                        <p className="text-[12.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{activeClient.company_name}</p>
+                        {activeMeta.bio ? (
+                          <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-2)' }}>{activeMeta.bio}</p>
+                        ) : (
+                          <p className="text-[12px] italic" style={{ color: 'var(--sm-text-4)' }}>Sem bio cadastrada. Edite o feed para adicionar.</p>
+                        )}
+                        {activeMeta.link && <BioLink link={activeMeta.link} />}
                       </div>
                     </div>
 
-                    {/* Bio */}
-                    <div className="mt-3 space-y-1">
-                      <p className="text-[12px] font-semibold text-[#F8FAFC]">{activeClient.company_name}</p>
-                      {activeMeta.bio ? (
-                        <p className="text-[12.5px] text-[#CBD5E1] leading-relaxed whitespace-pre-wrap">{activeMeta.bio}</p>
-                      ) : (
-                        <p className="text-[12px] text-[#64748b] italic">Sem bio cadastrada — edite o feed para adicionar.</p>
-                      )}
-                      {activeMeta.link && (
-                        <a href={activeMeta.link.startsWith('http') ? activeMeta.link : `https://${activeMeta.link}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-[12px] text-[#60A5FA] font-medium hover:underline">
-                          <Link2 className="w-3 h-3" /> {activeMeta.link.replace(/^https?:\/\//, '')}
-                        </a>
-                      )}
+                    <div className="grid grid-cols-3 gap-[2px]" style={{ background: 'var(--sm-border)' }}>
+                      {cells.map((post, i) => (
+                        <div key={i} className="aspect-square" style={{ background: 'var(--sm-bg-alt)' }}>
+                          {post && <img src={post.image_url} alt="" className="w-full h-full object-cover" draggable={false} />}
+                        </div>
+                      ))}
                     </div>
-                  </div>
 
-                  {/* Grade do feed (maior) */}
-                  <div className="grid grid-cols-3 gap-[2px] bg-[#1e293b]">
-                    {cells.map((post, i) => (
-                      <div key={i} className="aspect-square bg-[#0B1020]">
-                        {post && <img src={post.image_url} alt="" className="w-full h-full object-cover" draggable={false} />}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Rodapé: versões + editar */}
-                  <div className="px-4 py-3.5 flex items-center justify-between gap-3 border-t border-[#1e293b]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-[#64748b]">
-                        {activeVersions.length} {activeVersions.length === 1 ? 'versão' : 'versões'}
+                    <div className="px-4 py-3 flex items-center justify-between gap-3 border-t" style={{ borderColor: 'var(--sm-border)' }}>
+                      <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+                        {activeVersions[0]?.name ?? 'Versão 1'}
+                        {activeVersions.length > 1 && <span style={{ color: 'var(--sm-text-4)' }}> · +{activeVersions.length - 1} versõe{activeVersions.length - 1 > 1 ? 's' : ''}</span>}
                       </span>
-                      <span className="text-[10px] text-[#94a3b8] bg-[#182233] border border-[#1e293b] px-2 py-0.5 rounded-full">Versão 1</span>
+                      <button onClick={() => openEditor(activeClient.id)} className={primaryBtn} style={{ background: '#2563EB' }}>
+                        <Pencil className="w-3.5 h-3.5" /> Editar feed
+                      </button>
                     </div>
-                    <button
-                      onClick={() => openEditor(activeClient.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-colors hover:bg-[#1D4ED8]"
-                      style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}
-                    >
-                      <Pencil className="w-3.5 h-3.5" /> Editar feed
-                    </button>
-                  </div>
-                </div>
+                  </motion.div>
+                )
+              })()}
 
-                {/* Seta direita */}
-                {clientsWithFeeds.length > 1 && (
-                  <button
-                    onClick={() => go(1)}
-                    aria-label="Próximo feed"
-                    className="flex-shrink-0 w-10 h-10 rounded-full bg-[#182233] border border-[#1e293b] flex items-center justify-center text-[#94a3b8] hover:text-white hover:border-[#2563EB]/50 transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+              {/* Lista de feeds + clientes sem feed */}
+              <div className="lg:order-1 space-y-8 min-w-0">
+                <section>
+                  {sectionTitle('01', 'Feeds organizados',
+                    <span className="text-[12px] tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{clientsWithFeeds.length}</span>)}
+                  <div className="rounded-2xl border overflow-hidden" style={card}>
+                    {clientsWithFeeds.map((c, i) => {
+                      const vs = versionsByClient[c.id] ?? []
+                      const n  = vs[0]?.posts?.length ?? 0
+                      const ativo = i === idx
+                      return (
+                        <div key={c.id}
+                          className={`relative flex items-center gap-3 pl-4 pr-2 py-3 cursor-pointer transition-colors ${i > 0 ? 'border-t' : ''} ${ativo ? '' : 'hover:bg-black/[0.02]'}`}
+                          style={{ borderColor: 'var(--sm-border)', background: ativo ? 'rgba(37,99,235,0.06)' : undefined }}
+                          onClick={() => setGalleryIdx(i)}
+                          aria-current={ativo ? 'true' : undefined}
+                        >
+                          {ativo && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: '#2563EB' }} />}
+                          <span className="text-[11.5px] font-semibold tabular-nums w-5" style={{ color: 'var(--sm-text-4)' }}>{String(i + 1).padStart(2, '0')}</span>
+                          <Avatar client={c} size={34} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[13.5px] truncate ${ativo ? 'font-semibold' : 'font-medium'}`} style={{ color: 'var(--sm-text-1)' }}>{c.company_name}</p>
+                            <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>
+                              @{usernameOf(c)} · {n} post{n !== 1 ? 's' : ''} · {vs.length} {vs.length === 1 ? 'versão' : 'versões'}
+                            </p>
+                          </div>
+                          <button onClick={e => { e.stopPropagation(); openEditor(c.id) }}
+                            className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[12px] font-semibold hover:bg-black/5"
+                            style={{ color: '#2563EB' }}>
+                            Editar <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                {clientsWithoutFeeds.length > 0 && (
+                  <section>
+                    {sectionTitle('02', 'Clientes sem feed',
+                      <span className="text-[12px] tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{clientsWithoutFeeds.length}</span>)}
+                    <div className="flex flex-wrap gap-2">
+                      {clientsWithoutFeeds.map(c => (
+                        <button key={c.id} onClick={() => openEditor(c.id)}
+                          className="inline-flex items-center gap-2 h-9 pl-1.5 pr-3 rounded-full border text-[12.5px] font-medium hover:border-[#2563EB]/50 hover:bg-black/[0.02] transition-colors"
+                          style={{ ...card, color: 'var(--sm-text-2)' }}>
+                          <Avatar client={c} size={24} />
+                          {c.company_name}
+                          <Plus className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 )}
               </div>
-            )
-          })()}
-
-          {/* Indicadores do carrossel */}
-          {clientsWithFeeds.length > 1 && (
-            <div className="flex items-center justify-center gap-1.5">
-              {clientsWithFeeds.map((c, i) => (
-                <button
-                  key={c.id}
-                  onClick={() => setGalleryIdx(i)}
-                  aria-label={`Ir para ${c.company_name}`}
-                  className={`rounded-full transition-all ${
-                    Math.min(galleryIdx, clientsWithFeeds.length - 1) === i ? 'w-5 h-1.5 bg-[#29457a]' : 'w-1.5 h-1.5 bg-[#1e293b] hover:bg-[#334155]'
-                  }`}
-                />
-              ))}
             </div>
           )}
-
-          {/* Empty state */}
-          {clientsWithFeeds.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-[#64748b]">
-              <div className="w-20 h-20 rounded-full mb-5 flex items-center justify-center"
-                style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
-                <LayoutGrid className="w-9 h-9 text-white" />
-              </div>
-              <p className="text-base font-semibold text-[#CBD5E1]">Nenhum feed criado ainda</p>
-              <p className="text-sm mt-1 text-center max-w-xs text-[#64748b]">
-                Clique em "Novo feed" e selecione um cliente para começar a organizar o feed do Instagram.
-              </p>
-            </div>
-          )}
-
-          {/* Clients without feeds (suggestion row) */}
-          {clientsWithoutFeeds.length > 0 && clientsWithFeeds.length > 0 && (
-            <div>
-              <p className="text-[11px] text-[#64748b] uppercase tracking-wide font-medium mb-3">
-                Clientes sem feed
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {clientsWithoutFeeds.map(c => (
-                  <button key={c.id} onClick={() => openEditor(c.id)}
-                    className="flex items-center gap-2 px-3 py-2 bg-[#182233] border border-[#1e293b] rounded-xl text-[12px] text-[#94a3b8] hover:border-[#2563EB] hover:text-[#F8FAFC] transition-colors shadow-sm">
-                    {c.logo_url ? (
-                      <img src={c.logo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-[#1e293b] flex items-center justify-center text-[9px] font-bold text-[#94a3b8]">
-                        {c.company_name.charAt(0)}
-                      </div>
-                    )}
-                    {c.company_name}
-                    <Plus className="w-3 h-3" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
     )
@@ -940,48 +808,22 @@ export function FeedOrganizer() {
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div className="min-h-full bg-[#0B1020]">
-      {/* Editor top bar */}
-      <div className="flex items-center justify-between h-14 px-4 sm:px-6 bg-[#182233] border-b border-[#1e293b] flex-shrink-0 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
+    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
+      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
+
+        {/* Barra de topo: voltar + salvar (no celular, ao lado do menu) */}
+        <div className="flex items-center justify-between gap-3 max-md:pl-12 max-md:-mt-[3.25rem] max-md:min-h-[44px]">
           <button onClick={handleSaveAndBack}
-            className="flex items-center gap-1.5 text-[#94a3b8] hover:text-[#F8FAFC] transition-colors text-[13px]">
-            <ArrowLeft className="w-4 h-4" />
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium hover:underline" style={{ color: 'var(--sm-text-3)' }}>
+            <ArrowLeft className="w-4 h-4" /> Feed do Perfil
           </button>
-          <div className="w-px h-5 bg-[#1e293b]" />
-          <div className="flex items-center gap-2">
-            {selectedClient?.logo_url ? (
-              <img src={selectedClient.logo_url} alt="" className="w-6 h-6 rounded-full object-cover" />
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-[#101A2B] flex items-center justify-center text-[10px] font-bold text-[#94a3b8]">
-                {selectedClient?.company_name.charAt(0)}
-              </div>
-            )}
-            <span className="text-sm font-semibold text-[#F8FAFC]">{selectedClient?.company_name}</span>
-            {activeVersion && (
-              <span className="text-[11px] text-[#94a3b8] bg-[#101A2B] px-2 py-0.5 rounded-full">
-                {activeVersion.name}
-              </span>
-            )}
-          </div>
+          <button onClick={handleSaveAndBack} className={primaryBtn} style={{ background: '#2563EB' }}>
+            <Save className="w-3.5 h-3.5" /> Salvar e voltar
+          </button>
         </div>
-
-        {/* Save button */}
-        <button
-          onClick={handleSaveAndBack}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-medium transition-colors hover:bg-[#1D4ED8]"
-          style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}
-        >
-          <Save className="w-3.5 h-3.5" />
-          Salvar e voltar
-        </button>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
         {selectedClient && (
           <>
-            {/* Instagram header */}
             <InstagramHeader
               client={selectedClient}
               postsCount={posts.length}
@@ -989,67 +831,50 @@ export function FeedOrganizer() {
               onMetaChange={handleMetaChange}
             />
 
-            {/* Version chips */}
-            <div className="bg-[#182233] rounded-2xl border border-[#1e293b] shadow-sm p-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] text-[#64748b] uppercase tracking-wide font-medium mr-1">Versões</span>
-                {versions.length === 0 && <span className="text-sm text-[#64748b]">Nenhuma versão criada</span>}
-                {versions.map(v => (
-                  <VersionChip key={v.id} version={v} isActive={v.id === activeVersionId}
-                    onClick={() => setActiveVersionId(v.id)}
-                    onRename={name => renameVersion(v.id, name)}
-                    onDelete={() => deleteVersion(v.id)}
-                    onDuplicate={() => duplicateVersion(v.id)} />
-                ))}
-                <button onClick={createVersion}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium text-[#94a3b8] border border-dashed border-[#1e293b] hover:border-[#2563EB] hover:text-[#F8FAFC] transition-colors">
-                  <Plus className="w-3 h-3" /> Nova versão
-                </button>
-              </div>
+            {/* Versões como abas sublinhadas */}
+            <div className="flex items-end gap-1 border-b overflow-x-auto scrollbar-none" style={{ borderColor: 'var(--sm-border)' }}>
+              {versions.map(v => (
+                <VersionChip key={v.id} version={v} isActive={v.id === activeVersionId}
+                  onClick={() => setActiveVersionId(v.id)}
+                  onRename={name => renameVersion(v.id, name)}
+                  onDelete={() => deleteVersion(v.id)}
+                  onDuplicate={() => duplicateVersion(v.id)} />
+              ))}
+              <button onClick={createVersion}
+                className="flex-shrink-0 inline-flex items-center gap-1 h-10 px-3 text-[12.5px] font-semibold whitespace-nowrap hover:underline"
+                style={{ color: '#2563EB' }}>
+                <Plus className="w-3.5 h-3.5" /> Nova versão
+              </button>
             </div>
 
-            {/* No version */}
             {!activeVersion && (
-              <div className="flex flex-col items-center justify-center py-16">
-                <GripVertical className="w-10 h-10 mb-3 text-[#475569]" />
-                <p className="text-sm font-medium text-[#94a3b8]">Crie uma versão para começar</p>
-                <button onClick={createVersion}
-                  className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-medium hover:bg-[#1D4ED8] transition-colors"
-                  style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}>
+              <div className="rounded-2xl border border-dashed py-14 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+                <GripVertical className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+                <p className="text-[13px] font-medium" style={{ color: 'var(--sm-text-2)' }}>Crie uma versão para começar</p>
+                <button onClick={createVersion} className={`${primaryBtn} mt-3`} style={{ background: '#2563EB' }}>
                   <Plus className="w-3.5 h-3.5" /> Criar Versão 1
                 </button>
               </div>
             )}
 
-            {/* Grid */}
             {activeVersion && (
-              <div className="bg-[#182233] rounded-2xl border border-[#1e293b] shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e293b]">
-                  <div className="flex items-center gap-2">
-                    <Instagram className="w-4 h-4 text-pink-500" />
-                    <span className="text-sm font-semibold text-[#F8FAFC]">{activeVersion.name}</span>
-                    <span className="text-xs text-[#94a3b8] bg-[#101A2B] px-2 py-0.5 rounded-full">
-                      3 colunas · {posts.length} posts
-                    </span>
+              <section className="rounded-2xl border overflow-hidden" style={card}>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+                  <div className="min-w-0">
+                    <p className="font-display text-[15px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{activeVersion.name}</p>
+                    <p className="text-[11.5px] flex items-center gap-1" style={{ color: 'var(--sm-text-4)' }}>
+                      <GripVertical className="w-3 h-3" /> {posts.length} post{posts.length !== 1 ? 's' : ''} · arraste para mudar a ordem
+                    </p>
                   </div>
-                  <button onClick={() => setPickerOpen(true)} disabled={isUploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-medium disabled:opacity-60 hover:bg-[#1D4ED8] transition-colors"
-                    style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}>
+                  <button onClick={() => setPickerOpen(true)} disabled={isUploading} className={primaryBtn} style={{ background: '#2563EB' }}>
                     {isUploading
                       ? <><Upload className="w-3.5 h-3.5 animate-pulse" /> Enviando...</>
                       : <><Plus className="w-3.5 h-3.5" /> Adicionar post</>}
                   </button>
                 </div>
 
-                <div className="px-4 py-2 bg-[#101A2B] border-b border-[#1e293b]">
-                  <p className="text-[11px] text-[#64748b] flex items-center gap-1.5">
-                    <GripVertical className="w-3 h-3" />
-                    Arraste os posts para reorganizar a ordem do feed
-                  </p>
-                </div>
-
                 <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                  <div className="grid grid-cols-3 gap-[2px] p-[2px] bg-[#1e293b]">
+                  <div className="grid grid-cols-3 gap-[2px] p-[2px]" style={{ background: 'var(--sm-border)' }}>
                     {gridCells.map(({ index, post }) =>
                       post ? (
                         <DraggableCard key={post.id} post={post} index={index}
@@ -1061,8 +886,7 @@ export function FeedOrganizer() {
                   </div>
                   <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
                     {activeDragPost ? (
-                      <div className="rounded-[2px] overflow-hidden shadow-2xl ring-2 ring-blue-400 opacity-95"
-                        style={{ width: 160, height: 160 }}>
+                      <div className="overflow-hidden shadow-2xl ring-2 ring-[#2563EB] opacity-95" style={{ width: 160, height: 160 }}>
                         <img src={activeDragPost.image_url} alt="" className="w-full h-full object-cover" draggable={false} />
                       </div>
                     ) : null}
@@ -1070,17 +894,11 @@ export function FeedOrganizer() {
                 </DndContext>
 
                 {posts.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <Images className="w-10 h-10 mb-3 text-[#475569]" />
-                    <p className="text-sm font-medium text-[#94a3b8]">Feed vazio</p>
-                    <button onClick={() => setPickerOpen(true)}
-                      className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-medium hover:bg-[#1D4ED8] transition-colors"
-                      style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)', color: '#ffffff' }}>
-                      <Plus className="w-3.5 h-3.5" /> Adicionar primeiro post
-                    </button>
-                  </div>
+                  <p className="text-center text-[12.5px] py-4" style={{ color: 'var(--sm-text-4)' }}>
+                    Feed vazio. Clique num quadrado ou em “Adicionar post”.
+                  </p>
                 )}
-              </div>
+              </section>
             )}
           </>
         )}
