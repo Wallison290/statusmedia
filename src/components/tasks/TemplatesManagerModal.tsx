@@ -120,68 +120,91 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
     catch (e: any) { toast(e.message ?? 'Erro ao excluir', 'error') }
   }
 
+  const lbl = 'block text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1.5 text-[color:var(--sm-text-4)]'
+  const campo = 'h-9 px-3 rounded-lg border text-[12.5px] placeholder:text-[color:var(--sm-text-4)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]/50 disabled:opacity-40'
+  const campoStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
+  const iconBtn = 'w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors disabled:opacity-40'
+  const meus = templates.filter(t => !t.is_system)
+  const sistema = templates.filter(t => t.is_system)
+
+  const linha = (t: TaskTemplate, i: number) => (
+    <div key={t.id} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+      <span className="text-[18px] w-6 text-center flex-shrink-0">{t.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{t.name}</p>
+        <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>
+          <span className="tabular-nums">{t.item_count} tarefas</span>{t.description && <> · {t.description}</>}
+        </p>
+      </div>
+      <div className="flex items-center gap-0.5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
+        <button onClick={() => openEditor(t, true)} title="Duplicar" aria-label="Duplicar" disabled={loadingEdit} className={iconBtn}>
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+        {!t.is_system && (
+          <>
+            <button onClick={() => openEditor(t, false)} title="Editar" aria-label="Editar" disabled={loadingEdit} className={iconBtn}>
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            {confirmDel === t.id ? (
+              <button onClick={() => handleDelete(t.id)} className="px-2 h-8 rounded-lg text-[11.5px] font-semibold hover:bg-red-500/10" style={{ color: '#EF4444' }}>Confirmar?</button>
+            ) : (
+              <button onClick={() => setConfirmDel(t.id)} title="Excluir" aria-label="Excluir" className={`${iconBtn} hover:text-red-500`}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { setDraft(null); onClose() } }}>
       <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {draft && (
-              <button onClick={() => setDraft(null)} className="text-[#94a3b8] hover:text-[color:var(--sm-text-1)]"><ChevronLeft className="w-4 h-4" /></button>
-            )}
-            {draft ? (draft.id ? 'Editar modelo' : 'Novo modelo') : 'Modelos de Tarefas'}
+          {draft && (
+            <button onClick={() => setDraft(null)} className="inline-flex items-center gap-1 text-[12.5px] font-medium mb-1 hover:underline w-fit" style={{ color: 'var(--sm-text-3)' }}>
+              <ChevronLeft className="w-4 h-4" /> Modelos
+            </button>
+          )}
+          <DialogTitle className="font-display text-[19px] font-bold">
+            {draft ? (draft.id ? 'Editar modelo' : 'Novo modelo') : 'Modelos de tarefas'}
           </DialogTitle>
+          {!draft && <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>Sequências prontas que viram tarefas com um clique.</p>}
         </DialogHeader>
 
         {/* ── LISTA ── */}
         {!draft && (
-          <div className="space-y-3 mt-1">
-            <button
-              onClick={() => setDraft(emptyDraft())}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#334155] text-[13px] font-medium text-[#2563EB] hover:border-[#2563EB] hover:bg-[#182233] transition-all">
-              <Plus className="w-4 h-4" /> Criar modelo
-            </button>
-
+          <div className="space-y-5 mt-1">
             {isLoading ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#94a3b8]" /></div>
+              <div className="h-40 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-alt)' }} />
             ) : (
-              <div className="space-y-2">
-                {templates.map(t => (
-                  <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#1e293b] bg-[#111827]">
-                    <span className="text-[18px]">{t.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-semibold text-[#F8FAFC] truncate">{t.name}</p>
-                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${t.is_system ? 'bg-[#182233] text-[#64748b]' : 'bg-[#2563EB]/10 text-[#2563EB]'}`}>
-                          {t.is_system ? 'Sistema' : 'Meu'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#94a3b8] truncate">{t.item_count} tarefas · {t.description}</p>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={() => openEditor(t, true)} title="Duplicar" disabled={loadingEdit}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors">
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      {!t.is_system && (
-                        <>
-                          <button onClick={() => openEditor(t, false)} title="Editar" disabled={loadingEdit}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[#1e293b] transition-colors">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          {confirmDel === t.id ? (
-                            <button onClick={() => handleDelete(t.id)} className="px-2 h-7 rounded-lg text-[11px] text-red-500 hover:bg-red-500/10 font-medium">Confirmar?</button>
-                          ) : (
-                            <button onClick={() => setConfirmDel(t.id)} title="Excluir"
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-500 hover:bg-red-500/10 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
+              <>
+                <section>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={lbl.replace('mb-1.5', 'mb-0')}>01 · Meus modelos · {meus.length}</p>
+                    <button onClick={() => setDraft(emptyDraft())}
+                      className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[12.5px] font-semibold hover:bg-black/5" style={{ color: '#2563EB' }}>
+                      <Plus className="w-3.5 h-3.5" /> Criar modelo
+                    </button>
                   </div>
-                ))}
-              </div>
+                  {meus.length === 0 ? (
+                    <button onClick={() => setDraft(emptyDraft())}
+                      className="w-full rounded-xl border border-dashed py-6 text-[12.5px] hover:border-[#2563EB]/50 transition-colors"
+                      style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}>
+                      Nenhum modelo seu ainda. Crie do zero ou duplique um do sistema.
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)' }}>{meus.map(linha)}</div>
+                  )}
+                </section>
+                {sistema.length > 0 && (
+                  <section>
+                    <p className={lbl}>02 · Modelos do sistema · {sistema.length}</p>
+                    <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)' }}>{sistema.map(linha)}</div>
+                  </section>
+                )}
+              </>
             )}
           </div>
         )}
@@ -197,59 +220,63 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
             </div>
             <Input label="Descrição" value={draft.description} onChange={e => setDraft(d => d && ({ ...d, description: e.target.value }))} placeholder="Resumo do que o modelo cobre" />
             <div>
-              <label className="block text-[12px] text-[#94a3b8] mb-1.5">Categoria</label>
+              <label className={lbl}>Categoria</label>
               <Select value={draft.category} onValueChange={v => setDraft(d => d && ({ ...d, category: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
-            {/* Tarefas */}
+            {/* Tarefas do modelo */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] font-semibold text-[#94a3b8] uppercase tracking-wide">Tarefas ({draft.items.length})</label>
+                <p className={lbl.replace('mb-1.5', 'mb-0')}>Tarefas · {draft.items.length}</p>
                 <button onClick={() => setDraft(d => d && ({ ...d, items: [...d.items, emptyItem()] }))}
-                  className="inline-flex items-center gap-1 text-[12px] text-[#2563EB] hover:text-[color:var(--sm-text-1)]"><Plus className="w-3.5 h-3.5" /> Adicionar tarefa</button>
+                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[12.5px] font-semibold hover:bg-black/5" style={{ color: '#2563EB' }}>
+                  <Plus className="w-3.5 h-3.5" /> Adicionar tarefa
+                </button>
               </div>
-              <div className="space-y-2">
+              <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)' }}>
                 {draft.items.map((it, idx) => (
-                  <div key={idx} className="p-3 rounded-xl border border-[#1e293b] bg-[#0d1424] space-y-2">
+                  <div key={idx} className={`p-3.5 space-y-2 ${idx > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#64748b] w-5 flex-shrink-0">{idx + 1}.</span>
+                      <span className="font-display text-[13px] font-bold w-6 flex-shrink-0 tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{String(idx + 1).padStart(2, '0')}</span>
                       <input value={it.title} onChange={e => setItem(idx, { title: e.target.value })} placeholder="Título da tarefa"
-                        className="flex-1 h-8 px-2.5 rounded-lg border border-[#1e293b] bg-[#182233] text-[13px] text-[#E2E8F0] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40" />
+                        className={`${campo} flex-1 text-[13px] font-medium`} style={campoStyle} />
                       <button onClick={() => setDraft(d => d && ({ ...d, items: d.items.filter((_, i) => i !== idx) }))}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[#64748b] hover:text-red-500 hover:bg-red-500/10 flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                        title="Remover tarefa" aria-label="Remover tarefa"
+                        className={`${iconBtn} hover:text-red-500 flex-shrink-0`} style={{ color: 'var(--sm-text-3)' }}><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <input value={it.description} onChange={e => setItem(idx, { description: e.target.value })} placeholder="Descrição (opcional)"
-                      className="w-full h-8 px-2.5 rounded-lg border border-[#1e293b] bg-[#182233] text-[12px] text-[#CBD5E1] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40" />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <Select value={it.priority} onValueChange={v => setItem(idx, { priority: v as Priority })}>
-                        <SelectTrigger className="h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <div className="pl-8 space-y-2">
+                      <input value={it.description} onChange={e => setItem(idx, { description: e.target.value })} placeholder="Descrição (opcional)"
+                        className={`${campo} w-full`} style={campoStyle} />
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <Select value={it.priority} onValueChange={v => setItem(idx, { priority: v as Priority })}>
+                          <SelectTrigger className="h-9 text-[12.5px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="baixa">Baixa</SelectItem>
+                            <SelectItem value="media">Média</SelectItem>
+                            <SelectItem value="alta">Alta</SelectItem>
+                            <SelectItem value="urgente">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <input value={it.offset} onChange={e => setItem(idx, { offset: e.target.value.replace(/[^0-9]/g, '') })}
+                          disabled={it.is_recurring} placeholder="Prazo (D+ dias)" className={campo} style={campoStyle} />
+                        <input value={it.tags} onChange={e => setItem(idx, { tags: e.target.value })} placeholder="tags, separadas"
+                          className={campo} style={campoStyle} />
+                        <label className="flex items-center gap-1.5 text-[12px] cursor-pointer px-1" style={{ color: 'var(--sm-text-2)' }}>
+                          <input type="checkbox" checked={it.is_recurring} onChange={e => setItem(idx, { is_recurring: e.target.checked })} className="accent-[#2563EB]" />
+                          <Repeat className="w-3 h-3" style={{ color: 'var(--sm-text-4)' }} /> Recorrente
+                        </label>
+                      </div>
+                      <Select value={it.squad_id || 'none'} onValueChange={v => setItem(idx, { squad_id: v === 'none' ? '' : v })}>
+                        <SelectTrigger className="h-9 text-[12.5px]"><SelectValue placeholder="Squad (opcional)" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="baixa">Baixa</SelectItem>
-                          <SelectItem value="media">Média</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="urgente">Urgente</SelectItem>
+                          <SelectItem value="none">Sem squad vinculado</SelectItem>
+                          {SQUAD_OPTIONS.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <input value={it.offset} onChange={e => setItem(idx, { offset: e.target.value.replace(/[^0-9]/g, '') })}
-                        disabled={it.is_recurring} placeholder="Dia (D+)"
-                        className="h-8 px-2.5 rounded-lg border border-[#1e293b] bg-[#182233] text-[12px] text-[#E2E8F0] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40 disabled:opacity-40" />
-                      <input value={it.tags} onChange={e => setItem(idx, { tags: e.target.value })} placeholder="tags, separadas"
-                        className="h-8 px-2.5 rounded-lg border border-[#1e293b] bg-[#182233] text-[12px] text-[#E2E8F0] placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/40" />
-                      <label className="flex items-center gap-1.5 text-[11px] text-[#94a3b8] cursor-pointer px-1">
-                        <input type="checkbox" checked={it.is_recurring} onChange={e => setItem(idx, { is_recurring: e.target.checked })} className="accent-[#2563EB]" />
-                        <Repeat className="w-3 h-3" /> Recorrente
-                      </label>
                     </div>
-                    <Select value={it.squad_id || 'none'} onValueChange={v => setItem(idx, { squad_id: v === 'none' ? '' : v })}>
-                      <SelectTrigger className="h-8 text-[12px]"><SelectValue placeholder="Squad (opcional)" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem squad vinculado</SelectItem>
-                        {SQUAD_OPTIONS.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
                   </div>
                 ))}
               </div>
@@ -260,13 +287,13 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
         <DialogFooter className="gap-2">
           {draft ? (
             <>
-              <Button variant="ghost" onClick={() => setDraft(null)}>Voltar</Button>
+              <Button variant="outline" onClick={() => setDraft(null)}>Voltar</Button>
               <Button onClick={handleSave} disabled={save.isPending}>
                 {save.isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Salvando...</> : <><Check className="w-3.5 h-3.5" /> Salvar modelo</>}
               </Button>
             </>
           ) : (
-            <Button variant="ghost" onClick={onClose}>Fechar</Button>
+            <Button variant="outline" onClick={onClose}>Fechar</Button>
           )}
         </DialogFooter>
       </DialogContent>
