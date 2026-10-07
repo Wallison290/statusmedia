@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, Users, Instagram, Trash2, ChevronDown, Palette, Clock, CheckCircle, FileEdit, XCircle, Upload, ImageIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Plus, Search, Users, Instagram, Trash2, ChevronDown, Palette, Upload, ImageIcon } from 'lucide-react'
 import { useClients, useDeleteClient, checkClientDeletion } from '@/hooks/useClients'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/integrations/supabase/client'
 import { useQueryClient } from '@tanstack/react-query'
-import { useTheme } from '@/contexts/ThemeContext'
 
 // ─── Gradientes disponíveis ───────────────────────────────────────────────────
 
@@ -92,8 +90,7 @@ export function ClientList() {
   const { toast }    = useToast()
   const navigate     = useNavigate()
   const queryClient  = useQueryClient()
-  const { user, agencyId }     = useAuth()
-  const { isDark }   = useTheme()
+  const { agencyId } = useAuth()
 
   const [search, setSearch]         = useState('')
   const [filter, setFilter]         = useState<'all' | 'ativo' | 'pausado' | 'encerrado'>('all')
@@ -249,376 +246,289 @@ export function ClientList() {
 
   const sortLabel = SORT_OPTIONS.find(o => o.value === sort)?.label || 'Nome (A-Z)'
 
+  // Situação do cliente = ponto + texto (padrão editorial: cor só como sinal)
+  const STATUS_DOT: Record<string, string> = {
+    ativo: '#22C55E', pausado: '#F59E0B', encerrado: '#EF4444', lead: '#3B82F6',
+    proposta: '#8B5CF6', fechado: '#14B8A6', onboarding: '#F97316',
+  }
+  const counts = {
+    all: clients.length,
+    ativo: clients.filter(c => c.status === 'ativo').length,
+    pausado: clients.filter(c => c.status === 'pausado').length,
+    encerrado: clients.filter(c => c.status === 'encerrado').length,
+  }
+  const totals = Object.values(stats).reduce(
+    (t, s) => ({ pendentes: t.pendentes + s.pendentes, ajustes: t.ajustes + s.ajuste_solicitado }),
+    { pendentes: 0, ajustes: 0 },
+  )
+
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
+      <div className="px-4 sm:px-6 pt-4 md:pt-6 pb-12 max-w-7xl mx-auto">
 
-      {/* ── Conteúdo ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1" style={{ background: 'var(--sm-bg-page)' }}>
-        <div className="px-4 sm:px-6 pt-6 pb-12 space-y-5">
-
-          {/* ── Toolbar ───────────────────────────────────────────────────────── */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
-              <input
-                type="text"
-                placeholder="Buscar por nome, @handle, segmento ou email..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-[13px] outline-none focus:ring-2 focus:ring-[#2563EB]/20 transition-all shadow-sm"
-                style={{ background: 'var(--sm-bg-input)', border: '1px solid var(--sm-border)', color: 'var(--sm-text-1)' }}
-              />
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={() => setShowSort(o => !o)}
-                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] hover:border-[#2563EB] transition-colors shadow-sm"
-                style={{ background: 'var(--sm-bg-input)', border: '1px solid var(--sm-border)', color: 'var(--sm-text-1)' }}
-              >
-                {sortLabel} <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-              </button>
-              {showSort && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowSort(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-xl shadow-lg overflow-hidden py-1" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                    {SORT_OPTIONS.map(o => (
-                      <button
-                        key={o.value}
-                        onClick={() => { setSort(o.value); setShowSort(false) }}
-                        className="w-full text-left px-4 py-2 text-[13px] transition-colors"
-                        style={{ color: sort === o.value ? '#2563EB' : 'var(--sm-text-2)', fontWeight: sort === o.value ? 600 : 400 }}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <Link
-              to="/clients/new"
-              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors flex-shrink-0"
-            >
-              <Plus className="w-4 h-4" /> Novo cliente
-            </Link>
+        {/* ── Cabeçalho ──────────────────────────────────────────────────────── */}
+        <header className="mb-6 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Carteira</p>
+            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+              Clientes
+            </h1>
+            <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
+              {counts.ativo} ativo{counts.ativo !== 1 ? 's' : ''}
+              {totals.pendentes > 0 && <> · <strong style={{ color: 'var(--sm-text-1)' }}>{totals.pendentes}</strong> conteúdo{totals.pendentes !== 1 ? 's' : ''} esperando aprovação</>}
+              {totals.ajustes > 0 && <> · {totals.ajustes} ajuste{totals.ajustes !== 1 ? 's' : ''} pedido{totals.ajustes !== 1 ? 's' : ''}</>}
+            </p>
           </div>
+          <Link to="/clients/new"
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-95 max-md:hidden"
+            style={{ background: '#2563EB' }}>
+            <Plus className="w-4 h-4" /> Novo cliente
+          </Link>
+        </header>
 
-          {/* ── Filtros ───────────────────────────────────────────────────────── */}
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* ── Filtros, busca e ordenação ─────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <div className="flex gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none max-w-full" style={{ background: 'var(--sm-bg-alt)' }}>
             {([
-              { value: 'all',       label: 'Todos'      },
-              { value: 'ativo',     label: 'Ativos'     },
-              { value: 'pausado',   label: 'Pausados'   },
-              { value: 'encerrado', label: 'Encerrados' },
+              { value: 'all', label: 'Todos' }, { value: 'ativo', label: 'Ativos' },
+              { value: 'pausado', label: 'Pausados' }, { value: 'encerrado', label: 'Encerrados' },
             ] as const).map(f => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className="px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all border"
-                style={filter === f.value
-                  ? { background: '#2563EB', borderColor: '#2563EB', color: '#ffffff' }
-                  : { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }
-                }
-              >
-                {f.label}
+              <button key={f.value} onClick={() => setFilter(f.value)} aria-pressed={filter === f.value}
+                className="h-8 px-3 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors"
+                style={filter === f.value ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)' } : { color: 'var(--sm-text-3)' }}>
+                {f.label} <span className="tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{counts[f.value]}</span>
               </button>
             ))}
           </div>
 
-          {/* ── Skeleton ─────────────────────────────────────────────────────── */}
-          {isLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="rounded-2xl overflow-hidden shadow-sm animate-pulse" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                  <div className="h-28" style={{ background: 'var(--sm-bg-alt)' }} />
-                  <div className="p-5 pt-10 space-y-3">
-                    <div className="h-4 rounded-lg w-3/4" style={{ background: 'var(--sm-bg-alt)' }} />
-                    <div className="h-3 rounded-lg w-1/2" style={{ background: 'var(--sm-bg-alt)' }} />
-                    <div className="h-3 rounded-full w-1/3" style={{ background: 'var(--sm-bg-alt)' }} />
-                    <div className="pt-3 mt-4 grid grid-cols-2 gap-2" style={{ borderTop: '1px solid var(--sm-border)' }}>
-                      {[...Array(4)].map((_, j) => (
-                        <div key={j} className="h-12 rounded-xl" style={{ background: 'var(--sm-bg-alt)' }} />
-                      ))}
-                    </div>
-                  </div>
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
+            <input type="text" placeholder="Buscar por nome, @, segmento ou e-mail" value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full h-10 pl-9 pr-3 rounded-xl text-[13px] outline-none border transition-colors focus:border-[#2563EB]/60"
+              style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
+          </div>
+
+          <div className="relative">
+            <button onClick={() => setShowSort(o => !o)}
+              className="h-10 px-3.5 rounded-xl border text-[13px] inline-flex items-center gap-2 transition-colors hover:border-[#2563EB]/50"
+              style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+              {sortLabel} <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
+            </button>
+            {showSort && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowSort(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-xl border overflow-hidden py-1 shadow-2xl"
+                  style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                  {SORT_OPTIONS.map(o => (
+                    <button key={o.value} onClick={() => { setSort(o.value); setShowSort(false) }}
+                      className="w-full text-left px-4 py-2 text-[13px] hover:bg-black/5"
+                      style={{ color: sort === o.value ? '#2563EB' : 'var(--sm-text-2)', fontWeight: sort === o.value ? 600 : 400 }}>
+                      {o.label}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
-          {/* ── Empty state ───────────────────────────────────────────────────── */}
-          {!isLoading && filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                <Users className="w-8 h-8" style={{ color: 'var(--sm-text-3)' }} />
-              </div>
-              <div className="text-center">
-                <p className="text-[15px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
-                  {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
-                </p>
-                <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
-                  {search ? 'Tente outra busca' : 'Cadastre seu primeiro cliente agora'}
-                </p>
-              </div>
-              {!search && (
-                <Link
-                  to="/clients/new"
-                  className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-sm font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors mt-2"
-                >
-                  <Plus className="w-4 h-4" /> Novo cliente
-                </Link>
-              )}
-            </div>
-          )}
+          <Link to="/clients/new" aria-label="Novo cliente"
+            className="md:hidden inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl text-[13px] font-semibold text-white"
+            style={{ background: '#2563EB' }}>
+            <Plus className="w-4 h-4" /> Novo
+          </Link>
+        </div>
 
-          {/* ── Grid de cards ─────────────────────────────────────────────────── */}
-          {!isLoading && filtered.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              <AnimatePresence>
-                {filtered.map((client, i) => {
-                  const cfg          = STATUS_CFG[client.status] || STATUS_CFG.ativo
-                  const initials     = client.company_name.slice(0, 2).toUpperCase()
-                  // Banco tem prioridade; localStorage é fallback enquanto schema cache recarrega
-                  const localGradient = (() => { try { return localStorage.getItem(`banner_${client.id}`) } catch { return null } })()
-                  const gradientId    = client.card_gradient || localGradient || DEFAULT_GRADIENT_ID
-                  const bannerStyle   = getBannerStyle(gradientId)
-                  const clientStats  = stats[client.id] || { pendentes: 0, aprovados: 0, ajuste_solicitado: 0, reprovado: 0 }
-                  const isPickerOpen = pickerOpen === client.id
-                  const isSaving     = saving === client.id
+        {/* ── Carregando ─────────────────────────────────────────────────────── */}
+        {isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-[236px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+            ))}
+          </div>
+        )}
 
-                  return (
-                    <motion.div
-                      key={client.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
-                      transition={{ delay: i * 0.04, duration: 0.2 }}
-                      whileHover={{ y: -4, transition: { duration: 0.18 } }}
-                      onClick={() => navigate(`/clients/${client.id}`)}
-                      className="rounded-2xl shadow-sm hover:shadow-xl transition-all cursor-pointer overflow-hidden group relative"
-                      style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}
-                    >
+        {/* ── Vazio ──────────────────────────────────────────────────────────── */}
+        {!isLoading && filtered.length === 0 && (
+          <div className="rounded-2xl border py-20 px-6 flex flex-col items-center text-center gap-3"
+            style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+            <Users className="w-8 h-8" style={{ color: 'var(--sm-text-4)' }} />
+            <p className="font-display text-[18px] font-bold" style={{ color: 'var(--sm-text-1)' }}>
+              {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+            </p>
+            <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>
+              {search ? 'Tente outra busca.' : 'Cadastre o primeiro cliente para começar a planejar.'}
+            </p>
+            {!search && (
+              <Link to="/clients/new" className="mt-1 inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white"
+                style={{ background: '#2563EB' }}>
+                <Plus className="w-4 h-4" /> Novo cliente
+              </Link>
+            )}
+          </div>
+        )}
 
-                      {/* ── Banner gradiente / imagem ─────────────────────────── */}
-                      <div
-                        className="relative h-28 flex-shrink-0"
-                        style={bannerStyle}
+        {/* ── Cartões ────────────────────────────────────────────────────────── */}
+        {!isLoading && filtered.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <AnimatePresence>
+              {filtered.map((client, i) => {
+                const cfg          = STATUS_CFG[client.status] || STATUS_CFG.ativo
+                const initials     = client.company_name.slice(0, 2).toUpperCase()
+                // Banco tem prioridade; localStorage é fallback enquanto o schema cache recarrega
+                const localGradient = (() => { try { return localStorage.getItem(`banner_${client.id}`) } catch { return null } })()
+                const gradientId    = client.card_gradient || localGradient || DEFAULT_GRADIENT_ID
+                const bannerStyle   = getBannerStyle(gradientId)
+                const st            = stats[client.id] || { pendentes: 0, aprovados: 0, ajuste_solicitado: 0, reprovado: 0 }
+                const isPickerOpen  = pickerOpen === client.id
+                const isSaving      = saving === client.id
+                // Cor só no número que pede atenção; zero fica apagado
+                const metrics = [
+                  { label: 'Pendentes', value: st.pendentes, color: '#3B82F6' },
+                  { label: 'Aprovados', value: st.aprovados, color: '#22C55E' },
+                  { label: 'Ajustes', value: st.ajuste_solicitado, color: '#8B5CF6' },
+                  { label: 'Reprovados', value: st.reprovado, color: '#EF4444' },
+                ]
+
+                return (
+                  <motion.div
+                    key={client.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ delay: Math.min(i, 8) * 0.03, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                    className="group relative rounded-2xl border overflow-hidden cursor-pointer transition-colors hover:border-[#2563EB]/50"
+                    style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
+                  >
+                    {/* Capa (cor ou imagem escolhida pela agência) */}
+                    <div className="relative h-20" style={bannerStyle}>
+                      <button
+                        onClick={e => { e.stopPropagation(); setPickerOpen(isPickerOpen ? null : client.id) }}
+                        className="absolute top-2.5 left-2.5 z-10 w-8 h-8 rounded-full bg-black/25 hover:bg-black/45 backdrop-blur-sm flex items-center justify-center transition-opacity md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
+                        title="Mudar a capa" aria-label="Mudar a capa"
                       >
-                        <div className="absolute inset-0 bg-black/5 rounded-t-2xl" />
+                        {isSaving
+                          ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          : <Palette className="w-3.5 h-3.5 text-white" />}
+                      </button>
+                      <button
+                        onClick={e => handleDelete(e, client.id, client.company_name)}
+                        className="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-black/25 hover:bg-red-600/85 backdrop-blur-sm flex items-center justify-center transition-opacity md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
+                        title="Excluir cliente" aria-label="Excluir cliente"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-white" />
+                      </button>
 
-                        {/* Botão paleta */}
-                        <button
-                          onClick={e => { e.stopPropagation(); setPickerOpen(isPickerOpen ? null : client.id) }}
-                          className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-white/25 hover:bg-white/55 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                          title="Mudar cor do banner"
-                        >
-                          {isSaving
-                            ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            : <Palette className="w-3.5 h-3.5 text-white drop-shadow" />}
-                        </button>
-
-                        {/* Botão deletar */}
-                        <button
-                          onClick={e => handleDelete(e, client.id, client.company_name)}
-                          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-white/25 hover:bg-red-500/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                          title="Excluir cliente"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-white drop-shadow" />
-                        </button>
-
-                        {/* ── Banner picker (Cores / Imagem) ─────────────────── */}
-                        {isPickerOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-30"
-                              onClick={e => { e.stopPropagation(); setPickerOpen(null) }}
-                            />
-                            <div
-                              className="absolute top-11 left-3 z-40 rounded-2xl shadow-2xl p-3.5 w-[220px]"
-                              style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}
-                              onClick={e => e.stopPropagation()}
-                            >
-                              {/* Abas */}
-                              <div className="flex gap-1 mb-3 rounded-lg p-0.5" style={{ background: 'var(--sm-bg-alt)' }}>
-                                {(['cores', 'imagem'] as const).map(tab => (
-                                  <button
-                                    key={tab}
-                                    onClick={e => { e.stopPropagation(); setPickerTab(tab) }}
-                                    className={`flex-1 py-1 rounded-md text-[11px] font-semibold transition-colors capitalize ${
-                                      pickerTab === tab
-                                        ? 'bg-[#2563EB] text-white shadow-sm'
-                                        : ''
-                                    }`}
-                                    style={pickerTab !== tab ? { color: 'var(--sm-text-3)' } : {}}
-                                  >
-                                    {tab === 'cores' ? '🎨 Cores' : '🖼️ Imagem'}
+                      {isPickerOpen && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setPickerOpen(null) }} />
+                          <div className="absolute top-12 left-2.5 z-40 rounded-2xl border shadow-2xl p-3.5 w-[228px]"
+                            style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
+                            onClick={e => e.stopPropagation()}>
+                            <div className="flex gap-1 mb-3 rounded-lg p-0.5" style={{ background: 'var(--sm-bg-alt)' }}>
+                              {(['cores', 'imagem'] as const).map(tab => (
+                                <button key={tab} onClick={e => { e.stopPropagation(); setPickerTab(tab) }}
+                                  className="flex-1 h-7 rounded-md text-[11.5px] font-semibold transition-colors"
+                                  style={pickerTab === tab ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)' } : { color: 'var(--sm-text-3)' }}>
+                                  {tab === 'cores' ? 'Cores' : 'Imagem'}
+                                </button>
+                              ))}
+                            </div>
+                            {pickerTab === 'cores' ? (
+                              <div className="grid grid-cols-6 gap-1.5">
+                                {GRADIENTS.map(g => (
+                                  <button key={g.id} onClick={e => { e.stopPropagation(); changeBanner(client.id, g.id) }}
+                                    className="w-7 h-7 rounded-full transition-transform hover:scale-110 relative"
+                                    style={{ background: `linear-gradient(135deg, ${g.preview[0]} 0%, ${g.preview[1]} 100%)` }}
+                                    title={g.id} aria-label={`Capa ${g.id}`}>
+                                    {gradientId === g.id && (
+                                      <span className="absolute inset-0 rounded-full" style={{ boxShadow: '0 0 0 2px var(--sm-bg-card), 0 0 0 4px #2563EB' }} />
+                                    )}
                                   </button>
                                 ))}
                               </div>
+                            ) : (
+                              <div>
+                                <input ref={imageInputRef} type="file" accept="image/*" className="hidden"
+                                  onChange={e => { const file = e.target.files?.[0]; if (file) changeBannerImage(client.id, file); e.target.value = '' }} />
+                                <button onClick={e => { e.stopPropagation(); imageInputRef.current?.click() }}
+                                  className="w-full h-20 rounded-xl border border-dashed flex flex-col items-center justify-center gap-1 transition-colors hover:border-[#2563EB]"
+                                  style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}>
+                                  <Upload className="w-5 h-5" />
+                                  <span className="text-[11.5px] font-medium">Enviar imagem</span>
+                                  <span className="text-[10.5px]" style={{ color: 'var(--sm-text-4)' }}>JPG, PNG ou WEBP</span>
+                                </button>
+                                {gradientId.startsWith('url:') && (
+                                  <div className="mt-2 flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--sm-text-3)' }}>
+                                    <ImageIcon className="w-3 h-3" style={{ color: '#22C55E' }} /> Imagem ativa
+                                    <button onClick={e => { e.stopPropagation(); changeBanner(client.id, DEFAULT_GRADIENT_ID) }}
+                                      className="ml-auto font-semibold" style={{ color: '#EF4444' }}>Remover</button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
 
-                              {pickerTab === 'cores' ? (
-                                /* ── Grid de gradientes ── */
-                                <div className="grid grid-cols-6 gap-1.5">
-                                  {GRADIENTS.map(g => (
-                                    <button
-                                      key={g.id}
-                                      onClick={e => { e.stopPropagation(); changeBanner(client.id, g.id) }}
-                                      className="w-7 h-7 rounded-full transition-transform hover:scale-110 active:scale-95 relative flex-shrink-0"
-                                      style={{ background: `linear-gradient(135deg, ${g.preview[0]} 0%, ${g.preview[1]} 100%)` }}
-                                      title={g.id}
-                                    >
-                                      {gradientId === g.id && !gradientId.startsWith('url:') && (
-                                        <span className="absolute inset-0 rounded-full ring-2 ring-white ring-offset-[2px] ring-offset-[#2563EB]" />
-                                      )}
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : (
-                                /* ── Upload de imagem ── */
-                                <div>
-                                  <input
-                                    ref={imageInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={e => {
-                                      const file = e.target.files?.[0]
-                                      if (file) changeBannerImage(client.id, file)
-                                      e.target.value = ''
-                                    }}
-                                  />
-                                  <button
-                                    onClick={e => { e.stopPropagation(); imageInputRef.current?.click() }}
-                                    className="w-full h-20 rounded-xl border-2 border-dashed hover:border-[#2563EB] hover:bg-[#2563EB]/10 flex flex-col items-center justify-center gap-1.5 transition-colors group"
-                                    style={{ borderColor: 'var(--sm-border)' }}
-                                  >
-                                    <Upload className="w-5 h-5 text-[#94a3b8] group-hover:text-[#60A5FA] transition-colors" />
-                                    <span className="text-[11px] text-[#94a3b8] group-hover:text-[#60A5FA] transition-colors font-medium">
-                                      Clique para enviar
-                                    </span>
-                                    <span className="text-[10px] text-[#64748b]">JPG, PNG, WEBP</span>
-                                  </button>
-                                  {gradientId.startsWith('url:') && (
-                                    <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[#64748b]">
-                                      <ImageIcon className="w-3 h-3 text-emerald-500" />
-                                      <span>Imagem ativa</span>
-                                      <button
-                                        onClick={e => { e.stopPropagation(); changeBanner(client.id, DEFAULT_GRADIENT_ID) }}
-                                        className="ml-auto text-red-400 hover:text-red-600 font-medium"
-                                      >
-                                        Remover
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                      {/* Logo sobre a capa */}
+                      <div className="absolute -bottom-6 left-4 z-10">
+                        {client.logo_url ? (
+                          <img src={client.logo_url} alt="" className="w-12 h-12 rounded-xl object-cover"
+                            style={{ boxShadow: '0 0 0 3px var(--sm-bg-card)' }} />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-[15px] select-none"
+                            style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', boxShadow: '0 0 0 3px var(--sm-bg-card)' }}>
+                            {initials}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Corpo */}
+                    <div className="pt-8 px-4 pb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="font-display text-[17px] font-bold leading-tight truncate" style={{ color: 'var(--sm-text-1)' }}>
+                          {client.company_name}
+                        </h3>
+                        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium whitespace-nowrap mt-1" style={{ color: 'var(--sm-text-3)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_DOT[client.status] ?? '#94A3B8' }} />
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <p className="text-[12px] mt-1 truncate flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
+                        <span className="truncate">{client.niche}</span>
+                        {client.instagram && (
+                          <>
+                            <span style={{ color: 'var(--sm-text-4)' }}>·</span>
+                            <Instagram className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
+                            <span className="truncate">@{client.instagram.replace('@', '')}</span>
                           </>
                         )}
+                      </p>
 
-                        {/* ── Avatar ────────────────────────────────────────── */}
-                        <div className="absolute -bottom-7 left-5 z-10">
-                          {client.logo_url ? (
-                            <img
-                              src={client.logo_url}
-                              alt={client.company_name}
-                              className="w-16 h-16 rounded-2xl object-cover border-[3px] border-white shadow-lg"
-                            />
-                          ) : (
-                            <div
-                              className="w-16 h-16 rounded-2xl border-[3px] border-white shadow-lg flex items-center justify-center text-white font-bold text-lg select-none"
-                              style={{ background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(8px)' }}
-                            >
-                              {initials}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* ── Body ──────────────────────────────────────────────── */}
-                      <div className="pt-10 px-5 pb-5">
-
-                        {/* Nome + status */}
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
-                            <h3 className="text-[14px] font-semibold leading-snug truncate" style={{ color: 'var(--sm-text-1)' }}>
-                              {client.company_name}
-                            </h3>
+                      {/* Régua de aprovação: 4 números separados por linhas finas */}
+                      <div className="mt-4 grid grid-cols-4 border-t" style={{ borderColor: 'var(--sm-border)' }}>
+                        {metrics.map((m, idx) => (
+                          <div key={m.label} className={`pt-3 ${idx ? 'pl-3 border-l' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+                            <p className="font-display text-[20px] font-bold tabular-nums leading-none"
+                              style={{ color: m.value ? 'var(--sm-text-1)' : 'var(--sm-text-4)' }}>
+                              {m.value}
+                            </p>
+                            <p className="text-[10.5px] mt-1.5 flex items-center gap-1 truncate" style={{ color: 'var(--sm-text-4)' }}>
+                              {m.value > 0 && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: m.color }} />}
+                              {m.label}
+                            </p>
                           </div>
-                          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${isDark ? cfg.badge : cfg.badgeLight}`}>
-                            {cfg.label}
-                          </span>
-                        </div>
-
-                        {/* Handle */}
-                        {client.instagram && (
-                          <div className="flex items-center gap-1.5 ml-4 mb-2.5">
-                            <Instagram className="w-3 h-3 text-pink-500 flex-shrink-0" />
-                            <span className="text-[12px] truncate" style={{ color: 'var(--sm-text-3)' }}>
-                              @{client.instagram.replace('@', '')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Nicho */}
-                        <div className="ml-4 mb-4">
-                          <span className="inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full max-w-full truncate" style={{ color: 'var(--sm-text-2)', background: 'var(--sm-bg-alt)', border: '1px solid var(--sm-border)' }}>
-                            {client.niche}
-                          </span>
-                        </div>
-
-                        <div className="mb-3" style={{ borderTop: '1px solid var(--sm-border)' }} />
-
-                        {/* ── Métricas premium 2×2 ── */}
-                        {(() => {
-                          const mc = isDark ? {
-                            pending:  { bg: 'rgba(37,99,235,0.10)',  border: 'rgba(37,99,235,0.22)',  icon: '#60a5fa', label: '#93c5fd', count: '#dbeafe' },
-                            approved: { bg: 'rgba(34,197,94,0.10)',  border: 'rgba(34,197,94,0.22)',  icon: '#22c55e', label: '#86efac', count: '#dcfce7' },
-                            adjust:   { bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.22)', icon: '#a78bfa', label: '#c4b5fd', count: '#ede9fe' },
-                            rejected: { bg: 'rgba(239,68,68,0.10)',  border: 'rgba(239,68,68,0.22)',  icon: '#f87171', label: '#fca5a5', count: '#fee2e2' },
-                          } : {
-                            pending:  { bg: 'rgba(37,99,235,0.08)',  border: 'rgba(37,99,235,0.30)',  icon: '#2563eb', label: '#1d4ed8', count: '#1e3a8a' },
-                            approved: { bg: 'rgba(22,163,74,0.08)',  border: 'rgba(22,163,74,0.30)',  icon: '#16a34a', label: '#15803d', count: '#14532d' },
-                            adjust:   { bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.30)', icon: '#7c3aed', label: '#6d28d9', count: '#4c1d95' },
-                            rejected: { bg: 'rgba(220,38,38,0.08)',  border: 'rgba(220,38,38,0.30)',  icon: '#dc2626', label: '#b91c1c', count: '#7f1d1d' },
-                          }
-                          return (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style={{ background: mc.pending.bg, borderColor: mc.pending.border }}>
-                                <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: mc.pending.icon }} />
-                                <span className="text-[11px] font-medium leading-tight flex-1 truncate" style={{ color: mc.pending.label }}>Pendentes</span>
-                                <span className="text-[15px] font-semibold flex-shrink-0" style={{ color: mc.pending.count }}>{clientStats.pendentes}</span>
-                              </div>
-                              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style={{ background: mc.approved.bg, borderColor: mc.approved.border }}>
-                                <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: mc.approved.icon }} />
-                                <span className="text-[11px] font-medium leading-tight flex-1 truncate" style={{ color: mc.approved.label }}>Aprovados</span>
-                                <span className="text-[15px] font-semibold flex-shrink-0" style={{ color: mc.approved.count }}>{clientStats.aprovados}</span>
-                              </div>
-                              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style={{ background: mc.adjust.bg, borderColor: mc.adjust.border }}>
-                                <FileEdit className="w-3.5 h-3.5 flex-shrink-0" style={{ color: mc.adjust.icon }} />
-                                <span className="text-[11px] font-medium leading-tight flex-1 truncate" style={{ color: mc.adjust.label }}>Ajustes</span>
-                                <span className="text-[15px] font-semibold flex-shrink-0" style={{ color: mc.adjust.count }}>{clientStats.ajuste_solicitado}</span>
-                              </div>
-                              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style={{ background: mc.rejected.bg, borderColor: mc.rejected.border }}>
-                                <XCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: mc.rejected.icon }} />
-                                <span className="text-[11px] font-medium leading-tight flex-1 truncate" style={{ color: mc.rejected.label }}>Reprovados</span>
-                                <span className="text-[15px] font-semibold flex-shrink-0" style={{ color: mc.rejected.count }}>{clientStats.reprovado}</span>
-                              </div>
-                            </div>
-                          )
-                        })()}
+                        ))}
                       </div>
-                    </motion.div>
-                  )
-                })}
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   )
