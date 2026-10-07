@@ -22,11 +22,11 @@ import type { PlannerItem, PlannerAttachment, PlannerStatus, ContentType, Approv
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const statusPillStyle: Record<PlannerStatus, string> = {
-  ideia:     'bg-purple-50 text-purple-700 border-purple-200',
-  producao:  'bg-blue-50 text-blue-700 border-blue-200',
-  revisao:   'bg-yellow-50 text-yellow-700 border-yellow-200',
-  aprovado:  'bg-green-50 text-green-700 border-green-200',
-  publicado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  ideia:     'bg-transparent text-[color:var(--sm-text-1)] border-[color:var(--sm-border)]',
+  producao:  'bg-transparent text-[color:var(--sm-text-1)] border-[color:var(--sm-border)]',
+  revisao:   'bg-transparent text-[color:var(--sm-text-1)] border-[color:var(--sm-border)]',
+  aprovado:  'bg-transparent text-[color:var(--sm-text-1)] border-[color:var(--sm-border)]',
+  publicado: 'bg-transparent text-[color:var(--sm-text-1)] border-[color:var(--sm-border)]',
 }
 const statusDot: Record<PlannerStatus, string> = {
   ideia: 'bg-purple-500', producao: 'bg-blue-500', revisao: 'bg-yellow-400',
@@ -42,20 +42,21 @@ const approvalDot: Record<ApprovalStatus, string> = {
   ajuste_solicitado: 'bg-orange-400', ajuste_realizado: 'bg-blue-400', reprovado: 'bg-red-500',
 }
 const approvalTextColor: Record<ApprovalStatus, string> = {
-  pendente_aprovacao: 'text-yellow-600', aprovado: 'text-green-600',
-  ajuste_solicitado: 'text-orange-600', ajuste_realizado: 'text-blue-600', reprovado: 'text-red-600',
+  pendente_aprovacao: 'text-[color:var(--sm-text-1)]', aprovado: 'text-[color:var(--sm-text-1)]',
+  ajuste_solicitado: 'text-[color:var(--sm-text-1)]', ajuste_realizado: 'text-[color:var(--sm-text-1)]', reprovado: 'text-[color:var(--sm-text-1)]',
 }
 const approvalLabel: Record<ApprovalStatus, string> = {
   pendente_aprovacao: 'Aguardando aprovação', aprovado: 'Aprovado pelo cliente',
   ajuste_solicitado: 'Ajuste solicitado', ajuste_realizado: 'Ajuste realizado — aguardando revisão',
   reprovado: 'Reprovado pelo cliente',
 }
+// Fundo neutro; a cor do status fica só no ponto ao lado do texto.
 const approvalBg: Record<ApprovalStatus, string> = {
-  pendente_aprovacao: 'bg-yellow-50 border-yellow-200',
-  aprovado:           'bg-green-50 border-green-200',
-  ajuste_solicitado:  'bg-orange-50 border-orange-200',
-  ajuste_realizado:   'bg-blue-50 border-blue-200',
-  reprovado:          'bg-red-50 border-red-200',
+  pendente_aprovacao: 'bg-[color:var(--sm-bg-alt)] border-[color:var(--sm-border)]',
+  aprovado:           'bg-[color:var(--sm-bg-alt)] border-[color:var(--sm-border)]',
+  ajuste_solicitado:  'bg-[color:var(--sm-bg-alt)] border-[color:var(--sm-border)]',
+  ajuste_realizado:   'bg-[color:var(--sm-bg-alt)] border-[color:var(--sm-border)]',
+  reprovado:          'bg-[color:var(--sm-bg-alt)] border-[color:var(--sm-border)]',
 }
 
 const PLANNER_STATUSES: { value: PlannerStatus; label: string }[] = [
@@ -80,7 +81,7 @@ function FileTypeIcon({ type, size = 'sm' }: { type: string; size?: 'sm' | 'md' 
   if (type.startsWith('video/')) return <Video     className={`${cls} text-purple-500`} />
   if (type.startsWith('audio/')) return <Music     className={`${cls} text-green-500`} />
   if (type === 'application/pdf') return <FileText className={`${cls} text-red-500`} />
-  return <File className={`${cls} text-gray-400`} />
+  return <File className={`${cls} text-[color:var(--sm-text-4)]`} />
 }
 
 function computeOverallApproval(art: ApprovalStatus | null, copy: ApprovalStatus | null): ApprovalStatus {
@@ -126,7 +127,7 @@ const slideDotCls: Record<string, string> = {
   aprovado: 'bg-green-500', ajuste_solicitado: 'bg-orange-400', reprovado: 'bg-red-500',
 }
 const slideTextCls: Record<string, string> = {
-  aprovado: 'text-green-700', ajuste_solicitado: 'text-orange-700', reprovado: 'text-red-700',
+  aprovado: 'text-[color:var(--sm-text-1)]', ajuste_solicitado: 'text-[color:var(--sm-text-1)]', reprovado: 'text-[color:var(--sm-text-1)]',
 }
 const slideLabelStr: Record<string, string> = {
   aprovado: 'Aprovado', ajuste_solicitado: 'Ajuste solicitado', reprovado: 'Reprovado',
@@ -149,7 +150,7 @@ function ApprovalFieldBlock({
   return (
     <div className={`rounded-xl border p-3 ${approvalBg[status]}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+        <p className="text-[10px] font-bold text-[color:var(--sm-text-3)] uppercase tracking-wide">
           {label}{carouselSlides ? ` · Carrossel (${carouselSlides.length} slides)` : ''}
         </p>
         <div className="flex items-center gap-1.5">
@@ -165,23 +166,23 @@ function ApprovalFieldBlock({
         carouselSlides ? (
           <div className="mt-2 space-y-1.5">
             {carouselSlides.map(s => (
-              <div key={s.slide} className="bg-white/70 rounded-lg px-2.5 py-1.5 space-y-0.5 border border-white">
+              <div key={s.slide} className="bg-[color:var(--sm-bg-card)] rounded-lg px-2.5 py-1.5 space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${slideDotCls[s.status] ?? 'bg-gray-400'}`} />
-                  <span className="text-[10px] font-semibold text-gray-500">Slide {s.slide}</span>
-                  <span className={`text-[10px] font-semibold ml-auto ${slideTextCls[s.status] ?? 'text-gray-500'}`}>
+                  <span className="text-[10px] font-semibold text-[color:var(--sm-text-3)]">Slide {s.slide}</span>
+                  <span className={`text-[10px] font-semibold ml-auto ${slideTextCls[s.status] ?? 'text-[color:var(--sm-text-3)]'}`}>
                     {slideLabelStr[s.status] ?? s.status}
                   </span>
                 </div>
                 {s.feedback && (
-                  <p className="text-xs text-gray-700 leading-relaxed break-words pl-3">"{s.feedback}"</p>
+                  <p className="text-xs text-[color:var(--sm-text-2)] leading-relaxed break-words pl-3">"{s.feedback}"</p>
                 )}
               </div>
             ))}
           </div>
         ) : feedback ? (
-          <div className="mt-2 bg-white/70 rounded-lg px-2.5 py-2 border border-white">
-            <p className="text-xs text-gray-700 leading-relaxed break-words select-text">"{feedback}"</p>
+          <div className="mt-2 bg-[color:var(--sm-bg-card)] rounded-lg px-2.5 py-2">
+            <p className="text-xs text-[color:var(--sm-text-2)] leading-relaxed break-words select-text">"{feedback}"</p>
           </div>
         ) : null
       )}
@@ -191,7 +192,7 @@ function ApprovalFieldBlock({
         <button
           onClick={onMarkDone}
           disabled={isPending}
-          className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors disabled:opacity-50"
+          className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg text-[#2563EB] border border-[#2563EB]/40 hover:bg-[#2563EB]/10 transition-colors disabled:opacity-50"
         >
           {isPending
             ? <span className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -286,12 +287,12 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
   // Antes do igLoading: não faz sentido esperar a conta do Instagram carregar
   // para dizer que este item não vai ser agendado de jeito nenhum.
   if (isStoryContent(item.content_type)) return (
-    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-1.5">
+    <div className="p-3 bg-[color:var(--sm-bg-alt)] rounded-xl border border-[color:var(--sm-border)] space-y-1.5">
       <div className="flex items-center gap-2">
         <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-        <p className="text-xs font-semibold text-amber-800">Stories não são agendados</p>
+        <p className="text-xs font-semibold text-[color:var(--sm-text-1)]">Stories não são agendados</p>
       </div>
-      <p className="text-[11px] text-amber-700 leading-relaxed">
+      <p className="text-[11px] text-[color:var(--sm-text-3)] leading-relaxed">
         A plataforma não publica stories no Instagram. Mesmo aprovado pelo cliente, este
         item não entra no agendamento — publique o story direto pelo aplicativo.
       </p>
@@ -300,40 +301,40 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
 
   if (igLoading) return (
     <div className="flex items-center gap-2 py-2">
-      <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />
-      <span className="text-xs text-gray-500">Verificando conta Instagram...</span>
+      <Loader2 className="w-3.5 h-3.5 animate-spin text-[color:var(--sm-text-4)]" />
+      <span className="text-xs text-[color:var(--sm-text-3)]">Verificando conta Instagram...</span>
     </div>
   )
 
   if (!item.client_id) return (
-    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-      <AlertCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-      <p className="text-xs text-gray-500">Este post não está vinculado a um cliente.</p>
+    <div className="flex items-center gap-2 p-3 bg-[color:var(--sm-bg-alt)] rounded-xl border border-[color:var(--sm-border)]">
+      <AlertCircle className="w-3.5 h-3.5 text-[color:var(--sm-text-4)] flex-shrink-0" />
+      <p className="text-xs text-[color:var(--sm-text-3)]">Este post não está vinculado a um cliente.</p>
     </div>
   )
 
   if (!igAccount) return (
-    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+    <div className="p-3 bg-[color:var(--sm-bg-alt)] rounded-xl border border-[color:var(--sm-border)] space-y-2">
       <div className="flex items-center gap-2">
         <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}>
           <Instagram className="w-3.5 h-3.5 text-white" />
         </div>
-        <p className="text-xs text-gray-700 font-medium">Instagram não conectado</p>
+        <p className="text-xs text-[color:var(--sm-text-2)] font-medium">Instagram não conectado</p>
       </div>
-      <p className="text-[11px] text-gray-500">
-        Acesse o perfil do cliente → aba <strong className="text-gray-600">Instagram</strong> para conectar a conta.
+      <p className="text-[11px] text-[color:var(--sm-text-3)]">
+        Acesse o perfil do cliente → aba <strong className="text-[color:var(--sm-text-3)]">Instagram</strong> para conectar a conta.
       </p>
     </div>
   )
 
   if (success) return (
-    <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+    <div className="flex items-center gap-3 p-3 bg-[color:var(--sm-bg-alt)] rounded-xl border border-[color:var(--sm-border)]">
       <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
       <div>
-        <p className="text-xs font-medium text-emerald-700">Post agendado!</p>
-        <p className="text-[11px] text-gray-500 mt-0.5">
-          Veja o status em <strong className="text-gray-600">Instagram → Agendados</strong>.
+        <p className="text-xs font-medium text-[color:var(--sm-text-1)]">Post agendado!</p>
+        <p className="text-[11px] text-[color:var(--sm-text-3)] mt-0.5">
+          Veja o status em <strong className="text-[color:var(--sm-text-3)]">Instagram → Agendados</strong>.
         </p>
       </div>
     </div>
@@ -344,7 +345,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
   const hasMedia   = imageCount > 0 || videoCount > 0
 
   return (
-    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+    <div className="p-3 bg-[color:var(--sm-bg-alt)] rounded-xl border border-[color:var(--sm-border)] space-y-3">
       {/* Conta conectada */}
       <div className="flex items-center gap-2">
         {igAccount.profile_picture_url ? (
@@ -355,9 +356,9 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
             <Instagram className="w-3.5 h-3.5 text-white" />
           </div>
         )}
-        <span className="text-xs text-gray-700 font-medium">@{igAccount.username}</span>
-        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-          Conectado
+        <span className="text-xs text-[color:var(--sm-text-2)] font-medium">@{igAccount.username}</span>
+        <span className="ml-auto text-[10px] px-1.5 py-0.5 inline-flex items-center gap-1 border border-[color:var(--sm-border)] text-[color:var(--sm-text-2)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Conectado
         </span>
       </div>
 
@@ -370,7 +371,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
 
       {/* Tipo do post */}
       <div>
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Tipo de post</p>
+        <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Tipo de post</p>
         <div className="flex gap-1.5 flex-wrap">
           {POST_TYPE_OPTS.filter(o => o.value === 'REELS' ? videoCount > 0 : imageCount > 0).map(opt => (
             <button
@@ -378,8 +379,8 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
               onClick={() => setPostType(opt.value)}
               className={`text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-all ${
                 postType === opt.value
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  ? 'bg-[#2563EB] text-white border-[#2563EB]'
+                  : 'bg-[color:var(--sm-bg-card)] text-[color:var(--sm-text-3)] border-[color:var(--sm-border)] hover:border-[#2563EB]/50'
               }`}
             >
               {opt.label}
@@ -393,34 +394,34 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
 
       {/* Legenda */}
       <div>
-        <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Legenda</p>
+        <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Legenda</p>
         <textarea
           value={caption}
           onChange={e => setCaption(e.target.value)}
           rows={3}
           placeholder="Legenda do post..."
-          className="w-full text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 placeholder-gray-400 resize-none focus:outline-none focus:border-indigo-400 transition-colors"
+          className="w-full text-xs bg-[color:var(--sm-bg-card)] border border-[color:var(--sm-border)] rounded-lg px-3 py-2 text-[color:var(--sm-text-1)] placeholder-[color:var(--sm-text-4)] resize-none focus:outline-none focus:border-[#2563EB] transition-colors"
         />
       </div>
 
       {/* Data e hora */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Data</p>
+          <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Data</p>
           <input
             type="date"
             value={scheduledAt || defaultDate}
             onChange={e => setScheduledAt(e.target.value)}
-            className="w-full text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-indigo-400 transition-colors"
+            className="w-full text-xs bg-[color:var(--sm-bg-card)] border border-[color:var(--sm-border)] rounded-lg px-3 py-2 text-[color:var(--sm-text-1)] focus:outline-none focus:border-[#2563EB] transition-colors"
           />
         </div>
         <div>
-          <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Horário</p>
+          <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Horário</p>
           <input
             type="time"
             value={scheduledTime}
             onChange={e => setScheduledTime(e.target.value)}
-            className="w-full text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-indigo-400 transition-colors"
+            className="w-full text-xs bg-[color:var(--sm-bg-card)] border border-[color:var(--sm-border)] rounded-lg px-3 py-2 text-[color:var(--sm-text-1)] focus:outline-none focus:border-[#2563EB] transition-colors"
           />
         </div>
       </div>
@@ -429,7 +430,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
         size="sm"
         onClick={handleSchedule}
         disabled={publishing || !hasMedia}
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
+        className="w-full h-9 text-white border-0 hover:opacity-90" style={{ background: '#2563EB' }}
       >
         {publishing
           ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Agendando...</>
@@ -554,14 +555,14 @@ export function PlannerItemViewModal({
                         disabled={imgIdx === 0}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow hover:bg-white transition-colors disabled:opacity-25"
                       >
-                        <ChevronLeft className="w-4 h-4 text-gray-700" />
+                        <ChevronLeft className="w-4 h-4 text-[color:var(--sm-text-2)]" />
                       </button>
                       <button
                         onClick={() => setImgIdx(i => Math.min(allMedia.length - 1, i + 1))}
                         disabled={imgIdx === allMedia.length - 1}
                         className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow hover:bg-white transition-colors disabled:opacity-25"
                       >
-                        <ChevronRight className="w-4 h-4 text-gray-700" />
+                        <ChevronRight className="w-4 h-4 text-[color:var(--sm-text-2)]" />
                       </button>
                     </>
                   )}
@@ -573,7 +574,7 @@ export function PlannerItemViewModal({
                     rel="noopener noreferrer"
                     className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow hover:bg-white transition-colors"
                   >
-                    <ExternalLink className="w-3.5 h-3.5 text-gray-600" />
+                    <ExternalLink className="w-3.5 h-3.5 text-[color:var(--sm-text-3)]" />
                   </a>
 
                   {/* Miniaturas do carrossel — sobrepostas na base da imagem, com leve transparência */}
@@ -591,7 +592,7 @@ export function PlannerItemViewModal({
                             <img src={m.file_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-[#182233] flex items-center justify-center">
-                              <Video className="w-4 h-4 text-gray-400" />
+                              <Video className="w-4 h-4 text-[color:var(--sm-text-4)]" />
                             </div>
                           )}
                         </button>
@@ -601,25 +602,25 @@ export function PlannerItemViewModal({
                 </>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#111827]">
-                  <ImageIcon className="w-10 h-10 text-gray-600" />
-                  <p className="text-sm text-gray-500">Sem mídia</p>
+                  <ImageIcon className="w-10 h-10 text-[color:var(--sm-text-3)]" />
+                  <p className="text-sm text-[color:var(--sm-text-3)]">Sem mídia</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* ── Coluna Direita: Detalhes ──────────────────────────────────── */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[color:var(--sm-bg-card)]">
 
             {/* Cabeçalho fixo */}
-            <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
+            <div className="px-5 pt-4 pb-3 border-b border-[color:var(--sm-border)] flex-shrink-0">
               {/* Linha superior: cliente + ações */}
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
                   {item.client && (
                     <>
-                      <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span className="text-xs text-gray-400 truncate">{item.client.company_name}</span>
+                      <Building2 className="w-3.5 h-3.5 text-[color:var(--sm-text-4)] flex-shrink-0" />
+                      <span className="text-xs text-[color:var(--sm-text-4)] truncate">{item.client.company_name}</span>
                     </>
                   )}
                 </div>
@@ -628,14 +629,14 @@ export function PlannerItemViewModal({
                     <button
                       onClick={() => setEditingStatus(true)}
                       title="Editar status"
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-black/5 text-[color:var(--sm-text-4)] hover:text-[color:var(--sm-text-3)] transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                   )}
                   <button
                     onClick={handleClose}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-black/5 text-[color:var(--sm-text-4)] hover:text-[color:var(--sm-text-3)] transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -643,23 +644,23 @@ export function PlannerItemViewModal({
               </div>
 
               {/* Título */}
-              <h2 className="text-[15px] font-semibold text-gray-900 leading-snug break-words select-text mb-2">
+              <h2 className="font-display text-[19px] font-bold text-[color:var(--sm-text-1)] leading-snug tracking-[-0.01em] break-words select-text mb-2">
                 {item.title}
               </h2>
 
               {/* Meta: data · tipo · status · aprovação */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-[color:var(--sm-text-3)]">
                   {format(parseISO(item.scheduled_date), "dd 'de' MMM", { locale: ptBR })}
                   {item.scheduled_time && (
                     <> · {item.scheduled_time.slice(0, 5)}</>
                   )}
                 </span>
-                <span className="text-gray-200">·</span>
-                <span className="text-xs text-gray-400">
+                <span className="text-[color:var(--sm-text-4)]">·</span>
+                <span className="text-xs text-[color:var(--sm-text-4)]">
                   {contentTypeLabels[item.content_type as ContentType]}
                 </span>
-                <span className="text-gray-200">·</span>
+                <span className="text-[color:var(--sm-text-4)]">·</span>
 
                 {/* Status pill / edit inline */}
                 {editingStatus ? (
@@ -684,13 +685,14 @@ export function PlannerItemViewModal({
                     </Button>
                     <button
                       onClick={() => { setEditingStatus(false); setNewStatus(item.status as PlannerStatus) }}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      className="text-xs text-[color:var(--sm-text-4)] hover:text-[color:var(--sm-text-3)] transition-colors"
                     >
                       Cancelar
                     </button>
                   </div>
                 ) : (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusPillStyle[item.status as PlannerStatus]}`}>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${statusPillStyle[item.status as PlannerStatus]}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusDot[item.status as PlannerStatus]}`} />
                     {statusLabels[item.status as PlannerStatus]}
                   </span>
                 )}
@@ -698,7 +700,7 @@ export function PlannerItemViewModal({
                 {/* Approval status inline */}
                 {currentApproval && (
                   <>
-                    <span className="text-gray-200">·</span>
+                    <span className="text-[color:var(--sm-text-4)]">·</span>
                     <div className="flex items-center gap-1">
                       <div className={`w-1.5 h-1.5 rounded-full ${approvalDot[currentApproval]}`} />
                       <span className={`text-xs font-medium ${approvalTextColor[currentApproval]}`}>
@@ -716,8 +718,8 @@ export function PlannerItemViewModal({
               {/* Legenda */}
               {item.notes && (
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Legenda</p>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words select-text">
+                  <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Legenda</p>
+                  <p className="text-sm text-[color:var(--sm-text-2)] leading-relaxed whitespace-pre-wrap break-words select-text">
                     {item.notes}
                   </p>
                 </div>
@@ -726,12 +728,12 @@ export function PlannerItemViewModal({
               {/* Mídia (mobile: painel esquerdo oculto) */}
               {allMedia.length > 0 && (
                 <div className="sm:hidden">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Prévia do post</p>
+                  <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-2">Prévia do post</p>
 
                   {/* Visualizador principal */}
-                  <div className="relative rounded-2xl overflow-hidden bg-[#f0f0f0] border border-gray-200">
+                  <div className="relative rounded-2xl overflow-hidden bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)]">
                     {/* Mídia atual */}
-                    <div className="relative w-full aspect-[4/5] flex items-center justify-center bg-[#e8e8e8]">
+                    <div className="relative w-full aspect-[4/5] flex items-center justify-center bg-[color:var(--sm-bg-alt)]">
                       {allMedia[imgIdx].file_type.startsWith('image/') ? (
                         <img
                           src={allMedia[imgIdx].file_url}
@@ -756,14 +758,14 @@ export function PlannerItemViewModal({
                             disabled={imgIdx === 0}
                             className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow-md disabled:opacity-25 active:scale-95 transition-all"
                           >
-                            <ChevronLeft className="w-5 h-5 text-gray-700" />
+                            <ChevronLeft className="w-5 h-5 text-[color:var(--sm-text-2)]" />
                           </button>
                           <button
                             onClick={() => setImgIdx(i => Math.min(allMedia.length - 1, i + 1))}
                             disabled={imgIdx === allMedia.length - 1}
                             className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow-md disabled:opacity-25 active:scale-95 transition-all"
                           >
-                            <ChevronRight className="w-5 h-5 text-gray-700" />
+                            <ChevronRight className="w-5 h-5 text-[color:var(--sm-text-2)]" />
                           </button>
                         </>
                       )}
@@ -777,7 +779,7 @@ export function PlannerItemViewModal({
                               onClick={() => setImgIdx(i)}
                               className={`rounded-full transition-all ${
                                 i === imgIdx
-                                  ? 'w-4 h-1.5 bg-white'
+                                  ? 'w-4 h-1.5 bg-[color:var(--sm-bg-card)]'
                                   : 'w-1.5 h-1.5 bg-white/50'
                               }`}
                             />
@@ -792,28 +794,28 @@ export function PlannerItemViewModal({
                         rel="noopener noreferrer"
                         className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 text-gray-600" />
+                        <ExternalLink className="w-3.5 h-3.5 text-[color:var(--sm-text-3)]" />
                       </a>
                     </div>
 
                     {/* Tira de thumbnails quando carrossel */}
                     {allMedia.length > 1 && (
-                      <div className="flex gap-1.5 p-2.5 bg-gray-200/80 overflow-x-auto">
+                      <div className="flex gap-1.5 p-2.5 bg-[color:var(--sm-bg-alt)] overflow-x-auto">
                         {allMedia.map((m, i) => (
                           <button
                             key={m.id}
                             onClick={() => setImgIdx(i)}
                             className={`w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${
                               i === imgIdx
-                                ? 'border-indigo-500 shadow-md'
+                                ? 'border-[#2563EB] shadow-md'
                                 : 'border-transparent opacity-60'
                             }`}
                           >
                             {m.file_type.startsWith('image/') ? (
                               <img src={m.file_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                                <Video className="w-4 h-4 text-gray-500" />
+                              <div className="w-full h-full bg-[color:var(--sm-bg-alt)] flex items-center justify-center">
+                                <Video className="w-4 h-4 text-[color:var(--sm-text-3)]" />
                               </div>
                             )}
                           </button>
@@ -827,17 +829,17 @@ export function PlannerItemViewModal({
               {/* Outros anexos */}
               {otherAttachments.length > 0 && (
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Anexos</p>
+                  <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-2">Anexos</p>
                   <div className="space-y-1.5">
                     {otherAttachments.map((att: PlannerAttachment) => (
                       <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-100 transition-colors min-w-0 overflow-hidden">
+                        className="flex items-center gap-2.5 p-2.5 bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)] rounded-xl hover:border-[#2563EB]/50 hover:bg-black/5 transition-colors min-w-0 overflow-hidden">
                         <FileTypeIcon type={att.file_type} size="md" />
-                        <span className="text-xs text-gray-700 truncate flex-1">{att.file_name}</span>
+                        <span className="text-xs text-[color:var(--sm-text-2)] truncate flex-1">{att.file_name}</span>
                         {att.file_size && (
-                          <span className="text-[10px] text-gray-400 flex-shrink-0">{formatFileSize(att.file_size)}</span>
+                          <span className="text-[10px] text-[color:var(--sm-text-4)] flex-shrink-0">{formatFileSize(att.file_size)}</span>
                         )}
-                        <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        <ExternalLink className="w-3 h-3 text-[color:var(--sm-text-4)] flex-shrink-0" />
                       </a>
                     ))}
                   </div>
@@ -847,14 +849,14 @@ export function PlannerItemViewModal({
               {/* Links */}
               {item.links && item.links.length > 0 && (
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Links</p>
+                  <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-2">Links</p>
                   <div className="space-y-1.5">
                     {item.links.map(link => (
                       <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-100 transition-colors min-w-0 overflow-hidden">
-                        <Link2 className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-                        <span className="text-xs text-indigo-600 flex-1 min-w-0 break-all">{link.label || link.url}</span>
-                        <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                        className="flex items-center gap-2.5 p-2.5 bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)] rounded-xl hover:border-[#2563EB]/50 hover:bg-black/5 transition-colors min-w-0 overflow-hidden">
+                        <Link2 className="w-3.5 h-3.5 text-[#2563EB] flex-shrink-0" />
+                        <span className="text-xs text-[#2563EB] flex-1 min-w-0 break-all">{link.label || link.url}</span>
+                        <ExternalLink className="w-3 h-3 text-[color:var(--sm-text-4)] flex-shrink-0" />
                       </a>
                     ))}
                   </div>
@@ -864,7 +866,7 @@ export function PlannerItemViewModal({
               {/* ── Resposta do cliente ─────────────────────────────────── */}
               {item.approval_status && (
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Resposta do Cliente</p>
+                  <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-2">Resposta do Cliente</p>
 
                   {/* Status geral + timestamp */}
                   <div className="flex items-center gap-2 mb-2">
@@ -873,7 +875,7 @@ export function PlannerItemViewModal({
                       {approvalLabel[currentApproval ?? 'pendente_aprovacao']}
                     </span>
                     {item.reviewed_at && (
-                      <span className="text-[10px] text-gray-400 ml-auto">
+                      <span className="text-[10px] text-[color:var(--sm-text-4)] ml-auto">
                         {format(parseISO(item.reviewed_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                       </span>
                     )}
@@ -930,8 +932,8 @@ export function PlannerItemViewModal({
 
                     {/* Fallback: feedback geral (posts legados sem Arte/Copy parcial) */}
                     {!item.art_approval_status && !item.copy_approval_status && item.client_feedback && (
-                      <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-200">
-                        <p className="text-xs text-gray-700 leading-relaxed break-words select-text">
+                      <div className="bg-[color:var(--sm-bg-alt)] rounded-xl px-3 py-2 border border-[color:var(--sm-border)]">
+                        <p className="text-xs text-[color:var(--sm-text-2)] leading-relaxed break-words select-text">
                           "{item.client_feedback}"
                         </p>
                       </div>
@@ -943,7 +945,7 @@ export function PlannerItemViewModal({
                       <button
                         onClick={handleMarkAdjustmentDone}
                         disabled={updateItem.isPending}
-                        className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg text-[#2563EB] border border-[#2563EB]/40 hover:bg-[#2563EB]/10 transition-colors disabled:opacity-50"
                       >
                         {updateItem.isPending
                           ? <span className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -958,7 +960,7 @@ export function PlannerItemViewModal({
               {/* ── Agendar no Instagram ────────────────────────────────── */}
               {showAgencyActions && item.status !== 'publicado' && (
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                     <Instagram className="w-3 h-3" /> Agendar no Instagram
                   </p>
                   <InstagramScheduleSection item={item} />
@@ -972,13 +974,13 @@ export function PlannerItemViewModal({
 
               {/* ── Excluir ────────────────────────────────────────────── */}
               {showAgencyActions && (
-                <div className="pt-3 border-t border-gray-100">
+                <div className="pt-3 border-t border-[color:var(--sm-border)]">
                   {confirmDelete ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 mr-1">Confirmar exclusão?</span>
+                      <span className="text-xs text-[color:var(--sm-text-3)] mr-1">Confirmar exclusão?</span>
                       <button
                         onClick={() => setConfirmDelete(false)}
-                        className="text-xs text-gray-500 hover:text-gray-700 px-2.5 py-1 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                        className="text-xs text-[color:var(--sm-text-3)] hover:text-[color:var(--sm-text-2)] px-2.5 py-1 rounded-lg border border-[color:var(--sm-border)] hover:bg-black/5 transition-colors"
                       >
                         Não
                       </button>
@@ -993,7 +995,7 @@ export function PlannerItemViewModal({
                   ) : (
                     <button
                       onClick={() => setConfirmDelete(true)}
-                      className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-[color:var(--sm-text-4)] hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Excluir item
                     </button>

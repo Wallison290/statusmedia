@@ -136,6 +136,31 @@ const approvalTextColorLight: Record<ApprovalStatus, string> = {
   ajuste_realizado:   'text-blue-700',
   reprovado:          'text-red-700',
 }
+const approvalHex: Record<ApprovalStatus, string> = {
+  pendente_aprovacao: '#F59E0B',
+  aprovado:           '#22C55E',
+  ajuste_solicitado:  '#F97316',
+  ajuste_realizado:   '#2563EB',
+  reprovado:          '#EF4444',
+}
+const statusHex: Record<PlannerStatus, string> = {
+  ideia: '#8B5CF6', producao: '#3B82F6', revisao: '#EAB308', aprovado: '#22C55E', publicado: '#10B981',
+}
+
+// Aviso neutro com barra colorida à esquerda (substitui caixas de fundo colorido)
+function Aviso({ color, title, children }: { color: string; title: string; children?: React.ReactNode }) {
+  return (
+    <div className="relative rounded-xl border p-3 pl-4 overflow-hidden space-y-1"
+      style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
+      <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r" style={{ background: color }} />
+      <p className="text-[12.5px] font-semibold flex items-center gap-1.5" style={{ color: 'var(--sm-text-1)' }}>
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />{title}
+      </p>
+      {children && <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>{children}</p>}
+    </div>
+  )
+}
+
 const approvalLabel: Record<ApprovalStatus, string> = {
   pendente_aprovacao: 'Aguardando aprovação',
   aprovado: 'Aprovado pelo cliente',
@@ -311,14 +336,14 @@ function ContentPickerDialog({
           placeholder="Buscar por título..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full h-8 px-3 rounded-md border border-white/[0.08] bg-white/[0.03] text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20 mb-3"
+          className="w-full h-8 px-3 rounded-md border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] text-[13px] text-[color:var(--sm-text-1)] placeholder:text-[color:var(--sm-text-4)] focus:outline-none focus:ring-1 focus:ring-[#2563EB]/30 mb-3"
         />
 
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
             <div className="text-center py-8">
-              <ImageIcon className="w-6 h-6 text-zinc-700 mx-auto mb-1.5" />
-              <p className="text-[12px] text-zinc-600">
+              <ImageIcon className="w-6 h-6 text-[color:var(--sm-text-4)] mx-auto mb-1.5" />
+              <p className="text-[12px] text-[color:var(--sm-text-4)]">
                 {(assets || []).length === 0
                   ? 'Nenhum conteúdo no arsenal deste cliente.'
                   : 'Nenhum resultado para a busca.'}
@@ -333,9 +358,9 @@ function ContentPickerDialog({
                     key={asset.id}
                     type="button"
                     onClick={() => { onSelect(asset); onClose() }}
-                    className="group text-left rounded-lg border border-white/[0.06] overflow-hidden bg-[#111113] hover:border-white/[0.15] transition-colors"
+                    className="group text-left rounded-lg border border-[color:var(--sm-border)] overflow-hidden bg-[color:var(--sm-bg-card)] hover:border-[#2563EB]/50 transition-colors"
                   >
-                    <div className="aspect-square overflow-hidden bg-white/[0.03]">
+                    <div className="aspect-square overflow-hidden bg-[color:var(--sm-bg-alt)]">
                       {isImg ? (
                         <img
                           src={asset.media_url!}
@@ -344,13 +369,13 @@ function ContentPickerDialog({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6 text-zinc-700" />
+                          <ImageIcon className="w-6 h-6 text-[color:var(--sm-text-4)]" />
                         </div>
                       )}
                     </div>
                     <div className="p-2">
-                      <p className="text-[11px] text-zinc-200 truncate">{asset.title}</p>
-                      <p className="text-[10px] text-zinc-600">{contentTypeLabels[asset.content_type as ContentType]}</p>
+                      <p className="text-[11px] text-[color:var(--sm-text-1)] truncate">{asset.title}</p>
+                      <p className="text-[10px] text-[color:var(--sm-text-4)]">{contentTypeLabels[asset.content_type as ContentType]}</p>
                     </div>
                   </button>
                 )
@@ -503,18 +528,10 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
   // Aprovado + agendado automaticamente
   if (item.ig_scheduled && item.approval_status === 'aprovado') {
     return (
-      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-            <Check className="w-3 h-3 text-white" />
-          </div>
-          <p className="text-xs font-semibold text-emerald-800">Aprovado e agendado</p>
-        </div>
-        <p className="text-[11px] text-emerald-700 leading-relaxed">
+      <Aviso color="#22C55E" title="Aprovado e agendado">
           Este {ptLabel} está agendado no Instagram e marcado como aprovado — o cliente
           não vê mais como pendente de aprovação. Acompanhe a publicação na aba <strong>Instagram</strong>.
-        </p>
-      </div>
+        </Aviso>
     )
   }
 
@@ -540,54 +557,30 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
   // Ajuste solicitado — cliente pediu correções
   if (item.approval_status === 'ajuste_solicitado') {
     return (
-      <div className="p-3 bg-orange-50 rounded-xl border border-orange-200 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-orange-400 flex items-center justify-center flex-shrink-0">
-            <Pencil className="w-3 h-3 text-white" />
-          </div>
-          <p className="text-xs font-semibold text-orange-800">Ajustes pendentes</p>
-        </div>
-        <p className="text-[11px] text-orange-700 leading-relaxed">
+      <Aviso color="#F97316" title="Ajustes pendentes">
           Realize os ajustes solicitados pelo cliente e reenvie para aprovação.
           O agendamento será liberado automaticamente após a aprovação completa.
-        </p>
-      </div>
+        </Aviso>
     )
   }
 
   // Ajuste realizado — agência corrigiu, aguardando nova aprovação
   if (item.approval_status === 'ajuste_realizado') {
     return (
-      <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-            <Check className="w-3 h-3 text-white" />
-          </div>
-          <p className="text-xs font-semibold text-blue-800">Aguardando nova aprovação do cliente</p>
-        </div>
-        <p className="text-[11px] text-blue-700 leading-relaxed">
+      <Aviso color="#2563EB" title="Aguardando nova aprovação do cliente">
           Os ajustes foram realizados e o {ptLabel} foi reenviado ao cliente.
           Quando ele aprovar, o agendamento no Instagram acontecerá automaticamente.
-        </p>
-      </div>
+        </Aviso>
     )
   }
 
   // Reprovado — cliente rejeitou
   if (item.approval_status === 'reprovado') {
     return (
-      <div className="p-3 bg-red-50 rounded-xl border border-red-200 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
-            <X className="w-3 h-3 text-white" />
-          </div>
-          <p className="text-xs font-semibold text-red-800">Conteúdo reprovado</p>
-        </div>
-        <p className="text-[11px] text-red-700 leading-relaxed">
+      <Aviso color="#EF4444" title="Conteúdo reprovado">
           Revise os ajustes indicados pelo cliente e reenvie para aprovação.
           O agendamento será liberado automaticamente após a aprovação completa.
-        </p>
-      </div>
+        </Aviso>
     )
   }
 
@@ -664,27 +657,15 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
   )
 
   if (!postType) return (
-    <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-amber-500/10 border-amber-500/25' : 'bg-amber-50 border-amber-300'}`}>
-      <p className={`text-xs font-medium ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>Tipo de post não configurado</p>
-      <p className={`text-[11px] ${isDark ? 'text-amber-200/80' : 'text-amber-700'}`}>Edite o post e selecione o tipo (Imagem, Carrossel ou Reel) para poder agendar.</p>
-    </div>
+    <Aviso color="#F59E0B" title="Tipo de post não configurado">Edite o post e selecione o tipo (Imagem, Carrossel ou Reel) para poder agendar.</Aviso>
   )
 
   if (igMedia.length === 0) return (
-    <div className={`p-3 rounded-xl border space-y-1 ${isDark ? 'bg-amber-500/10 border-amber-500/25' : 'bg-amber-50 border-amber-300'}`}>
-      <p className={`text-xs font-medium ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>Sem mídia configurada</p>
-      <p className={`text-[11px] ${isDark ? 'text-amber-200/80' : 'text-amber-700'}`}>Edite o post e adicione as mídias na seção "Publicação no Instagram".</p>
-    </div>
+    <Aviso color="#F59E0B" title="Sem mídia configurada">Edite o post e adicione as mídias na seção "Publicação no Instagram".</Aviso>
   )
 
   if (success) return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl border ${isDark ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-emerald-50 border-emerald-300'}`}>
-      <Check className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
-      <div>
-        <p className={`text-xs font-medium ${isDark ? 'text-emerald-300' : 'text-emerald-800'}`}>Post agendado!</p>
-        <p className="text-[11px] text-[var(--sm-text-3)] mt-0.5">Veja em <strong>Instagram → Agendados</strong>.</p>
-      </div>
-    </div>
+    <Aviso color="#22C55E" title="Post agendado!">Veja em <strong>Instagram → Agendados</strong>.</Aviso>
   )
 
   const typeLabel = postType === 'IMAGE' ? 'Imagem' : postType === 'CAROUSEL_ALBUM' ? `Carrossel (${igMedia.length})` : 'Reel'
@@ -699,7 +680,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
           : <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)' }}><Instagram className="w-3.5 h-3.5 text-white" /></div>
         }
         <span className="text-xs text-[var(--sm-text-2)] font-medium">@{igAccount.username}</span>
-        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: '#059669', color: '#ffffff' }}>Conectado</span>
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--sm-text-2)' }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#22C55E' }} />Conectado</span>
       </div>
 
       {/* Tipo + prévia das mídias */}
@@ -728,14 +709,14 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
       {/* Data/hora */}
       <div className="grid grid-cols-2 gap-2">
         <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)}
-          className="text-xs bg-[var(--sm-bg-card)] border border-[var(--sm-border)] rounded-lg px-3 py-2 text-[var(--sm-text-1)] focus:outline-none focus:border-[#2563EB] transition-colors [color-scheme:dark]" />
+          className="text-xs bg-[var(--sm-bg-card)] border border-[var(--sm-border)] rounded-lg px-3 py-2 text-[var(--sm-text-1)] focus:outline-none focus:border-[#2563EB] transition-colors [color-scheme:light_dark]" />
         <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)}
-          className="text-xs bg-[var(--sm-bg-card)] border border-[var(--sm-border)] rounded-lg px-3 py-2 text-[var(--sm-text-1)] focus:outline-none focus:border-[#2563EB] transition-colors [color-scheme:dark]" />
+          className="text-xs bg-[var(--sm-bg-card)] border border-[var(--sm-border)] rounded-lg px-3 py-2 text-[var(--sm-text-1)] focus:outline-none focus:border-[#2563EB] transition-colors [color-scheme:light_dark]" />
       </div>
 
       <Button size="sm" onClick={handleSchedule} disabled={publishing}
         title="Schedule on Instagram — queues this approved content to be published to the client's connected Instagram account at the date and time above"
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0">
+        className="w-full h-9 text-white border-0 hover:opacity-90" style={{ background: '#2563EB' }}>
         {publishing
           ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Agendando...</>
           : <><Instagram className="w-3.5 h-3.5" /> Agendar no Instagram</>}
@@ -908,18 +889,18 @@ function PlannerItemView({
           )}
 
           {/* ══ DIREITA: Informações — scroll independente ══ */}
-          <div className={`flex flex-col lg:overflow-hidden bg-[#0d0f14] ${hasMedia ? 'lg:flex-1 lg:min-w-[380px] lg:max-w-[560px] lg:h-full lg:border-l border-white/10' : 'w-full lg:flex-1'}`}>
+          <div style={{ background: 'var(--sm-bg-card)' }} className={`flex flex-col lg:overflow-hidden ${hasMedia ? 'lg:flex-1 lg:min-w-[380px] lg:max-w-[560px] lg:h-full lg:border-l border-[color:var(--sm-border)]' : 'w-full lg:flex-1'}`}>
             {/* Header fixo — não rola */}
-            <div className="flex-shrink-0 px-5 pt-4 pb-3 border-b border-white/10">
+            <div className="flex-shrink-0 px-5 pt-4 pb-3 border-b border-[color:var(--sm-border)]">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   {item.client && (
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Building2 className="w-3 h-3 text-[var(--sm-text-4)] flex-shrink-0" />
-                      <span className="text-[11px] text-[var(--sm-text-3)] font-medium">{item.client.company_name}</span>
+                      <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--sm-text-4)]">{item.client.company_name}</span>
                     </div>
                   )}
-                  <h2 className="text-[15px] font-semibold text-[var(--sm-text-1)] leading-snug break-words">{item.title}</h2>
+                  <h2 className="font-display text-[19px] font-bold text-[var(--sm-text-1)] leading-snug tracking-[-0.01em] break-words">{item.title}</h2>
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     <span className="text-[11px] text-[var(--sm-text-3)]">
                       {format(parseISO(item.scheduled_date), "dd 'de' MMM", { locale: ptBR })}
@@ -930,6 +911,7 @@ function PlannerItemView({
                     <span className="text-[var(--sm-text-2)]">·</span>
                     {/* Status — seletor inline: muda o status do conteúdo direto por aqui */}
                     <div className="relative inline-flex items-center">
+                      <span className="absolute left-2 w-1.5 h-1.5 rounded-full pointer-events-none" style={{ background: statusHex[item.status as PlannerStatus] }} />
                       <select
                         value={item.status}
                         disabled={updateItem.isPending}
@@ -943,10 +925,10 @@ function PlannerItemView({
                             toast(err.message, 'error')
                           }
                         }}
-                        className={`appearance-none cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 rounded-md pl-2 pr-6 py-0.5 text-[11px] font-semibold outline-none transition-colors disabled:opacity-50 ${statusTextColors[item.status as PlannerStatus]}`}
+                        className="appearance-none cursor-pointer hover:bg-black/5 border rounded-md pl-5 pr-6 h-6 text-[11.5px] font-semibold outline-none transition-colors disabled:opacity-50 border-[color:var(--sm-border)] text-[color:var(--sm-text-1)] bg-transparent"
                       >
                         {(Object.keys(statusLabels) as PlannerStatus[]).map(s => (
-                          <option key={s} value={s} className="bg-[#0d0f14] text-[var(--sm-text-1)]">
+                          <option key={s} value={s}>
                             {statusLabels[s]}
                           </option>
                         ))}
@@ -959,12 +941,12 @@ function PlannerItemView({
                     Com 28px colados, o dedo acertava o fechar no lugar do lápis. */}
                 <div className="flex items-center gap-3 lg:gap-1.5 flex-shrink-0">
                   <button type="button" onClick={onEdit} aria-label="Editar"
-                          className="h-10 px-3 lg:h-7 lg:w-7 lg:px-0 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-all">
+                          className="h-10 px-3 lg:h-7 lg:w-7 lg:px-0 rounded-lg border border-[color:var(--sm-border)] hover:bg-black/5 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-all">
                     <Pencil className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                     <span className="lg:hidden">Editar</span>
                   </button>
                   <button type="button" onClick={onClose} aria-label="Fechar"
-                          className="w-10 h-10 lg:w-7 lg:h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] transition-all">
+                          className="w-10 h-10 lg:w-7 lg:h-7 rounded-lg hover:bg-black/5 flex items-center justify-center text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] transition-all">
                     <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
                 </div>
@@ -972,7 +954,7 @@ function PlannerItemView({
             </div>
 
             {/* Corpo — rola independentemente */}
-            <div ref={bodyScrollRef} className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto px-5 py-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-track]:bg-transparent">
+            <div ref={bodyScrollRef} className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto px-5 py-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--sm-border-alt)] [&::-webkit-scrollbar-track]:bg-transparent">
 
               {/* Miniaturas — DESKTOP: no painel direito, acima da legenda */}
               {mediaItems.length > 1 && (
@@ -981,7 +963,7 @@ function PlannerItemView({
                     <button
                       key={m.id}
                       onClick={() => setMediaIdx(i)}
-                      className={`relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${i === mediaIdx ? 'border-[#2563EB] shadow-md' : 'border-white/15 opacity-70 hover:opacity-100'}`}
+                      className={`relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${i === mediaIdx ? 'border-[#2563EB] shadow-md' : 'border-[color:var(--sm-border)] opacity-70 hover:opacity-100'}`}
                     >
                       {m.kind === 'image'
                         ? <img src={m.file_url} alt="" className="w-full h-full object-cover" />
@@ -1034,8 +1016,8 @@ function PlannerItemView({
                     {item.links.map(link => (
                       <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-2 p-2.5 bg-[var(--sm-bg-alt)] border border-[var(--sm-border)] rounded-lg hover:bg-[var(--sm-bg-card)] transition-colors min-w-0 overflow-hidden">
-                        <Link2 className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-[#60A5FA]' : 'text-blue-600'}`} />
-                        <span className={`text-xs flex-1 min-w-0 truncate ${isDark ? 'text-[#93c5fd]' : 'text-blue-700'}`}>{link.label || link.url}</span>
+                        <Link2 className={`w-3.5 h-3.5 flex-shrink-0 text-[#2563EB]`} />
+                        <span className={`text-xs flex-1 min-w-0 truncate text-[#2563EB]`}>{link.label || link.url}</span>
                         <ExternalLink className="w-3 h-3 text-[var(--sm-text-4)] flex-shrink-0" />
                       </a>
                     ))}
@@ -1050,8 +1032,8 @@ function PlannerItemView({
 
                   {/* Status geral + data */}
                   <div className="flex items-center gap-2 px-0.5 flex-wrap">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${approvalDot[effectiveStatus]}`} />
-                    <span className={`text-xs font-medium ${approvalTextColor[effectiveStatus]}`}>
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: approvalHex[effectiveStatus] }} />
+                    <span className="text-[12.5px] font-semibold text-[var(--sm-text-1)]">
                       {approvalLabel[effectiveStatus]}
                     </span>
                     {item.reviewed_at && (
@@ -1077,20 +1059,21 @@ function PlannerItemView({
                       aprovado: 'bg-green-500', ajuste_solicitado: 'bg-orange-400', reprovado: 'bg-red-500'
                     }
                     const slideText: Record<string, string> = {
-                      aprovado: 'text-green-300', ajuste_solicitado: 'text-orange-300', reprovado: 'text-red-300'
+                      aprovado: 'text-[var(--sm-text-1)]', ajuste_solicitado: 'text-[var(--sm-text-1)]', reprovado: 'text-[var(--sm-text-1)]'
                     }
                     const slideLabel: Record<string, string> = {
                       aprovado: 'Aprovado', ajuste_solicitado: 'Ajuste solicitado', reprovado: 'Reprovado'
                     }
                     return (
-                      <div className={`rounded-xl border p-3 ${bgMap[artStatus]}`}>
+                      <div className="relative rounded-xl border p-3 pl-4 overflow-hidden" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
+                        <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: approvalHex[artStatus] }} />
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <p className="text-[10px] font-bold text-[var(--sm-text-3)] uppercase tracking-wide">
                             Arte{carouselSlides ? ` · Carrossel (${carouselSlides.length} slides)` : ''}
                           </p>
                           <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${approvalDot[artStatus]}`} />
-                            <span className={`text-[11px] font-semibold ${approvalTextColor[artStatus]}`}>
+                            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: approvalHex[artStatus] }} />
+                            <span className="text-[11.5px] font-semibold text-[var(--sm-text-1)]">
                               {approvalLabel[artStatus]}
                             </span>
                           </div>
@@ -1100,7 +1083,7 @@ function PlannerItemView({
                         {carouselSlides ? (
                           <div className="mt-2 space-y-1.5">
                             {carouselSlides.map(s => (
-                              <div key={s.slide} className="flex flex-col gap-1 bg-white/5 rounded-lg px-2.5 py-1.5">
+                              <div key={s.slide} className="flex flex-col gap-1 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--sm-bg-card)' }}>
                                 <div className="flex items-center gap-1.5">
                                   <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${slideDot[s.status] ?? 'bg-gray-500'}`} />
                                   <span className="text-[10px] font-semibold text-[var(--sm-text-3)]">Slide {s.slide}</span>
@@ -1116,7 +1099,7 @@ function PlannerItemView({
                           </div>
                         ) : artFeedbackRaw && artStatus !== 'aprovado' && artStatus !== 'pendente_aprovacao' ? (
                           /* Feedback texto simples (legado) */
-                          <div className="mt-2 flex items-start gap-2 bg-white/5 rounded-lg px-2.5 py-2">
+                          <div className="mt-2 flex items-start gap-2 rounded-lg px-2.5 py-2" style={{ background: 'var(--sm-bg-card)' }}>
                             <span className="text-[10px] text-[var(--sm-text-4)] flex-shrink-0 mt-0.5">Cliente:</span>
                             <p className="text-xs text-[var(--sm-text-2)] leading-relaxed break-words select-text flex-1">"{artFeedbackRaw}"</p>
                           </div>
@@ -1137,7 +1120,7 @@ function PlannerItemView({
                               } catch (err: any) { toast(err.message, 'error') }
                             }}
                             disabled={updateItem.isPending}
-                            className={`mt-2.5 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${isDark ? 'bg-[#2563EB]/15 text-[#93c5fd] border-[#2563EB]/30 hover:bg-[#2563EB]/25' : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'}`}
+                            className={`mt-2.5 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 border-[#2563EB]/40 text-[#2563EB] hover:bg-[#2563EB]/10`}
                           >
                             {updateItem.isPending
                               ? <span className="w-3 h-3 border-2 border-[#60A5FA] border-t-transparent rounded-full animate-spin" />
@@ -1161,18 +1144,19 @@ function PlannerItemView({
                       reprovado:          'border-red-500/25 bg-red-500/10',
                     }
                     return (
-                      <div className={`rounded-xl border p-3 ${bgMap[copyStatus]}`}>
+                      <div className="relative rounded-xl border p-3 pl-4 overflow-hidden" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
+                        <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: approvalHex[copyStatus] }} />
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <p className="text-[10px] font-bold text-[var(--sm-text-3)] uppercase tracking-wide">Copy</p>
                           <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${approvalDot[copyStatus]}`} />
-                            <span className={`text-[11px] font-semibold ${approvalTextColor[copyStatus]}`}>
+                            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: approvalHex[copyStatus] }} />
+                            <span className="text-[11.5px] font-semibold text-[var(--sm-text-1)]">
                               {approvalLabel[copyStatus]}
                             </span>
                           </div>
                         </div>
                         {copyFeedback && copyStatus !== 'aprovado' && copyStatus !== 'pendente_aprovacao' && (
-                          <div className="mt-2 flex items-start gap-2 bg-white/5 rounded-lg px-2.5 py-2">
+                          <div className="mt-2 flex items-start gap-2 rounded-lg px-2.5 py-2" style={{ background: 'var(--sm-bg-card)' }}>
                             <span className="text-[10px] text-[var(--sm-text-4)] flex-shrink-0 mt-0.5">Cliente:</span>
                             <p className="text-xs text-[var(--sm-text-2)] leading-relaxed break-words select-text flex-1">"{copyFeedback}"</p>
                           </div>
@@ -1192,7 +1176,7 @@ function PlannerItemView({
                               } catch (err: any) { toast(err.message, 'error') }
                             }}
                             disabled={updateItem.isPending}
-                            className={`mt-2.5 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${isDark ? 'bg-[#2563EB]/15 text-[#93c5fd] border-[#2563EB]/30 hover:bg-[#2563EB]/25' : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'}`}
+                            className={`mt-2.5 flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-colors disabled:opacity-50 border-[#2563EB]/40 text-[#2563EB] hover:bg-[#2563EB]/10`}
                           >
                             {updateItem.isPending
                               ? <span className="w-3 h-3 border-2 border-[#60A5FA] border-t-transparent rounded-full animate-spin" />
@@ -1215,7 +1199,7 @@ function PlannerItemView({
                   {!(item as any).art_approval_status && !(item as any).copy_approval_status &&
                     (localApprovalStatus ?? item.approval_status) === 'ajuste_solicitado' && (
                     <button onClick={handleMarkAdjustmentDone} disabled={updateItem.isPending}
-                      className={`flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${isDark ? 'bg-[#2563EB]/15 text-[#93c5fd] border-[#2563EB]/30 hover:bg-[#2563EB]/25' : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'}`}>
+                      className={`flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 border-[#2563EB]/40 text-[#2563EB] hover:bg-[#2563EB]/10`}>
                       {updateItem.isPending
                         ? <span className="w-3 h-3 border-2 border-[#60A5FA] border-t-transparent rounded-full animate-spin" />
                         : <Check className="w-3 h-3" />}
@@ -1297,16 +1281,16 @@ function DayItemCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusColors[item.status as PlannerStatus]}`} />
-            <p className="font-medium text-sm break-words" style={{ color: 'var(--sm-text-1)' }}>{item.title}</p>
+            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusHex[item.status as PlannerStatus] }} />
+            <p className="font-semibold text-[13.5px] break-words" style={{ color: 'var(--sm-text-1)' }}>{item.title}</p>
           </div>
           <div className="flex items-center gap-2 ml-3.5 mb-1">
             <p className="text-xs" style={{ color: 'var(--sm-text-3)' }}>
               {contentTypeLabels[item.content_type as ContentType]} · {statusLabels[item.status as PlannerStatus]}
             </p>
             {item.sent_to_client
-              ? <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${isDark ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-green-100 text-green-700 border-green-300'}`}>✓ Enviado ao cliente</span>
-              : <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${isDark ? 'bg-gray-500/20 text-gray-400 border-gray-500/20' : 'bg-gray-100 text-gray-600 border-gray-300'}`}>Rascunho</span>
+              ? <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: 'var(--sm-text-2)' }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#22C55E' }} />Enviado ao cliente</span>
+              : <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: 'var(--sm-text-3)' }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--sm-border-alt)' }} />Rascunho</span>
             }
           </div>
           {item.client && (
@@ -1334,8 +1318,8 @@ function DayItemCard({
             })()
             return (
               <div className="flex items-center gap-1.5 ml-3.5 mb-1">
-                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${approvalDot[as_]}`} />
-                <span className={`text-[10px] font-medium ${isDark ? approvalTextColor[as_] : approvalTextColorLight[as_]}`}>
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: approvalHex[as_] }} />
+                <span className="text-[11px] font-medium" style={{ color: 'var(--sm-text-2)' }}>
                   {approvalLabel[as_]}
                 </span>
               </div>
@@ -1352,8 +1336,8 @@ function DayItemCard({
             )}
             {item.links && item.links.length > 0 && (
               <div className="flex items-center gap-1">
-                <Link2 className={`w-3 h-3 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-                <span className={`text-[11px] ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                <Link2 className={`w-3 h-3 text-[#2563EB]`} />
+                <span className={`text-[11px] text-[#2563EB]`}>
                   {item.links.length} {item.links.length === 1 ? 'link' : 'links'}
                 </span>
               </div>
@@ -2913,8 +2897,8 @@ export function Planner() {
           <DialogHeader>
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
-              <DialogTitle style={{ color: 'var(--sm-text-1)' }}>
-                {selectedDayDate && format(selectedDayDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              <DialogTitle className="font-display text-[19px] font-bold capitalize" style={{ color: 'var(--sm-text-1)' }}>
+                {selectedDayDate && format(selectedDayDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
               </DialogTitle>
             </div>
             {selectedDayDate && (() => {
@@ -2930,8 +2914,8 @@ export function Planner() {
           <div className="space-y-3 my-1 min-w-0 w-full max-w-full overflow-x-hidden">
             {selectedDayDate && getItemsForDay(selectedDayDate).length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-gray-500">Nenhum post neste dia.</p>
-                <p className="text-xs text-gray-600 mt-1">Use o botão abaixo para adicionar.</p>
+                <p className="text-[13px] font-medium" style={{ color: 'var(--sm-text-2)' }}>Nenhum post neste dia.</p>
+                <p className="text-[12px] mt-1" style={{ color: 'var(--sm-text-4)' }}>Use o botão abaixo para adicionar.</p>
               </div>
             ) : (
               selectedDayDate && getItemsForDay(selectedDayDate).map(item => (
@@ -3003,7 +2987,7 @@ export function Planner() {
       <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) resetForm() }}>
         <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
-            <DialogTitle className="pr-8">{editingItem ? 'Editar Post' : 'Adicionar ao Planejamento'}</DialogTitle>
+            <DialogTitle className="pr-8 font-display text-[19px] font-bold">{editingItem ? 'Editar post' : 'Adicionar ao planejamento'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 min-w-0 w-full max-w-full overflow-x-hidden">
@@ -3011,7 +2995,7 @@ export function Planner() {
 
             <div className="grid grid-cols-1 xs:grid-cols-[1fr_140px] sm:grid-cols-[1fr_140px] gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Data *</label>
+                <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Data *</label>
                 <input
                   type="date"
                   value={form.scheduled_date}
@@ -3023,7 +3007,7 @@ export function Planner() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Hora (opcional)</label>
+                <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Hora (opcional)</label>
                 <input
                   type="time"
                   value={form.scheduled_time}
@@ -3036,7 +3020,7 @@ export function Planner() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Tipo</label>
+                <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Tipo</label>
                 <Select value={form.content_type} onValueChange={v => set('content_type', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -3045,7 +3029,7 @@ export function Planner() {
                 </Select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Status</label>
+                <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Status</label>
                 <Select value={form.status} onValueChange={v => set('status', v as PlannerStatus)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -3060,7 +3044,7 @@ export function Planner() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Cliente</label>
+              <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Cliente</label>
               <Select value={form.client_id || '__none__'} onValueChange={v => set('client_id', v === '__none__' ? null : v)}>
                 <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
                 <SelectContent>
@@ -3072,9 +3056,9 @@ export function Planner() {
 
             {/* Usar conteúdo do arsenal — só ao criar, quando cliente selecionado */}
             {!editingItem && form.client_id && (
-              <div className="rounded-md border border-white/[0.06] bg-white/[0.02] p-3">
+              <div className="rounded-md border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] text-zinc-500 uppercase tracking-wide">Arsenal do cliente</p>
+                  <p className="text-[11px] text-[color:var(--sm-text-3)] uppercase tracking-wide">Arsenal do cliente</p>
                   <Button
                     type="button"
                     size="sm"
@@ -3086,7 +3070,7 @@ export function Planner() {
                   </Button>
                 </div>
                 {linkedAsset ? (
-                  <div className="flex items-center gap-2.5 p-2 rounded-md bg-white/[0.04] border border-white/[0.08]">
+                  <div className="flex items-center gap-2.5 p-2 rounded-md bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)]">
                     {isImageUrl(linkedAsset.media_url) ? (
                       <img
                         src={linkedAsset.media_url ?? undefined}
@@ -3094,25 +3078,25 @@ export function Planner() {
                         className="w-10 h-10 object-cover rounded flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded bg-white/[0.05] flex items-center justify-center flex-shrink-0">
-                        <ImageIcon className="w-4 h-4 text-zinc-600" />
+                      <div className="w-10 h-10 rounded bg-[color:var(--sm-bg-alt)] flex items-center justify-center flex-shrink-0">
+                        <ImageIcon className="w-4 h-4 text-[color:var(--sm-text-4)]" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-zinc-200 truncate">{linkedAsset.title}</p>
-                      <p className="text-[10px] text-zinc-600">{contentTypeLabels[linkedAsset.content_type as ContentType]}</p>
+                      <p className="text-[12px] text-[color:var(--sm-text-1)] truncate">{linkedAsset.title}</p>
+                      <p className="text-[10px] text-[color:var(--sm-text-4)]">{contentTypeLabels[linkedAsset.content_type as ContentType]}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setLinkedAsset(null)}
                       aria-label="Remover"
-                      className="p-2 -m-1 text-zinc-500 hover:text-zinc-300 flex-shrink-0"
+                      className="p-2 -m-1 text-[color:var(--sm-text-3)] hover:text-[color:var(--sm-text-2)] flex-shrink-0"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-zinc-600">
+                  <p className="text-[11px] text-[color:var(--sm-text-4)]">
                     Selecione um conteúdo para preencher título, legenda e mídia automaticamente.
                   </p>
                 )}
@@ -3122,29 +3106,24 @@ export function Planner() {
             <Textarea label="Copy" value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Contexto, referências..." />
 
             {/* ── Publicação Instagram ───────────────────────────────────── */}
-            <div className="rounded-md border border-white/[0.06] bg-white/[0.02] p-3 space-y-3">
+            <div className="rounded-md border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] p-3 space-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg,#E1306C,#833AB4)' }}>
-                  <Instagram className="w-3 h-3 text-white" />
+                  style={{ background: 'var(--sm-bg-alt)' }}>
+                  <Instagram className="w-3 h-3" style={{ color: 'var(--sm-text-2)' }} />
                 </div>
-                <p className="text-[11px] text-zinc-400 uppercase tracking-wide font-semibold">Publicação no Instagram</p>
+                <p className="text-[11px] text-[color:var(--sm-text-3)] uppercase tracking-wide font-semibold">Publicação no Instagram</p>
               </div>
 
               {/* Story: o agendamento não acontece, e o usuário precisa saber
                   aqui — senão anexa a mídia, o cliente aprova e nada publica,
                   sem nenhuma explicação em lugar nenhum. */}
               {isStoryContent(form.content_type) && (
-                <div className={`flex items-start gap-2 rounded-md border px-2.5 py-2 ${
-                  isDark ? 'bg-amber-500/10 border-amber-500/25' : 'bg-amber-50 border-amber-300'
-                }`}>
-                  <AlertTriangle className={`w-3.5 h-3.5 flex-shrink-0 mt-px ${
-                    isDark ? 'text-amber-300' : 'text-amber-600'
-                  }`} />
-                  <p className={`text-[10.5px] leading-relaxed ${
-                    isDark ? 'text-amber-200/80' : 'text-amber-700'
-                  }`}>
-                    <strong className={`font-semibold ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                <div className="relative flex items-start gap-2 rounded-md border px-2.5 py-2 pl-3.5 overflow-hidden" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                  <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r" style={{ background: '#F59E0B' }} />
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" style={{ color: '#D97706' }} />
+                  <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>
+                    <strong className="font-semibold" style={{ color: 'var(--sm-text-1)' }}>
                       Stories não são agendados.
                     </strong>{' '}
                     A mídia abaixo serve para o cliente aprovar, mas nem a aprovação dele nem o botão
@@ -3172,8 +3151,8 @@ export function Planner() {
                       }}
                       className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-[10px] font-medium transition-all ${
                         active
-                          ? 'border-pink-500/60 bg-pink-500/10 text-pink-300'
-                          : 'border-white/10 text-zinc-500 hover:border-white/20 hover:text-zinc-300'
+                          ? 'border-[#2563EB] bg-[#2563EB]/10 text-[#2563EB]'
+                          : 'border-[color:var(--sm-border)] text-[color:var(--sm-text-3)] hover:border-[color:var(--sm-border)] hover:text-[color:var(--sm-text-2)]'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -3193,7 +3172,7 @@ export function Planner() {
                 return (
                   <div className="space-y-2">
                     {isCarousel && (
-                      <p className="text-[10px] text-zinc-600">
+                      <p className="text-[10px] text-[color:var(--sm-text-4)]">
                         <span className="hidden sm:inline">Arraste para reordenar</span>
                         <span className="sm:hidden">Use as setas para reordenar</span>
                         {' '}· 1ª imagem = capa
@@ -3215,10 +3194,10 @@ export function Planner() {
                               onDrop={exIgOnDragEnd}
                               className={`relative aspect-square rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing select-none transition-all ${
                                 exIgDragOver === i
-                                  ? 'border-pink-500 scale-105'
+                                  ? 'border-[#2563EB] scale-105'
                                   : exIgDragIdx.current === i
-                                  ? 'border-pink-500/40 opacity-50'
-                                  : 'border-white/10 hover:border-white/20'
+                                  ? 'border-[#2563EB]/40 opacity-50'
+                                  : 'border-[color:var(--sm-border)] hover:border-[color:var(--sm-border)]'
                               }`}
                             >
                               {isVideoAttachment(att)
@@ -3226,7 +3205,7 @@ export function Planner() {
                                 : <img src={att.file_url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
                               }
                               <div className={`absolute top-0.5 left-0.5 text-[8px] font-bold px-1 py-0.5 rounded leading-none ${
-                                i === 0 ? 'bg-pink-500 text-white' : 'bg-black/60 text-white'
+                                i === 0 ? 'bg-[#2563EB] text-white' : 'bg-black/60 text-white'
                               }`}>
                                 {i === 0 ? '★' : i + 1}
                               </div>
@@ -3253,7 +3232,7 @@ export function Planner() {
                           ))}
                         </div>
                       ) : (
-                        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-white/10">
+                        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-[color:var(--sm-border)]">
                           {isVideoAttachment(existingIgMedia[0])
                             ? <video src={existingIgMedia[0].file_url} className="w-full h-full object-cover" controls />
                             : <img src={existingIgMedia[0].file_url} alt="" className="w-full h-full object-cover" />
@@ -3286,10 +3265,10 @@ export function Planner() {
                                 onDrop={igOnDrop}
                                 className={`relative aspect-square rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing select-none transition-all ${
                                   igDragOver === i
-                                    ? 'border-pink-500 scale-105'
+                                    ? 'border-[#2563EB] scale-105'
                                     : igDragIdx.current === i
-                                    ? 'border-pink-500/40 opacity-50'
-                                    : 'border-white/10 hover:border-white/20'
+                                    ? 'border-[#2563EB]/40 opacity-50'
+                                    : 'border-[color:var(--sm-border)] hover:border-[color:var(--sm-border)]'
                                 }`}
                               >
                                 {isReel
@@ -3297,7 +3276,7 @@ export function Planner() {
                                   : <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
                                 }
                                 <div className={`absolute top-0.5 left-0.5 text-[8px] font-bold px-1 py-0.5 rounded leading-none ${
-                                  globalIdx === 0 ? 'bg-pink-500 text-white' : 'bg-black/60 text-white'
+                                  globalIdx === 0 ? 'bg-[#2563EB] text-white' : 'bg-black/60 text-white'
                                 }`}>
                                   {globalIdx === 0 ? '★' : globalIdx + 1}
                                 </div>
@@ -3327,7 +3306,7 @@ export function Planner() {
                             <button
                               type="button"
                               onClick={() => igFileRef.current?.click()}
-                              className="aspect-square rounded-lg border-2 border-dashed border-white/20 hover:border-pink-500/50 flex flex-col items-center justify-center gap-0.5 transition-colors text-zinc-600 hover:text-zinc-400"
+                              className="aspect-square rounded-lg border-2 border-dashed border-[color:var(--sm-border)] hover:border-[#2563EB]/50 flex flex-col items-center justify-center gap-0.5 transition-colors text-[color:var(--sm-text-4)] hover:text-[color:var(--sm-text-3)]"
                             >
                               <Plus className="w-4 h-4" />
                               <span className="text-[9px]">Add</span>
@@ -3335,7 +3314,7 @@ export function Planner() {
                           )}
                         </div>
                       ) : (
-                        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-white/10">
+                        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-[color:var(--sm-border)]">
                           {isReel
                             ? <video src={igPreviews[0]} className="w-full h-full object-cover" controls />
                             : <img src={igPreviews[0]} alt="" className="w-full h-full object-cover" />
@@ -3356,7 +3335,7 @@ export function Planner() {
                       <button
                         type="button"
                         onClick={() => igFileRef.current?.click()}
-                        className="flex items-center gap-2 w-full h-10 px-3 rounded-lg border border-dashed border-white/15 bg-white/3 text-zinc-500 text-xs hover:border-pink-500/50 hover:text-zinc-300 transition-colors"
+                        className="flex items-center gap-2 w-full h-10 px-3 rounded-lg border border-dashed border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] text-[color:var(--sm-text-3)] text-xs hover:border-[#2563EB]/50 hover:text-[color:var(--sm-text-2)] transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>
@@ -3370,7 +3349,7 @@ export function Planner() {
                       <button
                         type="button"
                         onClick={() => igFileRef.current?.click()}
-                        className="flex items-center gap-2 w-full h-9 px-3 rounded-lg border border-dashed border-white/15 text-zinc-600 text-xs hover:border-pink-500/50 hover:text-zinc-400 transition-colors"
+                        className="flex items-center gap-2 w-full h-9 px-3 rounded-lg border border-dashed border-[color:var(--sm-border)] text-[color:var(--sm-text-4)] text-xs hover:border-[#2563EB]/50 hover:text-[color:var(--sm-text-3)] transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Adicionar mais imagens ({existingIgMedia.length}/{max})
@@ -3391,12 +3370,12 @@ export function Planner() {
                         {[...existingIgMedia, ...igFiles].map((_, i) => (
                           <span key={i} className="flex items-center gap-1">
                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
-                              i === 0 ? 'bg-pink-500 text-white' : 'bg-white/10 text-zinc-400'
+                              i === 0 ? 'bg-[#2563EB] text-white' : 'bg-white/10 text-[color:var(--sm-text-3)]'
                             }`}>
                               {i === 0 ? 'Capa' : `Parte ${i + 1}`}
                             </span>
                             {i < (existingIgMedia.length + igFiles.length) - 1 && (
-                              <span className="text-zinc-700 text-[9px]">→</span>
+                              <span className="text-[color:var(--sm-text-4)] text-[9px]">→</span>
                             )}
                           </span>
                         ))}
@@ -3409,13 +3388,13 @@ export function Planner() {
 
             {/* Outros Anexos */}
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Outros anexos</label>
+              <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Outros anexos</label>
               {existingAttachments.length > 0 && (
                 <div className="mb-2 space-y-2">
                   {existingAttachments.map(att => {
                     const isVideo = isVideoAttachment(att)
                     return isVideo ? (
-                      <div key={att.id} className="border border-white/8 rounded-xl overflow-hidden bg-black">
+                      <div key={att.id} className="border border-[color:var(--sm-border)] rounded-xl overflow-hidden bg-black">
                         <video
                           src={att.file_url}
                           autoPlay
@@ -3425,21 +3404,21 @@ export function Planner() {
                           controls
                           className="w-full max-h-[200px] object-contain bg-black"
                         />
-                        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white/[0.04]">
-                          <Video className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                          <span className="text-xs text-gray-300 truncate flex-1">{att.file_name}</span>
-                          {att.file_size && <span className="text-[10px] text-gray-600 flex-shrink-0">{formatFileSize(att.file_size)}</span>}
-                          <button type="button" onClick={() => markAttachmentForDeletion(att)} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[color:var(--sm-bg-alt)]">
+                          <Video className="w-3 h-3 text-[#8B5CF6] flex-shrink-0" />
+                          <span className="text-xs text-[color:var(--sm-text-2)] truncate flex-1">{att.file_name}</span>
+                          {att.file_size && <span className="text-[10px] text-[color:var(--sm-text-4)] flex-shrink-0">{formatFileSize(att.file_size)}</span>}
+                          <button type="button" onClick={() => markAttachmentForDeletion(att)} aria-label="Remover" className="p-2 -m-1.5 text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors flex-shrink-0">
                             <X className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div key={att.id} className="flex items-center gap-2 text-xs text-gray-300 bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5">
+                      <div key={att.id} className="flex items-center gap-2 text-xs text-[color:var(--sm-text-2)] bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)] rounded-md px-2.5 py-1.5">
                         <FileTypeIcon type={att.file_type} />
                         <span className="truncate flex-1">{att.file_name}</span>
-                        {att.file_size && <span className="text-gray-600 flex-shrink-0 text-[10px]">{formatFileSize(att.file_size)}</span>}
-                        <button type="button" onClick={() => markAttachmentForDeletion(att)} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                        {att.file_size && <span className="text-[color:var(--sm-text-4)] flex-shrink-0 text-[10px]">{formatFileSize(att.file_size)}</span>}
+                        <button type="button" onClick={() => markAttachmentForDeletion(att)} aria-label="Remover" className="p-2 -m-1.5 text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors flex-shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -3448,10 +3427,10 @@ export function Planner() {
                 </div>
               )}
               <button type="button" onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-white/15 bg-white/3 text-gray-400 text-xs hover:border-white/30 hover:bg-white/5 transition-colors">
+                className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] text-[color:var(--sm-text-3)] text-xs hover:border-[#2563EB]/50 hover:bg-[color:var(--sm-bg-alt)] transition-colors">
                 <Paperclip className="w-3.5 h-3.5" />
                 <span>Clique para anexar arquivos</span>
-                <span className="ml-auto text-[10px] text-gray-600">máx. 50MB por arquivo</span>
+                <span className="ml-auto text-[10px] text-[color:var(--sm-text-4)]">máx. 50MB por arquivo</span>
               </button>
               <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" className="hidden" onChange={handleFileSelect} />
               {pendingFiles.length > 0 && (
@@ -3462,11 +3441,11 @@ export function Planner() {
                     return isVideo ? (
                       <VideoPreview key={i} file={f} onRemove={remove} />
                     ) : (
-                      <div key={i} className="flex items-center gap-2 text-xs text-gray-300 bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5">
+                      <div key={i} className="flex items-center gap-2 text-xs text-[color:var(--sm-text-2)] bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)] rounded-md px-2.5 py-1.5">
                         <FileTypeIcon type={f.type} />
                         <span className="truncate flex-1">{f.name}</span>
-                        <span className="text-gray-600 flex-shrink-0 text-[10px]">{formatFileSize(f.size)}</span>
-                        <button type="button" onClick={remove} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                        <span className="text-[color:var(--sm-text-4)] flex-shrink-0 text-[10px]">{formatFileSize(f.size)}</span>
+                        <button type="button" onClick={remove} aria-label="Remover" className="p-2 -m-1.5 text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors flex-shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -3478,14 +3457,14 @@ export function Planner() {
 
             {/* Links */}
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Links de referência</label>
+              <label className="block text-xs font-medium text-[color:var(--sm-text-3)] mb-1.5">Links de referência</label>
               {existingLinks.length > 0 && (
                 <div className="mb-2 space-y-1">
                   {existingLinks.map(link => (
-                    <div key={link.id} className="flex items-center gap-2 text-xs bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5">
-                      <Link2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                      <span className="truncate flex-1 text-blue-300 text-[11px]">{link.url}</span>
-                      <button type="button" onClick={() => markLinkForDeletion(link)} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                    <div key={link.id} className="flex items-center gap-2 text-xs bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)] rounded-md px-2.5 py-1.5">
+                      <Link2 className="w-3 h-3 text-[#2563EB] flex-shrink-0" />
+                      <span className="truncate flex-1 text-[#2563EB] text-[11px]">{link.url}</span>
+                      <button type="button" onClick={() => markLinkForDeletion(link)} aria-label="Remover" className="p-2 -m-1.5 text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors flex-shrink-0">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -3499,7 +3478,8 @@ export function Planner() {
                   value={linkInput}
                   onChange={e => setLinkInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLink() } }}
-                  className="flex-1 h-9 px-3 rounded-md border border-white/10 bg-white/5 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 h-9 px-3 rounded-md border text-sm placeholder:text-[color:var(--sm-text-4)] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}
                 />
                 <Button type="button" size="sm" variant="outline" onClick={addLink} disabled={!linkInput.trim()} className="flex-shrink-0">
                   <Plus className="w-3.5 h-3.5" />
@@ -3508,10 +3488,10 @@ export function Planner() {
               {pendingLinks.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {pendingLinks.map((url, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5">
-                      <Link2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                      <span className="truncate flex-1 text-blue-300 text-[11px]">{url}</span>
-                      <button type="button" onClick={() => setPendingLinks(prev => prev.filter((_, idx) => idx !== i))} aria-label="Remover" className="p-2 -m-1.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0">
+                    <div key={i} className="flex items-center gap-2 text-xs bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)] rounded-md px-2.5 py-1.5">
+                      <Link2 className="w-3 h-3 text-[#2563EB] flex-shrink-0" />
+                      <span className="truncate flex-1 text-[#2563EB] text-[11px]">{url}</span>
+                      <button type="button" onClick={() => setPendingLinks(prev => prev.filter((_, idx) => idx !== i))} aria-label="Remover" className="p-2 -m-1.5 text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors flex-shrink-0">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
