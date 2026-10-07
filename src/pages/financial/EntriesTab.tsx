@@ -151,7 +151,7 @@ export function EntriesTab() {
                       {e.description}
                     </p>
                     <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-3)' }}>
-                      {[who, cat?.name, accOf.get(e.account_id ?? '')].filter(Boolean).join(' · ') || 'Sem categoria'}
+                      {[who, cat?.name, accOf.get(e.account_id ?? ''), e.fin_invoices ? `NF nº ${e.fin_invoices.number}` : null].filter(Boolean).join(' · ') || 'Sem categoria'}
                     </p>
                   </div>
                   <div className="text-[12px] w-[92px]" style={{ color: 'var(--sm-text-3)' }}>

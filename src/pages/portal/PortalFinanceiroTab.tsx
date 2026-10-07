@@ -1,7 +1,9 @@
 import {
   CheckCircle2, Clock, AlertCircle, Ban, DollarSign,
-  CalendarDays, History, MessageCircle, ExternalLink, ArrowRight,
+  CalendarDays, History, MessageCircle, ExternalLink, ArrowRight, FileText,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/integrations/supabase/client'
 import { usePortalClient, usePortalPayments, usePortalSupportContacts } from '@/hooks/usePortal'
 import { calcFinancialStatus, getFinancialAuxText, hasPaidCurrentCycle } from '@/utils/financial'
 import type { FinancialStatus, ContactType } from '@/types'
@@ -80,8 +82,24 @@ function buildContactHref(type: ContactType, value: string, directLink: string |
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
+// Notas fiscais do cliente (Financeiro, Fase 3). A RLS só devolve as dele.
+function usePortalInvoices(clientId: string | undefined) {
+  return useQuery({
+    queryKey: ['portal-invoices', clientId],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('fin_invoices')
+        .select('id, number, issue_date, competence, amount, pdf_url, xml_url')
+        .eq('client_id', clientId).eq('status', 'emitida').order('issue_date', { ascending: false })
+      if (error) throw error
+      return (data ?? []) as { id: string; number: string; issue_date: string; competence: string; amount: number; pdf_url: string | null; xml_url: string | null }[]
+    },
+  })
+}
+
 export function PortalFinanceiroTab() {
   const { data: client, isLoading: loadingClient } = usePortalClient()
+  const { data: invoices = [] } = usePortalInvoices((client as any)?.id)
   const { data: payments = [], isLoading: loadingPayments } = usePortalPayments()
   const { data: contacts = [] } = usePortalSupportContacts()
 
@@ -221,6 +239,28 @@ export function PortalFinanceiroTab() {
           </div>
         )}
       </section>
+
+      {/* ── Notas fiscais ── */}
+      {invoices.length > 0 && (
+        <section className={`${portalPanel} overflow-hidden min-w-0`}>
+          <PortalBlockTitle label="Notas fiscais" count={invoices.length} right={<FileText className="w-4 h-4 text-[#A0A8B5]" />} />
+          <div className="divide-y divide-[#EEF0F3]">
+            {invoices.map(inv => (
+              <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-6 px-6 py-4 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-[#0F172A]">Nota nº {inv.number}</p>
+                  <p className="text-[12px] text-[#8A94A6]">Emitida em {fmtDate(inv.issue_date)} · referente a {monthLabel(inv.competence.slice(0, 7))}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <p className="text-[14px] font-semibold text-[#0F172A] tabular-nums">{fmtBRL(Number(inv.amount))}</p>
+                  {inv.pdf_url && <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-semibold text-[#2563EB]">Baixar PDF</a>}
+                  {inv.xml_url && <a href={inv.xml_url} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-semibold text-[#2563EB]">XML</a>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Contato do financeiro ── */}
       {financialContact && (

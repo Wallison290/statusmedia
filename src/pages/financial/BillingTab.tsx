@@ -13,7 +13,7 @@ import { Card, SectionTitle, Field, TextInput, SelectInput, PrimaryButton, Ghost
 const STAGE_OPTIONS = [-7, -5, -3, -1, 0, 1, 3, 5, 7, 10, 15, 30]
 const stageLabel = (s: number) => s < 0 ? `${-s} dia${s === -1 ? '' : 's'} antes` : s === 0 ? 'No dia' : `${s} dia${s === 1 ? '' : 's'} depois`
 const KEY_TYPES = { cnpj: 'CNPJ', cpf: 'CPF', email: 'E-mail', telefone: 'Celular', aleatoria: 'Chave aleatória' } as const
-const VARS = ['{cliente}', '{empresa}', '{valor}', '{vencimento}', '{dias_atraso}', '{descricao}', '{pix_info}', '{dados_bancarios}', '{agencia}']
+const VARS = ['{cliente}', '{empresa}', '{valor}', '{vencimento}', '{dias_atraso}', '{descricao}', '{pix_info}', '{dados_bancarios}', '{nota_fiscal}', '{agencia}']
 
 type Draft = Omit<BillingSettings, 'user_id'>
 const EMPTY: Draft = {

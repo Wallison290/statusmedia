@@ -120,7 +120,7 @@ async function runAgency(sb: any, agency: string, today: string) {
   const to   = new Date(Date.parse(today + 'T00:00:00Z') - Math.min(0, minStage) * 86_400_000).toISOString().slice(0, 10)
 
   const { data: entries } = await sb.from('fin_entries')
-    .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing)')
+    .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing), fin_invoices(number, pdf_url)')
     .eq('user_id', agency).eq('type', 'receita').eq('status', 'aberto').eq('billing_paused', false)
     .not('client_id', 'is', null).gte('due_date', from).lte('due_date', to)
   const list = ((entries ?? []) as Entry[]).filter(e => e.clients?.auto_billing !== false)
@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
       let entries: Entry[] = []
       if (body.client_id) {
         const { data } = await sb.from('fin_entries')
-          .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing)')
+          .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing), fin_invoices(number, pdf_url)')
           .eq('user_id', agency).eq('client_id', body.client_id).eq('type', 'receita').eq('status', 'aberto')
           .order('due_date').limit(3)
         entries = (data ?? []) as unknown as Entry[]
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
     if (action === 'send_now') {
       if (!body.client_id) return json({ error: 'client_id obrigatório.' }, 400)
       const { data } = await sb.from('fin_entries')
-        .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing)')
+        .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing), fin_invoices(number, pdf_url)')
         .eq('user_id', agency).eq('client_id', body.client_id).eq('type', 'receita').eq('status', 'aberto')
         .lte('due_date', new Date(Date.parse(today + 'T00:00:00Z') + 7 * 86_400_000).toISOString().slice(0, 10))
         .order('due_date')

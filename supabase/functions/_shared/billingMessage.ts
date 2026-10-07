@@ -10,6 +10,7 @@ Passando para lembrar do pagamento com vencimento em *{vencimento}*:
 
 {descricao}
 *Total: {valor}*
+{nota_fiscal}
 
 {pix_info}
 Dados para transferência: {dados_bancarios}
@@ -21,6 +22,7 @@ Se já pagou, pode desconsiderar. Obrigado!
 
 {descricao}
 *Total: {valor}*
+{nota_fiscal}
 
 {pix_info}
 Dados para transferência: {dados_bancarios}
@@ -32,6 +34,7 @@ Se já pagou, pode desconsiderar. Obrigado!
 
 {descricao}
 *Total: {valor}*
+{nota_fiscal}
 
 {pix_info}
 Dados para transferência: {dados_bancarios}
@@ -67,6 +70,7 @@ export function render(tpl: string, vars: Record<string, string>) {
 export interface Entry {
   id: string; description: string; amount: number; due_date: string; client_id: string
   clients: { id: string; company_name: string; responsible_name: string | null; whatsapp: string | null; email: string | null; auto_billing: boolean }
+  fin_invoices?: { number: string; pdf_url: string | null } | null
 }
 
 // deno-lint-ignore no-explicit-any
@@ -96,6 +100,10 @@ export function buildMessage(entries: Entry[], today: string, s: any, agencyName
     descricao: entries.map(e => `• ${e.description} (vence ${brDate(e.due_date)}): ${brl(Number(e.amount))}`).join('\n'),
     dados_bancarios: s?.bank_details ?? '',
     pix_info: pix ? PIX_INFO : '',
+    // Link do PDF das notas já registradas (Fase 3); sem nota a linha some
+    nota_fiscal: entries.filter(e => e.fin_invoices?.pdf_url)
+      .map(e => `Nota fiscal nº ${e.fin_invoices!.number}: ${e.fin_invoices!.pdf_url}`)
+      .filter((v, i, a) => a.indexOf(v) === i).join('\n'),
   })
   return { text, pix, total, kind, subject: kind === 'after' ? `Pagamento em atraso · ${agencyName}` : `Lembrete de pagamento · ${agencyName}` }
 }

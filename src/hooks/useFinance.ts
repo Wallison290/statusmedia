@@ -34,6 +34,8 @@ export interface FinEntry {
   installment: number | null; installments: number | null
   notes: string | null; created_by: string | null; updated_by: string | null
   billing_paused?: boolean
+  invoice_id?: string | null; invoice_skip?: boolean
+  fin_invoices?: { number: string; pdf_url: string | null } | null
   created_at: string; updated_at: string
   clients?: { company_name: string } | null
 }
@@ -134,7 +136,7 @@ export function useFinCategories() {
   })
 }
 
-const ENTRY_SELECT = '*, clients(company_name)'
+const ENTRY_SELECT = '*, clients(company_name), fin_invoices(number, pdf_url)'
 const num = (e: any): FinEntry => ({
   ...e, amount: Number(e.amount), paid_amount: e.paid_amount == null ? null : Number(e.paid_amount),
 })
@@ -546,5 +548,164 @@ export function useToggleEntryBillingPause() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fin_entries'] }),
+  })
+}
+
+// ── Notas fiscais (Fase 3, modo assistido — migration 092) ───────────────────
+
+export const EMISSOR_NACIONAL_URL = 'https://www.nfse.gov.br/EmissorNacional'
+
+export interface FiscalSettings {
+  user_id: string; cnpj: string | null; legal_name: string | null; municipal_reg: string | null
+  tax_regime: 'mei' | 'simples' | 'presumido' | 'real' | 'outro' | null
+  city: string | null; state: string | null
+  issuing_portal: 'nacional' | 'prefeitura'; portal_url: string | null
+  service_code: string | null; service_description: string | null; iss_rate: number | null
+}
+export interface FinInvoice {
+  id: string; client_id: string | null; number: string; issue_date: string; competence: string
+  amount: number; description: string | null; access_key: string | null
+  pdf_url: string | null; xml_url: string | null; status: 'emitida' | 'cancelada'; notes: string | null
+  created_at: string
+  clients?: { company_name: string } | null
+}
+
+export function useFiscalSettings() {
+  const { agencyId } = useAuth()
+  return useQuery<FiscalSettings | null>({
+    queryKey: ['fin_fiscal_settings', agencyId],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      const { data, error } = await db().from('fin_fiscal_settings').select('*').eq('user_id', agencyId).maybeSingle()
+      if (error) throw error
+      return data ? { ...data, iss_rate: data.iss_rate == null ? null : Number(data.iss_rate) } : null
+    },
+  })
+}
+
+export function useSaveFiscalSettings() {
+  const { agencyId } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: Omit<FiscalSettings, 'user_id'>) => {
+      const { error } = await db().from('fin_fiscal_settings')
+        .upsert({ ...s, user_id: agencyId, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['fin_fiscal_settings'] }),
+  })
+}
+
+export function useInvoices() {
+  const { agencyId } = useAuth()
+  return useQuery<FinInvoice[]>({
+    queryKey: ['fin_invoices', agencyId],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      const { data, error } = await db().from('fin_invoices')
+        .select('*, clients(company_name)').eq('user_id', agencyId)
+        .order('issue_date', { ascending: false }).order('created_at', { ascending: false }).limit(300)
+      if (error) throw error
+      return (data ?? []).map((i: any) => ({ ...i, amount: Number(i.amount) }))
+    },
+  })
+}
+
+/** Receitas de cliente, até o fim do mês atual, sem nota e sem "não precisa de nota". */
+export function useEntriesToInvoice() {
+  const { agencyId } = useAuth()
+  const now = new Date()
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const toISO = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`
+  return useQuery<FinEntry[]>({
+    queryKey: ['fin_entries', agencyId, 'to_invoice', toISO],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      const { data, error } = await db().from('fin_entries')
+        .select(ENTRY_SELECT).eq('user_id', agencyId).eq('type', 'receita')
+        .neq('status', 'cancelado').is('invoice_id', null).eq('invoice_skip', false)
+        .not('client_id', 'is', null).lte('competence', toISO)
+        .order('competence', { ascending: false }).order('due_date')
+      if (error) throw error
+      return (data ?? []).map(num)
+    },
+  })
+}
+
+function useInvalidateInvoices() {
+  const qc = useQueryClient()
+  return () => {
+    for (const k of ['fin_invoices', 'fin_entries', 'fin_audit', 'clients', 'portal-invoices']) qc.invalidateQueries({ queryKey: [k] })
+  }
+}
+
+export function useSaveInvoice() {
+  const { agencyId } = useAuth()
+  const invalidate = useInvalidateInvoices()
+  return useMutation({
+    mutationFn: async (p: {
+      id?: string; client_id: string | null; number: string; issue_date: string; competence: string
+      amount: number; description: string | null; access_key: string | null
+      pdf_url: string | null; xml_url: string | null; notes: string | null; entry_ids?: string[]
+    }) => {
+      const { entry_ids, id, ...row } = p
+      let invoiceId = id
+      if (id) {
+        const { error } = await db().from('fin_invoices').update({ ...row, updated_at: new Date().toISOString() }).eq('id', id)
+        if (error) throw error
+      } else {
+        const { data, error } = await db().from('fin_invoices').insert({ ...row, user_id: agencyId }).select('id').single()
+        if (error) {
+          if (String(error.message).includes('fin_invoices_number_unique')) throw new Error(`Já existe uma nota nº ${row.number} registrada.`)
+          throw error
+        }
+        invoiceId = data.id
+      }
+      if (entry_ids?.length) {
+        const { error } = await db().from('fin_entries').update({ invoice_id: invoiceId }).in('id', entry_ids)
+        if (error) throw error
+      }
+      return invoiceId
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export function useCancelInvoice() {
+  const invalidate = useInvalidateInvoices()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db().from('fin_invoices').update({ status: 'cancelada', updated_at: new Date().toISOString() }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export function useSkipInvoice() {
+  const invalidate = useInvalidateInvoices()
+  return useMutation({
+    mutationFn: async ({ ids, skip }: { ids: string[]; skip: boolean }) => {
+      const { error } = await db().from('fin_entries').update({ invoice_skip: skip }).in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export interface ClientFiscal {
+  fiscal_document: string | null; fiscal_name: string | null; fiscal_email: string | null; municipal_reg: string | null
+  address_zip: string | null; address_street: string | null; address_number: string | null; address_complement: string | null
+  address_district: string | null; address_city: string | null; address_state: string | null
+}
+
+export function useSaveClientFiscal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: ClientFiscal }) => {
+      const { error } = await db().from('clients').update({ ...data, updated_at: new Date().toISOString() }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
   })
 }
