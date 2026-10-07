@@ -41,6 +41,7 @@ import { isImageUrl } from '@/utils/media'
 import type { FinancialStatus } from '@/types'
 import { supabase } from '@/integrations/supabase/client'
 import { uploadArquivo } from '@/lib/uploadArquivo'
+import { getBannerStyle, clientBannerId, CLIENT_STATUS } from '@/utils/clientBanner'
 import { buildInstagramOAuthUrl, isInstagramConfigured } from '@/lib/instagramOAuth'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { ContentAsset, ContentType, PlannerItem } from '@/types'
@@ -60,82 +61,42 @@ function AssetCard({
 }) {
   const [confirming, setConfirming] = useState(false)
   const isImage = isImageUrl(asset.media_url)
+  const iconBtn = 'w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors'
 
   return (
-    <div className="group relative rounded-xl border border-[#1e293b] overflow-hidden bg-[#111827] shadow-sm">
-      {/* Preview */}
-      <div
-        className="aspect-square overflow-hidden bg-[#182233] cursor-pointer"
-        onClick={onView}
-      >
+    <div className="group rounded-2xl border overflow-hidden transition-colors hover:border-[#2563EB]/50"
+      style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+      <button className="block w-full aspect-square overflow-hidden" style={{ background: 'var(--sm-bg-alt)' }} onClick={onView} aria-label={`Ver ${asset.title}`}>
         {isImage ? (
-          <img
-            src={asset.media_url!}
-            alt={asset.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : asset.media_url ? (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5">
-            <ImageIcon className="w-7 h-7 text-[#94a3b8]" />
-            <span className="text-[10px] text-[#64748b]">
-              {asset.media_url.split('.').pop()?.split('?')[0]?.toUpperCase() || 'ARQUIVO'}
-            </span>
-          </div>
+          <img src={asset.media_url!} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-7 h-7 text-[#94a3b8]" />
-          </div>
+          <span className="w-full h-full flex flex-col items-center justify-center gap-1.5">
+            <ImageIcon className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
+            {asset.media_url && (
+              <span className="text-[10.5px] font-semibold" style={{ color: 'var(--sm-text-4)' }}>
+                {asset.media_url.split('.').pop()?.split('?')[0]?.toUpperCase() || 'ARQUIVO'}
+              </span>
+            )}
+          </span>
         )}
+      </button>
+
+      <div className="px-3 pt-2.5">
+        <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{asset.title}</p>
+        <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>{contentTypeLabels[asset.content_type]}</p>
       </div>
 
-      {/* Info */}
-      <div className="px-2.5 pt-2 pb-1.5">
-        <p className="text-[12px] font-normal text-[#F8FAFC] truncate">{asset.title}</p>
-        <p className="text-[11px] text-[#64748b] mt-0.5">{contentTypeLabels[asset.content_type]}</p>
-      </div>
-
-      {/* Actions */}
       {confirming ? (
-        <div className="px-2 pb-2 flex items-center gap-1.5">
-          <span className="text-[10px] text-[#64748b] flex-1">Excluir?</span>
-          <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setConfirming(false)}>
-            Não
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 px-2 text-[10px] text-red-500 hover:text-[#f87171]"
-            onClick={() => { setConfirming(false); onDelete() }}
-          >
-            Sim
-          </Button>
+        <div className="px-3 pb-2 pt-1 flex items-center gap-1.5">
+          <span className="text-[11.5px] flex-1" style={{ color: 'var(--sm-text-3)' }}>Excluir?</span>
+          <button className="h-7 px-2 rounded-md text-[11.5px] hover:bg-black/5" style={{ color: 'var(--sm-text-2)' }} onClick={() => setConfirming(false)}>Não</button>
+          <button className="h-7 px-2 rounded-md text-[11.5px] font-semibold" style={{ color: '#EF4444' }} onClick={() => { setConfirming(false); onDelete() }}>Sim</button>
         </div>
       ) : (
-        <div className="px-2 pb-2 flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0 text-[#64748b] hover:text-[#CBD5E1]"
-            onClick={onView}
-          >
-            <Eye className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0 text-[#64748b] hover:text-[#CBD5E1]"
-            onClick={onEdit}
-          >
-            <Pencil className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0 text-[#64748b] hover:text-red-500 ml-auto"
-            onClick={() => setConfirming(true)}
-          >
-            <Trash2 className="w-3 h-3" />
-          </Button>
+        <div className="px-1.5 pb-1.5 flex items-center" style={{ color: 'var(--sm-text-3)' }}>
+          <button className={iconBtn} onClick={onView} title="Ver" aria-label="Ver"><Eye className="w-3.5 h-3.5" /></button>
+          <button className={iconBtn} onClick={onEdit} title="Editar" aria-label="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+          <button className={`${iconBtn} ml-auto hover:text-red-500`} onClick={() => setConfirming(true)} title="Excluir" aria-label="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       )}
     </div>
@@ -163,7 +124,7 @@ function AssetViewDialog({
       <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="text-[14px] break-words">{asset.title}</DialogTitle>
-          <p className="text-[11px] text-[#64748b] mt-0.5">
+          <p className="text-[11px] text-[color:var(--sm-text-4)] mt-0.5">
             {contentTypeLabels[asset.content_type]} · {formatDate(asset.created_at)}
           </p>
         </DialogHeader>
@@ -174,7 +135,7 @@ function AssetViewDialog({
                 <img
                   src={asset.media_url}
                   alt={asset.title}
-                  className="w-full max-w-full max-h-[60vh] rounded-lg border border-[#1e293b] object-contain"
+                  className="w-full max-w-full max-h-[60vh] rounded-lg border border-[color:var(--sm-border)] object-contain"
                 />
               </a>
             ) : (
@@ -182,23 +143,23 @@ function AssetViewDialog({
                 href={asset.media_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2.5 p-3 rounded-lg border border-[#1e293b] bg-[#182233] hover:bg-[#2563EB]/10 transition-colors"
+                className="flex items-center gap-2.5 p-3 rounded-lg border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] hover:bg-[#2563EB]/10 transition-colors"
               >
-                <ImageIcon className="w-4 h-4 text-[#64748b]" />
-                <span className="text-[12px] text-[#CBD5E1] flex-1 truncate">Abrir arquivo</span>
+                <ImageIcon className="w-4 h-4 text-[color:var(--sm-text-4)]" />
+                <span className="text-[12px] text-[color:var(--sm-text-2)] flex-1 truncate">Abrir arquivo</span>
               </a>
             )
           )}
           {asset.caption && (
-            <div className="p-3 rounded-lg bg-[#182233] border border-[#1e293b]">
-              <p className="text-[10px] text-[#64748b] uppercase tracking-wide mb-1.5">Legenda</p>
-              <p className="text-[13px] text-[#CBD5E1] leading-relaxed whitespace-pre-wrap break-words">{asset.caption}</p>
+            <div className="p-3 rounded-lg bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)]">
+              <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Legenda</p>
+              <p className="text-[13px] text-[color:var(--sm-text-2)] leading-relaxed whitespace-pre-wrap break-words">{asset.caption}</p>
             </div>
           )}
           {asset.observations && (
-            <div className="p-3 rounded-lg bg-[#182233] border border-[#1e293b]">
-              <p className="text-[10px] text-[#64748b] uppercase tracking-wide mb-1.5">Observações</p>
-              <p className="text-[13px] text-[#94a3b8] leading-relaxed break-words">{asset.observations}</p>
+            <div className="p-3 rounded-lg bg-[color:var(--sm-bg-alt)] border border-[color:var(--sm-border)]">
+              <p className="text-[10px] text-[color:var(--sm-text-4)] uppercase tracking-wide mb-1.5">Observações</p>
+              <p className="text-[13px] text-[color:var(--sm-text-3)] leading-relaxed break-words">{asset.observations}</p>
             </div>
           )}
           {asset.link_url && (
@@ -206,11 +167,11 @@ function AssetViewDialog({
               href={asset.link_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 p-3 rounded-lg border border-[#1e293b] bg-[#182233] hover:bg-[#2563EB]/10 transition-colors min-w-0 max-w-full overflow-hidden"
+              className="flex items-center gap-2.5 p-3 rounded-lg border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)] hover:bg-[#2563EB]/10 transition-colors min-w-0 max-w-full overflow-hidden"
             >
               <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
               <span className="text-[12px] text-blue-600 flex-1 min-w-0 break-all">{asset.link_url}</span>
-              <ExternalLink className="w-3.5 h-3.5 text-[#64748b] flex-shrink-0" />
+              <ExternalLink className="w-3.5 h-3.5 text-[color:var(--sm-text-4)] flex-shrink-0" />
             </a>
           )}
         </div>
@@ -223,253 +184,107 @@ function AssetViewDialog({
   )
 }
 
-// ─── Financial Status Card ────────────────────────────────────────────────────
+// ─── Faixa da mensalidade ─────────────────────────────────────────────────────
+// Uma linha só (mensalidade muda uma vez por mês; o conteúdo, todo dia). A
+// barrinha à esquerda ganha cor quando pede atenção: amarelo vencendo, vermelho
+// atrasado. Situação sempre como ponto + texto.
 
-// Duas variantes (escuro/claro) — mesmo esquema do componente <Badge>. Uma cor
-// única não funciona nos dois temas: translúcido+claro some no tema claro
-// (o card por trás fica branco), e claro+escuro fica ilegível no tema escuro.
-const financialBadgeStylesDark: Record<FinancialStatus, { bg: string; text: string; dot: string; icon: React.ReactNode }> = {
-  ativo:          { bg: 'bg-[#22C55E]/15 border-[#22C55E]/30', text: 'text-[#4ade80]', dot: 'bg-[#22C55E]', icon: <CheckCircle2 className="w-3 h-3" /> },
-  vence_em_breve: { bg: 'bg-[#F5A623]/15 border-[#F5A623]/30', text: 'text-[#fbbf24]', dot: 'bg-[#F5A623]', icon: <Clock className="w-3 h-3" /> },
-  atrasado:       { bg: 'bg-[#ef4444]/15 border-[#ef4444]/30', text: 'text-[#f87171]', dot: 'bg-[#ef4444]', icon: <AlertCircle className="w-3 h-3" /> },
-  cancelado:      { bg: 'bg-[#1e293b] border-[#334155]',       text: 'text-[#94a3b8]', dot: 'bg-[#64748b]', icon: <Ban className="w-3 h-3" /> },
-}
-
-const financialBadgeStylesLight: Record<FinancialStatus, { bg: string; text: string; dot: string; icon: React.ReactNode }> = {
-  ativo:          { bg: 'bg-green-100 border-green-300', text: 'text-green-700', dot: 'bg-green-500', icon: <CheckCircle2 className="w-3 h-3" /> },
-  vence_em_breve: { bg: 'bg-amber-100 border-amber-300', text: 'text-amber-700', dot: 'bg-amber-500', icon: <Clock className="w-3 h-3" /> },
-  atrasado:       { bg: 'bg-red-100 border-red-300',     text: 'text-red-700',   dot: 'bg-red-500',   icon: <AlertCircle className="w-3 h-3" /> },
-  cancelado:      { bg: 'bg-gray-100 border-gray-300',   text: 'text-gray-600',  dot: 'bg-gray-400',  icon: <Ban className="w-3 h-3" /> },
+const FIN_STATUS_COLOR: Record<FinancialStatus, string> = {
+  ativo: '#22C55E', vence_em_breve: '#F59E0B', atrasado: '#EF4444', cancelado: '#64748B',
 }
 
 function FinancialCard({ client }: { client: import('@/types').Client }) {
   const updateClient = useUpdateClient()
   const registerPayment = useRegisterPayment()
   const { toast } = useToast()
-  const { isDark } = useTheme()
-  const financialBadgeStyles = isDark ? financialBadgeStylesDark : financialBadgeStylesLight
+  const [menuOpen, setMenuOpen] = useState(false)
 
-  const [overrideOpen, setOverrideOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const status = calcFinancialStatus(client)
+  const aux = getFinancialAuxText(client, status)
+  const attention = status === 'atrasado' || status === 'vence_em_breve'
 
-  const computedStatus = calcFinancialStatus(client)
-  const styles = financialBadgeStyles[computedStatus]
-  const auxText = getFinancialAuxText(client, computedStatus)
+  if (client.valor_mensal == null && client.dia_vencimento == null) return null
 
-  const hasFinancialData = client.valor_mensal != null || client.dia_vencimento != null
-
-  const handleRegisterPayment = async () => {
-    try {
-      await registerPayment.mutateAsync(client.id)
-      toast('Pagamento registrado com sucesso!', 'success')
-    } catch (err: any) {
-      toast(err.message, 'error')
-    }
+  const pay = async () => {
+    try { await registerPayment.mutateAsync(client.id); toast('Pagamento registrado.', 'success') }
+    catch (err: any) { toast(err.message, 'error') }
+  }
+  const setStatus = async (patch: Partial<import('@/types').Client>, msg: string) => {
+    try { await updateClient.mutateAsync({ id: client.id, ...patch } as any); toast(msg, 'success'); setMenuOpen(false) }
+    catch (err: any) { toast(err.message, 'error') }
   }
 
-  const handleManualStatus = async (status: FinancialStatus) => {
-    setSaving(true)
-    try {
-      await updateClient.mutateAsync({
-        id: client.id,
-        financial_status: status,
-        manual_status_override: status === 'cancelado',
-      })
-      toast('Status financeiro atualizado.', 'success')
-      setOverrideOpen(false)
-    } catch (err: any) {
-      toast(err.message, 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (!hasFinancialData) return null
-
-  const valorFmt = client.valor_mensal != null
-    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.valor_mensal)
-    : null
-
-  // ── Modo compacto ─────────────────────────────────────────────────────────
-  // Mensalidade muda uma vez por mês; conteúdo muda todo dia. Quando está tudo
-  // certo, o financeiro vira uma linha e devolve a faixa inteira que ocupava
-  // acima do conteúdo. Atrasado ou vencendo, volta a ser o cartão completo —
-  // aí ele merece o espaço.
-  const precisaAtencao = computedStatus === 'atrasado' || computedStatus === 'vence_em_breve'
-
-  if (!precisaAtencao) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.06 }}
-        className="flex items-center flex-wrap gap-x-3 gap-y-1.5 mb-4 px-3.5 py-2 rounded-lg"
-        style={{ background: 'var(--sm-bg-alt)', border: '1px solid var(--sm-border)' }}
-      >
-        <DollarSign className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }} />
-        {valorFmt && (
-          <span className="text-[12.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{valorFmt}</span>
-        )}
-        {client.dia_vencimento != null && (
-          <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>· vence dia {client.dia_vencimento}</span>
-        )}
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-medium ${styles.bg} ${styles.text}`}>
-          {styles.icon}
-          {financialStatusLabel(computedStatus)}
-        </span>
-
-        <div className="flex items-center gap-1 ml-auto">
-          {computedStatus !== 'cancelado' && (
-            <Button
-              size="sm" variant="ghost"
-              onClick={handleRegisterPayment}
-              disabled={registerPayment.isPending}
-              className="text-[11px] h-6 px-2"
-            >
-              <CheckCircle2 className="w-3 h-3" />
-              {registerPayment.isPending ? 'Salvando…' : 'Registrar pagamento'}
-            </Button>
-          )}
-          <div className="relative">
-            <Button
-              size="sm" variant="ghost"
-              onClick={() => setOverrideOpen(o => !o)}
-              className="text-[11px] h-6 px-1.5"
-              style={{ color: 'var(--sm-text-3)' }}
-              title="Alterar status financeiro"
-            >
-              <ChevronDown className="w-3 h-3" />
-            </Button>
-            {overrideOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setOverrideOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-xl shadow-lg overflow-hidden"
-                  style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-                  {(['ativo', 'vence_em_breve', 'atrasado', 'cancelado'] as FinancialStatus[]).map(s => {
-                    const st = financialBadgeStyles[s]
-                    return (
-                      <button
-                        key={s}
-                        disabled={saving}
-                        onClick={() => handleManualStatus(s)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors hover:bg-[#0B1020] ${st.text}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st.dot}`} />
-                        {financialStatusLabel(s)}
-                      </button>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    )
-  }
-
-  // ── Modo completo — só quando atrasado ou vencendo ────────────────────────
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.08 }}
-      className="flex flex-col gap-3 mb-6 p-4 rounded-xl border border-[#1e293b] bg-[#111827] shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
-    >
-      {/* Ícone + dados */}
-      <div className="flex items-start gap-3 flex-1 min-w-0">
-        <div className="w-9 h-9 rounded-lg bg-[#2563EB]/10 border border-[#2563EB]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <DollarSign className="w-4 h-4 text-[#6f93c9]" />
+    <div className="relative rounded-2xl border pl-5 pr-3 sm:pr-4 py-3 mb-6 flex flex-wrap items-center gap-x-6 gap-y-2"
+      style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: attention ? FIN_STATUS_COLOR[status] : 'transparent' }} />
+
+      <div>
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>Mensalidade</p>
+        <p className="font-display text-[19px] font-bold tabular-nums leading-tight" style={{ color: 'var(--sm-text-1)' }}>
+          {client.valor_mensal != null
+            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.valor_mensal)
+            : '—'}
+        </p>
+      </div>
+      {client.dia_vencimento != null && (
+        <div>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>Vencimento</p>
+          <p className="text-[13.5px] font-medium" style={{ color: 'var(--sm-text-2)' }}>Dia {client.dia_vencimento}</p>
         </div>
-
-        <div className="flex flex-wrap items-start gap-x-5 gap-y-3 flex-1 min-w-0">
-          {client.valor_mensal != null && (
-            <div className="min-w-0">
-              <p className="text-[10px] text-[#64748b] uppercase tracking-wide">Mensalidade</p>
-              <p className="text-[14px] font-semibold text-[#F8FAFC] break-words whitespace-normal">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(client.valor_mensal)}
-              </p>
-            </div>
-          )}
-
-          {client.dia_vencimento != null && (
-            <div className="min-w-0">
-              <p className="text-[10px] text-[#64748b] uppercase tracking-wide">Vencimento</p>
-              <p className="text-[13px] font-medium text-[#CBD5E1] flex items-center gap-1.5">
-                <CalendarDays className="w-3 h-3 text-[#64748b] flex-shrink-0" />
-                Dia {client.dia_vencimento}
-              </p>
-            </div>
-          )}
-
-          <div className="min-w-0">
-            <p className="text-[10px] text-[#64748b] uppercase tracking-wide mb-1">Status financeiro</p>
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium ${styles.bg} ${styles.text}`}>
-              {styles.icon}
-              {financialStatusLabel(computedStatus)}
-            </span>
-          </div>
-
-          {auxText && (
-            <div className="min-w-0 hidden sm:block">
-              <p className="text-[10px] text-[#64748b] uppercase tracking-wide">Info</p>
-              <p className={`text-[12px] font-medium break-words whitespace-normal ${
-                computedStatus === 'atrasado' ? (isDark ? 'text-[#f87171]' : 'text-red-700') :
-                computedStatus === 'vence_em_breve' ? (isDark ? 'text-[#fbbf24]' : 'text-amber-700') : 'text-[#94a3b8]'
-              }`}>{auxText}</p>
-            </div>
-          )}
-        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>Situação</p>
+        <p className="text-[13px] font-medium inline-flex items-center gap-1.5" style={{ color: 'var(--sm-text-2)' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: FIN_STATUS_COLOR[status] }} />
+          {financialStatusLabel(status)}
+          {aux && <span className="font-normal" style={{ color: attention ? FIN_STATUS_COLOR[status] : 'var(--sm-text-4)' }}>· {aux}</span>}
+        </p>
       </div>
 
-      {/* Actions */}
-      {/* Aqui o status só pode ser 'atrasado' ou 'vence_em_breve' — cancelado e
-          em dia caem no modo compacto acima. Por isso não há mais checagem. */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:flex-shrink-0">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRegisterPayment}
-          disabled={registerPayment.isPending}
-          className="text-[11px] h-7 px-3 w-full sm:w-auto justify-center"
-        >
-          <CheckCircle2 className="w-3 h-3" />
-          {registerPayment.isPending ? 'Salvando...' : 'Registrar pagamento'}
-        </Button>
-
-        <div className="relative w-full sm:w-auto">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setOverrideOpen(o => !o)}
-            className="text-[11px] h-7 px-2.5 text-[#64748b] hover:text-[#CBD5E1] w-full sm:w-auto justify-center"
-          >
-            <ChevronDown className="w-3 h-3" /> Alterar
-          </Button>
-          {overrideOpen && (
+      <div className="flex items-center gap-1 ml-auto">
+        {status !== 'cancelado' && (
+          <button onClick={pay} disabled={registerPayment.isPending}
+            className="h-9 px-3 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+            style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
+            <CheckCircle2 className="w-3.5 h-3.5" /> {registerPayment.isPending ? 'Salvando…' : 'Registrar pagamento'}
+          </button>
+        )}
+        <div className="relative">
+          <button onClick={() => setMenuOpen(o => !o)} title="Alterar situação financeira"
+            className="h-9 px-2.5 rounded-xl text-[12.5px] inline-flex items-center gap-1 hover:bg-black/5" style={{ color: 'var(--sm-text-3)' }}>
+            Situação <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+          {menuOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setOverrideOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-xl border border-[#1e293b] bg-[#111827] shadow-lg overflow-hidden">
-                {(['ativo', 'vence_em_breve', 'atrasado', 'cancelado'] as FinancialStatus[]).map(s => {
-                  const st = financialBadgeStyles[s]
-                  return (
-                    <button
-                      key={s}
-                      disabled={saving}
-                      onClick={() => handleManualStatus(s)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors hover:bg-[#0B1020] ${st.text}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st.dot}`} />
-                      {financialStatusLabel(s)}
-                    </button>
-                  )
-                })}
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-xl border overflow-hidden shadow-2xl"
+                style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                <button onClick={() => setStatus({ manual_status_override: false }, 'Situação no automático.')}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] text-left hover:bg-black/5" style={{ color: 'var(--sm-text-1)' }}>
+                  <RefreshCw className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
+                  <span className="flex-1">Automático<span className="block text-[11px]" style={{ color: 'var(--sm-text-4)' }}>Segue a data de vencimento</span></span>
+                  {!client.manual_status_override && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />}
+                </button>
+                <div className="h-px" style={{ background: 'var(--sm-border)' }} />
+                {(['ativo', 'vence_em_breve', 'atrasado', 'cancelado'] as FinancialStatus[]).map(s => (
+                  <button key={s} onClick={() => setStatus({ financial_status: s, manual_status_override: true }, 'Situação atualizada.')}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[12.5px] text-left hover:bg-black/5" style={{ color: 'var(--sm-text-2)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: FIN_STATUS_COLOR[s] }} />
+                    <span className="flex-1">{financialStatusLabel(s)}</span>
+                    {client.manual_status_override && client.financial_status === s && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22C55E' }} />}
+                  </button>
+                ))}
               </div>
             </>
           )}
         </div>
+        <Link to="/financial?aba=clientes" title="Ver no Financeiro"
+          className="h-9 px-2.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1 hover:bg-black/5" style={{ color: '#2563EB' }}>
+          Financeiro <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -657,8 +472,8 @@ function ClientInstagramTab({ clientId, userId }: { clientId: string; userId: st
           <Instagram className="w-8 h-8 text-white" />
         </div>
         <div className="text-center">
-          <p className="text-[14px] font-semibold text-[#F8FAFC]">Instagram não conectado</p>
-          <p className="text-[12px] text-[#64748b] mt-1">
+          <p className="text-[14px] font-semibold text-[color:var(--sm-text-1)]">Instagram não conectado</p>
+          <p className="text-[12px] text-[color:var(--sm-text-4)] mt-1">
             Conecte a conta Business ou Creator deste cliente para agendar posts.
           </p>
           {/* Indicador de uso do limite */}
@@ -691,12 +506,12 @@ function ClientInstagramTab({ clientId, userId }: { clientId: string; userId: st
   return (
     <div className="space-y-4">
       {/* Conta conectada */}
-      <div className="flex items-center gap-4 p-4 rounded-xl border border-[#1e293b] bg-[#111827] shadow-sm">
+      <div className="flex items-center gap-4 p-4 rounded-xl border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-card)] shadow-sm">
         {igAccount.profile_picture_url ? (
           <img
             src={igAccount.profile_picture_url}
             alt={igAccount.username}
-            className="w-14 h-14 rounded-full border-2 border-[#1e293b] object-cover flex-shrink-0"
+            className="w-14 h-14 rounded-full border-2 border-[color:var(--sm-border)] object-cover flex-shrink-0"
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         ) : (
@@ -709,22 +524,22 @@ function ClientInstagramTab({ clientId, userId }: { clientId: string; userId: st
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-[14px] font-semibold text-[#F8FAFC]">@{igAccount.username}</p>
+            <p className="text-[14px] font-semibold text-[color:var(--sm-text-1)]">@{igAccount.username}</p>
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#22C55E]/15 text-[#4ade80] border border-[#22C55E]/30">
               Conectado
             </span>
           </div>
           {igAccount.name && (
-            <p className="text-[12px] text-[#94a3b8] mt-0.5">{igAccount.name}</p>
+            <p className="text-[12px] text-[color:var(--sm-text-3)] mt-0.5">{igAccount.name}</p>
           )}
-          <p className="text-[12px] text-[#64748b] mt-0.5">
+          <p className="text-[12px] text-[color:var(--sm-text-4)] mt-0.5">
             {igAccount.followers_count.toLocaleString('pt-BR')} seguidores
           </p>
         </div>
         <div className="flex-shrink-0">
           {confirming ? (
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-[#64748b]">Desconectar?</span>
+              <span className="text-[11px] text-[color:var(--sm-text-4)]">Desconectar?</span>
               <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>Não</Button>
               <Button
                 size="sm"
@@ -745,8 +560,8 @@ function ClientInstagramTab({ clientId, userId }: { clientId: string; userId: st
       </div>
 
       {/* Info */}
-      <div className="p-4 rounded-xl border border-[#1e293b] bg-[#182233]">
-        <p className="text-[12px] text-[#94a3b8] leading-relaxed">
+      <div className="p-4 rounded-xl border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)]">
+        <p className="text-[12px] text-[color:var(--sm-text-3)] leading-relaxed">
           Com o Instagram conectado, você pode agendar posts diretamente pelo modal de planejamento.
           Basta abrir qualquer post no planejador e usar a aba <strong>"Agendar no Instagram"</strong>.
         </p>
@@ -776,67 +591,45 @@ function SituacaoDoCliente({
   resumo, onIr,
 }: { resumo: ResumoSituacao; onIr: (aba: string) => void }) {
   const itens = [
-    {
-      n: resumo.aguardandoAprovacao,
-      label: resumo.aguardandoAprovacao === 1 ? 'conteúdo aguardando aprovação' : 'conteúdos aguardando aprovação',
-      aba: 'planner', tom: '#b45309', fundo: 'rgba(245,166,35,0.12)',
-    },
-    {
-      n: resumo.ajusteSolicitado,
-      label: resumo.ajusteSolicitado === 1 ? 'ajuste pedido pelo cliente' : 'ajustes pedidos pelo cliente',
-      aba: 'planner', tom: '#c2410c', fundo: 'rgba(194,65,12,0.12)',
-    },
-    {
-      n: resumo.tarefasAtrasadas,
-      label: resumo.tarefasAtrasadas === 1 ? 'tarefa atrasada' : 'tarefas atrasadas',
-      aba: 'tasks', tom: '#dc2626', fundo: 'rgba(220,38,38,0.12)',
-    },
-    {
-      n: resumo.tarefasAbertas,
-      label: resumo.tarefasAbertas === 1 ? 'tarefa em aberto' : 'tarefas em aberto',
-      aba: 'tasks', tom: '#2563EB', fundo: 'rgba(37,99,235,0.10)',
-    },
+    { n: resumo.aguardandoAprovacao, label: resumo.aguardandoAprovacao === 1 ? 'conteúdo aguardando aprovação' : 'conteúdos aguardando aprovação', aba: 'planner', cor: '#3B82F6' },
+    { n: resumo.ajusteSolicitado, label: resumo.ajusteSolicitado === 1 ? 'ajuste pedido pelo cliente' : 'ajustes pedidos pelo cliente', aba: 'planner', cor: '#8B5CF6' },
+    { n: resumo.tarefasAtrasadas, label: resumo.tarefasAtrasadas === 1 ? 'tarefa atrasada' : 'tarefas atrasadas', aba: 'tasks', cor: '#EF4444' },
+    { n: resumo.tarefasAbertas, label: resumo.tarefasAbertas === 1 ? 'tarefa em aberto' : 'tarefas em aberto', aba: 'tasks', cor: '#94A3B8' },
   ].filter(i => i.n > 0)
 
-  const tudoEmDia = itens.length === 0
-
   return (
-    <div className="rounded-xl p-4" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--sm-text-3)' }}>
+    <section>
+      <div className="flex items-end justify-between gap-3 mb-3">
+        <h2 className="font-display text-[17px] font-bold flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
+          <span className="text-[12px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>01</span>
           Precisa de você
-        </p>
+        </h2>
         {resumo.proximoPost && (
-          <p className="text-[11.5px] flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
-            <CalendarDays className="w-3.5 h-3.5" />
-            Próximo post: <span style={{ color: 'var(--sm-text-2)' }}>{resumo.proximoPost.data}</span>
+          <p className="text-[12px] flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
+            <CalendarDays className="w-3.5 h-3.5" /> Próximo post: <strong style={{ color: 'var(--sm-text-1)' }}>{resumo.proximoPost.data}</strong>
           </p>
         )}
       </div>
 
-      {tudoEmDia ? (
-        <div className="flex items-center gap-2.5 py-1">
-          <CheckCircle2 className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
-          <p className="text-[13px]" style={{ color: 'var(--sm-text-2)' }}>
-            Nada pendente neste cliente agora.
-          </p>
+      {itens.length === 0 ? (
+        <div className="rounded-2xl border px-5 py-4 flex items-center gap-2.5" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: '#22C55E' }} />
+          <p className="text-[13px]" style={{ color: 'var(--sm-text-2)' }}>Nada pendente neste cliente agora.</p>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {itens.map(i => (
-            <button
-              key={i.label}
-              onClick={() => onIr(i.aba)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-opacity hover:opacity-80"
-              style={{ background: i.fundo }}
-            >
-              <span className="text-[17px] font-bold leading-none" style={{ color: i.tom }}>{i.n}</span>
-              <span className="text-[12.5px] font-medium" style={{ color: i.tom }}>{i.label}</span>
+            <button key={i.label} onClick={() => onIr(i.aba)}
+              className="relative text-left rounded-2xl border pl-5 pr-4 py-3.5 transition-colors hover:border-[#2563EB]/50"
+              style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+              <span className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r" style={{ background: i.cor }} />
+              <p className="font-display text-[26px] font-bold tabular-nums leading-none" style={{ color: 'var(--sm-text-1)' }}>{i.n}</p>
+              <p className="text-[12px] mt-1.5" style={{ color: 'var(--sm-text-3)' }}>{i.label} →</p>
             </button>
           ))}
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -931,26 +724,25 @@ function BotaoAba({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={`flex items-center gap-2 whitespace-nowrap transition-colors ${
-        dentroDoMenu ? 'w-full px-3 h-9 rounded-lg text-left' : 'px-3 h-9 rounded-lg flex-shrink-0'
+        dentroDoMenu
+          ? 'w-full px-3 h-9 rounded-lg text-left hover:bg-black/5'
+          : 'px-3 h-10 border-b-2 -mb-px flex-shrink-0'
       }`}
-      style={active ? { background: 'rgba(37,99,235,0.10)' } : undefined}
+      style={dentroDoMenu
+        ? (active ? { background: 'rgba(37,99,235,0.10)' } : undefined)
+        : { borderColor: active ? '#2563EB' : 'transparent' }}
     >
-      <tab.Icon
-        className="w-4 h-4 flex-shrink-0"
-        strokeWidth={1.8}
-        style={{ color: active ? '#2563EB' : 'var(--sm-text-3)' }}
-      />
-      <span
-        className="text-[12.5px] font-medium"
-        style={{ color: active ? '#2563EB' : 'var(--sm-text-2)' }}
-      >
+      <tab.Icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.8}
+        style={{ color: active ? '#2563EB' : 'var(--sm-text-4)' }} />
+      <span className={`text-[13px] ${active ? 'font-semibold' : 'font-medium'}`}
+        style={{ color: active ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
         {tab.label}
       </span>
       {/* Só aparece quando há algo esperando. Sem número = nada a fazer aqui. */}
       {!!pending && pending > 0 && (
         <span
-          className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 ml-auto"
-          style={{ background: 'rgba(245,166,35,0.15)', color: '#b45309' }}
+          className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 ml-auto tabular-nums"
+          style={{ background: 'rgba(37,99,235,0.14)', color: '#2563EB' }}
           title={`${pending} ${pending === 1 ? 'item aguardando' : 'itens aguardando'}`}
         >
           {pending}
@@ -978,42 +770,24 @@ function TabBar({
   const abaExtraAtiva = gruposNoMenu.flatMap(g => g.itens).find(t => t.value === activeTab)
 
   const Divisor = () => (
-    <span className="w-px h-5 mx-1 flex-shrink-0" style={{ background: 'var(--sm-border)' }} />
+    <span className="w-px h-4 mx-1 flex-shrink-0 self-center" style={{ background: 'var(--sm-border)' }} />
   )
 
   return (
-    <div
-      ref={barraRef}
-      // flex-wrap: no celular as abas continuam na linha de baixo em vez de
-      // esticar a barra além da tela. Antes os botões eram flex-shrink-0 numa
-      // linha só, o que empurrava a página inteira para fora do viewport.
-      className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl max-w-full"
-      style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}
-    >
+    // Sublinhado, igual ao Financeiro: sem caixa em volta, uma linha fina embaixo.
+    // flex-wrap: no celular as abas continuam na linha de baixo em vez de
+    // empurrar a página para fora da tela.
+    <div ref={barraRef} className="flex flex-wrap items-end gap-x-1 border-b mb-6 max-w-full"
+      style={{ borderColor: 'var(--sm-border)' }}>
       {TABS_PRINCIPAIS.map(t => (
-        <BotaoAba
-          key={t.value}
-          tab={t}
-          active={activeTab === t.value}
-          pending={pendencias[t.value]}
-          onClick={() => onChange(t.value)}
-        />
+        <BotaoAba key={t.value} tab={t} active={activeTab === t.value} pending={pendencias[t.value]} onClick={() => onChange(t.value)} />
       ))}
 
-      {/* Cada grupo promovido entra separado por um divisor, para o
-          agrupamento continuar legível também na barra. O grupo inteiro quebra
-          junto, para não partir Instagram de Resultados em linhas diferentes. */}
       {gruposNaBarra.map(grupo => (
-        <span key={grupo.titulo} className="flex items-center gap-1">
+        <span key={grupo.titulo} className="flex items-end gap-x-1">
           <Divisor />
           {grupo.itens.map(t => (
-            <BotaoAba
-              key={t.value}
-              tab={t}
-              active={activeTab === t.value}
-              pending={pendencias[t.value]}
-              onClick={() => onChange(t.value)}
-            />
+            <BotaoAba key={t.value} tab={t} active={activeTab === t.value} pending={pendencias[t.value]} onClick={() => onChange(t.value)} />
           ))}
         </span>
       ))}
@@ -1021,52 +795,34 @@ function TabBar({
       <Divisor />
 
       <div className="relative">
-        <button
-          onClick={() => setMenuAberto(o => !o)}
-          aria-expanded={menuAberto}
-          className="flex items-center gap-2 px-3 h-9 rounded-lg whitespace-nowrap transition-colors"
-          style={abaExtraAtiva ? { background: 'rgba(37,99,235,0.10)' } : undefined}
-        >
+        <button onClick={() => setMenuAberto(o => !o)} aria-expanded={menuAberto}
+          className="flex items-center gap-2 px-3 h-10 border-b-2 -mb-px whitespace-nowrap transition-colors"
+          style={{ borderColor: abaExtraAtiva ? '#2563EB' : 'transparent' }}>
           {abaExtraAtiva
             ? <abaExtraAtiva.Icon className="w-4 h-4" strokeWidth={1.8} style={{ color: '#2563EB' }} />
-            : <MoreHorizontal className="w-4 h-4" strokeWidth={1.8} style={{ color: 'var(--sm-text-3)' }} />}
-          <span
-            className="text-[12.5px] font-medium"
-            style={{ color: abaExtraAtiva ? '#2563EB' : 'var(--sm-text-2)' }}
-          >
+            : <MoreHorizontal className="w-4 h-4" strokeWidth={1.8} style={{ color: 'var(--sm-text-4)' }} />}
+          <span className={`text-[13px] ${abaExtraAtiva ? 'font-semibold' : 'font-medium'}`}
+            style={{ color: abaExtraAtiva ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
             {abaExtraAtiva ? abaExtraAtiva.label : 'Mais'}
           </span>
-          <ChevronDown
-            className="w-3.5 h-3.5 transition-transform"
-            style={{
-              color: abaExtraAtiva ? '#2563EB' : 'var(--sm-text-3)',
-              transform: menuAberto ? 'rotate(180deg)' : undefined,
-            }}
-          />
+          <ChevronDown className="w-3.5 h-3.5 transition-transform"
+            style={{ color: 'var(--sm-text-4)', transform: menuAberto ? 'rotate(180deg)' : undefined }} />
         </button>
 
         {menuAberto && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuAberto(false)} />
-            <div
-              className="absolute left-0 top-full mt-1.5 z-20 w-56 max-w-[calc(100vw-2.5rem)] rounded-xl shadow-lg p-1.5"
-              style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}
-            >
+            <div className="absolute left-0 top-full mt-1.5 z-20 w-56 max-w-[calc(100vw-2.5rem)] rounded-xl border shadow-2xl p-1.5"
+              style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
               {gruposNoMenu.map((grupo, i) => (
                 <div key={grupo.titulo} className={i > 0 ? 'mt-1.5 pt-1.5 border-t' : ''}
                   style={i > 0 ? { borderColor: 'var(--sm-border)' } : undefined}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide px-3 pb-1" style={{ color: 'var(--sm-text-3)' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] px-3 pb-1" style={{ color: 'var(--sm-text-4)' }}>
                     {grupo.titulo}
                   </p>
                   {grupo.itens.map(t => (
-                    <BotaoAba
-                      key={t.value}
-                      tab={t}
-                      active={activeTab === t.value}
-                      pending={pendencias[t.value]}
-                      dentroDoMenu
-                      onClick={() => { onChange(t.value); setMenuAberto(false) }}
-                    />
+                    <BotaoAba key={t.value} tab={t} active={activeTab === t.value} pending={pendencias[t.value]} dentroDoMenu
+                      onClick={() => { onChange(t.value); setMenuAberto(false) }} />
                   ))}
                 </div>
               ))}
@@ -1356,101 +1112,98 @@ export function ClientProfile() {
 
   // ── Loading / not found ─────────────────────────────────────────────────────
   if (isLoading) return (
-    <div className="flex items-center justify-center h-full">
-      <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+    <div className="min-h-full p-4 md:p-6 space-y-5" style={{ background: 'var(--sm-bg-page)' }} aria-busy="true">
+      <div className="h-[180px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+      <div className="h-[64px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+      <div className="h-[260px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
     </div>
   )
 
   if (!client) return (
-    <div className="flex items-center justify-center h-full">
-      <p className="text-[#64748b] text-sm">Cliente não encontrado.</p>
+    <div className="flex flex-col items-center justify-center gap-3 h-full p-6" style={{ background: 'var(--sm-bg-page)' }}>
+      <p className="font-display text-[18px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Cliente não encontrado.</p>
+      <Link to="/clients" className="text-[13px] font-semibold" style={{ color: '#2563EB' }}>← Voltar para Clientes</Link>
     </div>
   )
 
+  const statusCfg = CLIENT_STATUS[client.status] ?? { label: client.status, color: '#94A3B8' }
+  const contatos = [
+    client.instagram && { Icon: Instagram, text: `@${client.instagram.replace('@', '')}` },
+    client.email && { Icon: Mail, text: client.email },
+    client.whatsapp && { Icon: Phone, text: client.whatsapp },
+    client.website && { Icon: Globe, text: client.website },
+  ].filter(Boolean) as { Icon: React.ElementType; text: string }[]
+
   return (
-    <div className="min-h-full flex flex-col">
-      <div className="flex-1 p-4 md:p-6" style={{ background: 'var(--sm-bg-page)' }}>
+    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
 
-        {/* ── Profile header ───────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 sm:gap-4 mb-5 p-4 sm:p-5 rounded-xl shadow-sm"
-          style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}
-        >
-          {client.logo_url ? (
-            <img
-              src={client.logo_url}
-              alt={client.company_name}
-              className="w-14 h-14 rounded-xl object-cover border border-[#1e293b] flex-shrink-0"
-            />
-          ) : (
-            <div className="w-14 h-14 rounded-xl bg-[#0B1020] border border-[#1e293b] flex items-center justify-center text-xl font-semibold text-[#94a3b8] flex-shrink-0">
-              {client.company_name[0].toUpperCase()}
+        {/* ── Barra de topo: voltar + ações (no celular, ao lado do menu) ────── */}
+        <div className="flex items-center justify-between gap-3 mb-4 max-md:pl-12 max-md:-mt-[3.25rem] max-md:min-h-[44px]">
+          <Link to="/clients" className="inline-flex items-center gap-1.5 text-[12.5px] font-medium hover:underline" style={{ color: 'var(--sm-text-3)' }}>
+            <ArrowLeft className="w-4 h-4" /> Clientes
+          </Link>
+          <div className="flex items-center gap-1.5">
+            {client.email && (
+              <button onClick={handleResendInvite} disabled={resendingInvite} title="Reenviar convite de acesso ao portal"
+                className="h-9 px-3 rounded-xl border text-[12.5px] font-medium inline-flex items-center gap-1.5 hover:bg-black/5 disabled:opacity-50"
+                style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+                {resendingInvite ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{resendingInvite ? 'Enviando…' : 'Reenviar convite'}</span>
+              </button>
+            )}
+            <Link to={`/clients/${id}/edit`}
+              className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
+              style={{ background: '#2563EB' }}>
+              <Edit className="w-3.5 h-3.5" /> Editar
+            </Link>
+          </div>
+        </div>
+
+        {/* ── Cabeçalho: capa do cliente + identidade ─────────────────────────── */}
+        <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-2xl border overflow-hidden mb-4" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+          <div className="h-20 md:h-24" style={getBannerStyle(clientBannerId(client))} />
+          <div className="px-4 md:px-6 pb-5 flex flex-col md:flex-row md:items-end gap-x-6 gap-y-3">
+            <div className="-mt-9 flex-shrink-0">
+              {client.logo_url ? (
+                <img src={client.logo_url} alt="" className="w-[72px] h-[72px] rounded-2xl object-cover" style={{ boxShadow: '0 0 0 4px var(--sm-bg-card)' }} />
+              ) : (
+                <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center font-display font-bold text-[24px]"
+                  style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', boxShadow: '0 0 0 4px var(--sm-bg-card)' }}>
+                  {client.company_name.slice(0, 2).toUpperCase()}
+                </div>
+              )}
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-[15px] font-semibold text-[#F8FAFC] flex-1 min-w-[9rem] [overflow-wrap:anywhere]">{client.company_name}</h2>
-              <Badge status={client.status} />
-              <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-                <Link to="/clients" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#1e293b] text-[#94a3b8] hover:bg-[#0B1020] transition-colors">
-                  <ArrowLeft className="w-4 h-4" />
-                </Link>
-                {client.email && (
-                  <button
-                    onClick={handleResendInvite}
-                    disabled={resendingInvite}
-                    title="Reenviar convite de acesso ao portal"
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#1e293b] text-[12px] font-medium text-[#94a3b8] hover:bg-[#0B1020] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {resendingInvite
-                      ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      : <Send className="w-3.5 h-3.5" />
-                    }
-                    <span className="hidden sm:inline">{resendingInvite ? 'Enviando…' : 'Reenviar convite'}</span>
-                  </button>
-                )}
-                <Link to={`/clients/${id}/edit`} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#1e293b] text-[12px] font-medium text-[#F8FAFC] hover:bg-[#0B1020] transition-colors">
-                  <Edit className="w-3.5 h-3.5" /> Editar
-                </Link>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="font-display text-[26px] md:text-[32px] font-bold leading-[1.05] tracking-[-0.02em] [overflow-wrap:anywhere]"
+                  style={{ color: 'var(--sm-text-1)' }}>
+                  {client.company_name}
+                </h1>
+                <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium" style={{ color: 'var(--sm-text-2)' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: statusCfg.color }} />
+                  {statusCfg.label}
+                </span>
               </div>
-            </div>
-            <p className="text-[#94a3b8] text-[12px] mt-0.5">
-              {client.responsible_name} · {client.niche}
-              {/* No celular a coluna "Desde" some da direita e vem para cá */}
-              <span className="sm:hidden"> · desde {formatDate(client.entry_date)}</span>
-            </p>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 min-w-0 [overflow-wrap:anywhere]">
-              {client.instagram && (
-                <span className="flex items-center gap-1 text-[11px] text-[#64748b]">
-                  <Instagram className="w-3 h-3" /> @{client.instagram.replace('@', '')}
-                </span>
-              )}
-              {client.email && (
-                <span className="flex items-center gap-1 text-[11px] text-[#64748b]">
-                  <Mail className="w-3 h-3" /> {client.email}
-                </span>
-              )}
-              {client.whatsapp && (
-                <span className="flex items-center gap-1 text-[11px] text-[#64748b]">
-                  <Phone className="w-3 h-3" /> {client.whatsapp}
-                </span>
-              )}
-              {client.website && (
-                <span className="flex items-center gap-1 text-[11px] text-[#64748b]">
-                  <Globe className="w-3 h-3" /> {client.website}
-                </span>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
+                {client.responsible_name} · {client.niche} · cliente desde {formatDate(client.entry_date)}
+              </p>
+              {contatos.length > 0 && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 min-w-0 [overflow-wrap:anywhere]">
+                  {contatos.map(c => (
+                    <span key={c.text} className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+                      <c.Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} /> {c.text}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
-          <div className="hidden sm:block text-right flex-shrink-0">
-            <p className="text-[10px] text-[#64748b]">Desde</p>
-            <p className="text-[12px] font-medium text-[#CBD5E1]">{formatDate(client.entry_date)}</p>
-          </div>
-        </motion.div>
+        </motion.header>
 
-        {/* ── Financial card ───────────────────────────────────────────────── */}
+        {/* ── Mensalidade ──────────────────────────────────────────────────── */}
         <FinancialCard client={client} />
 
         {/* ── Tabs ─────────────────────────────────────────────────────────── */}
@@ -1466,70 +1219,79 @@ export function ClientProfile() {
           />
 
           {/* ── Visão Geral ───────────────────────────────────────────────── */}
-          {/* Antes eram 8 caixas de texto fixo. Isso não responde à pergunta que
-              se faz ao abrir um cliente: "o que está pegando aqui agora?".
-              Agora a situação vem primeiro; os dados de marca ficam abaixo. */}
+          {/* A situação vem primeiro ("o que está pegando aqui agora?"); os dados
+              de marca ficam abaixo, como ficha com linhas finas. */}
           <TabsContent value="overview">
-            <SituacaoDoCliente
-              resumo={resumoSituacao}
-              onIr={setActiveTab}
-            />
+            <SituacaoDoCliente resumo={resumoSituacao} onIr={setActiveTab} />
 
-            <div className="mt-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide mb-2.5" style={{ color: 'var(--sm-text-3)' }}>
-                Sobre a marca
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Objetivo Principal', value: client.main_objective },
-                  { label: 'Público-alvo', value: client.target_audience },
-                  { label: 'Tom de Voz', value: client.tone_of_voice },
-                  { label: 'Estilo de Comunicação', value: client.communication_style },
-                  { label: 'Diferenciais', value: client.differentials },
-                  { label: 'Serviços Oferecidos', value: client.services_offered },
-                  { label: 'Palavras Proibidas', value: client.forbidden_words },
-                  { label: 'Observações', value: client.observations },
-                ].map(({ label, value }) => value && (
-                  <Card key={label}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-[11px] text-[#64748b] uppercase tracking-wide">{label}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-[13px] text-[#CBD5E1]">{value}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            {(() => {
+              const fatos = [
+                { label: 'Objetivo principal', value: client.main_objective },
+                { label: 'Público-alvo', value: client.target_audience },
+                { label: 'Tom de voz', value: client.tone_of_voice },
+                { label: 'Estilo de comunicação', value: client.communication_style },
+                { label: 'Diferenciais', value: client.differentials },
+                { label: 'Serviços oferecidos', value: client.services_offered },
+                { label: 'Palavras proibidas', value: client.forbidden_words },
+                { label: 'Observações', value: client.observations },
+              ].filter(f => f.value && String(f.value).trim())
+              return (
+                <section className="mt-8">
+                  <div className="flex items-end justify-between gap-3 mb-3">
+                    <h2 className="font-display text-[17px] font-bold flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
+                      <span className="text-[12px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>02</span>
+                      Sobre a marca
+                    </h2>
+                    <Link to={`/clients/${id}/edit`} className="text-[12px] font-semibold" style={{ color: '#2563EB' }}>Editar</Link>
+                  </div>
+                  {fatos.length === 0 ? (
+                    <div className="rounded-2xl border px-5 py-6 text-center" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                      <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Nenhuma informação de marca cadastrada ainda.</p>
+                      <Link to={`/clients/${id}/edit`} className="text-[12.5px] font-semibold mt-1 inline-block" style={{ color: '#2563EB' }}>Preencher agora →</Link>
+                    </div>
+                  ) : (
+                    <dl className="rounded-2xl border grid md:grid-cols-2 overflow-hidden" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                      {fatos.map((f, i) => (
+                        <div key={f.label}
+                          className={`px-5 py-4 ${i > 0 ? 'border-t' : ''} ${i === 1 ? 'md:border-t-0' : ''} ${i % 2 === 1 ? 'md:border-l' : ''}`}
+                          style={{ borderColor: 'var(--sm-border)' }}>
+                          <dt className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>{f.label}</dt>
+                          <dd className="text-[13.5px] leading-relaxed mt-1 whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: 'var(--sm-text-1)' }}>{f.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </section>
+              )
+            })()}
           </TabsContent>
 
           {/* ── DNA ──────────────────────────────────────────────────────── */}
           <TabsContent value="dna">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-3.5 h-3.5 text-[#94a3b8]" />
-                  <CardTitle>DNA da Marca</CardTitle>
+            <section>
+              <div className="flex items-end justify-between gap-3 mb-3">
+                <div>
+                  <h2 className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>DNA da marca</h2>
+                  <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>A IA usa estes campos para escrever no jeito da marca.</p>
                 </div>
-                <Button onClick={handleSaveDNA} size="sm" disabled={upsertDNA.isPending}>
-                  <Save className="w-3 h-3" /> {upsertDNA.isPending ? 'Salvando...' : 'Salvar'}
-                </Button>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onClick={handleSaveDNA} disabled={upsertDNA.isPending}
+                  className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white disabled:opacity-50"
+                  style={{ background: '#2563EB' }}>
+                  <Save className="w-3.5 h-3.5" /> {upsertDNA.isPending ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+              <div className="rounded-2xl border p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
+                style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
                 <Textarea label="Como a marca fala" value={dnaForm.how_brand_speaks} onChange={e => setDnaForm(p => ({ ...p, how_brand_speaks: e.target.value }))} placeholder="Ex: De forma descontraída..." rows={4} />
                 <Textarea label="Como NÃO deve falar" value={dnaForm.how_brand_not_speaks} onChange={e => setDnaForm(p => ({ ...p, how_brand_not_speaks: e.target.value }))} placeholder="Ex: Sem jargões técnicos..." rows={4} />
                 <Textarea label="Posicionamento" value={dnaForm.positioning} onChange={e => setDnaForm(p => ({ ...p, positioning: e.target.value }))} placeholder="Ex: A academia mais personalizada..." rows={4} />
-                <Textarea label="Linguagem Ideal" value={dnaForm.ideal_language} onChange={e => setDnaForm(p => ({ ...p, ideal_language: e.target.value }))} placeholder="Ex: Informal, com emoji..." rows={4} />
-                <Textarea label="Gatilhos Mentais" value={dnaForm.mental_triggers} onChange={e => setDnaForm(p => ({ ...p, mental_triggers: e.target.value }))} placeholder="Ex: Urgência, prova social..." rows={4} />
-                {/* Antes este campo se chamava "Estilo de Comunicação", igual ao
-                    da Visão Geral — dois campos diferentes com o mesmo nome, e
-                    ninguém sabia qual a IA lia (lia o da Visão Geral; este era
-                    ignorado). Os conteúdos gravados aqui sempre foram ESTRUTURA
-                    ("Problema → Solução", "Storytelling + dicas + CTA"), não tom.
-                    Renomeado para o que sempre foi, e agora a IA usa. */}
-                <Textarea label="Estrutura do Conteúdo" value={dnaForm.communication_style} onChange={e => setDnaForm(p => ({ ...p, communication_style: e.target.value }))} placeholder="Ex: Problema → Reflexão → Solução → Resultado" rows={4} />
-              </CardContent>
-            </Card>
+                <Textarea label="Linguagem ideal" value={dnaForm.ideal_language} onChange={e => setDnaForm(p => ({ ...p, ideal_language: e.target.value }))} placeholder="Ex: Informal, com emoji..." rows={4} />
+                <Textarea label="Gatilhos mentais" value={dnaForm.mental_triggers} onChange={e => setDnaForm(p => ({ ...p, mental_triggers: e.target.value }))} placeholder="Ex: Urgência, prova social..." rows={4} />
+                {/* "Estrutura do Conteúdo" grava em communication_style do DNA
+                    (sempre guardou estrutura, não tom) e a IA usa. */}
+                <Textarea label="Estrutura do conteúdo" value={dnaForm.communication_style} onChange={e => setDnaForm(p => ({ ...p, communication_style: e.target.value }))} placeholder="Ex: Problema → Reflexão → Solução → Resultado" rows={4} />
+              </div>
+            </section>
           </TabsContent>
 
           {/* ── Onboarding ───────────────────────────────────────────────── */}
@@ -1539,134 +1301,92 @@ export function ClientProfile() {
 
           {/* ── Arsenal ──────────────────────────────────────────────────── */}
           <TabsContent value="contents">
-            <div>
-              <div className="flex items-center justify-between mb-3">
+            <section>
+              <div className="flex items-end justify-between gap-3 mb-3">
                 <div>
-                  <p className="text-[13px] font-medium text-[#F8FAFC]">Arsenal Manual</p>
-                  <p className="text-[11px] text-[#64748b] mt-0.5">{assets?.length || 0} conteúdos armazenados</p>
+                  <h2 className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Arsenal</h2>
+                  <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>{assets?.length || 0} conteúdo(s) prontos para usar</p>
                 </div>
-                <Button size="sm" onClick={openCreateAsset}>
-                  <Plus className="w-3 h-3" /> Adicionar conteúdo
-                </Button>
+                <button onClick={openCreateAsset}
+                  className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
+                  style={{ background: '#2563EB' }}>
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </button>
               </div>
 
               {(!assets || assets.length === 0) ? (
-                <div className="text-center py-10 border border-dashed border-[#1e293b] rounded-xl">
-                  <ImageIcon className="w-6 h-6 text-[#94a3b8] mx-auto mb-1.5" />
-                  <p className="text-[12px] text-[#64748b]">Nenhum conteúdo no arsenal ainda.</p>
-                  <p className="text-[11px] text-[#94a3b8] mt-0.5">Adicione imagens, vídeos e legendas prontos para usar.</p>
+                <div className="rounded-2xl border border-dashed py-12 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+                  <ImageIcon className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+                  <p className="text-[13px] font-medium" style={{ color: 'var(--sm-text-2)' }}>Nenhum conteúdo no arsenal ainda.</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>Adicione imagens, vídeos e legendas prontos para usar.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                   {assets.map(asset => (
-                    <AssetCard
-                      key={asset.id}
-                      asset={asset}
-                      onView={() => openViewAsset(asset)}
-                      onEdit={() => openEditAsset(asset)}
-                      onDelete={() => handleDeleteAsset(asset)}
-                    />
+                    <AssetCard key={asset.id} asset={asset}
+                      onView={() => openViewAsset(asset)} onEdit={() => openEditAsset(asset)} onDelete={() => handleDeleteAsset(asset)} />
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           </TabsContent>
 
           {/* ── Planejamento ─────────────────────────────────────────────── */}
           <TabsContent value="planner">
-
-            {/* ── Filter bar ─────────────────────────────────────────────── */}
             <div className="mb-4 space-y-2.5">
-
-              {/* Quick filter chips */}
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+              <div className="flex gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none max-w-full w-fit" style={{ background: 'var(--sm-bg-alt)' }}>
                 {([
                   { key: 'este_mes',       label: 'Este mês' },
                   { key: 'proximo_mes',    label: 'Próximo mês' },
                   { key: 'ultimos_3',      label: 'Últimos 3 meses' },
                   { key: 'proximos_3',     label: 'Próximos 3 meses' },
                   { key: 'mes_especifico', label: 'Mês específico' },
-                  { key: 'personalizado',  label: 'Período personalizado' },
+                  { key: 'personalizado',  label: 'Período' },
                   { key: 'todos',          label: 'Todos' },
                 ] as { key: PlannerFilterType; label: string }[]).map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setPlannerFilter(opt.key)}
-                    className={`flex-shrink-0 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-all ${
-                      plannerFilter === opt.key
-                        ? 'bg-[#29457a] text-white border-[#29457a] shadow-sm'
-                        : 'bg-[#111827] text-[#94a3b8] border-[#1e293b] hover:border-[#2563EB]/30 hover:text-[#6f93c9]'
-                    }`}
-                  >
+                  <button key={opt.key} onClick={() => setPlannerFilter(opt.key)} aria-pressed={plannerFilter === opt.key}
+                    className="h-8 px-3 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors"
+                    style={plannerFilter === opt.key ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)' } : { color: 'var(--sm-text-3)' }}>
                     {opt.label}
                   </button>
                 ))}
               </div>
 
-              {/* Month selector */}
               {plannerFilter === 'mes_especifico' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select
-                    value={plannerMonth}
-                    onChange={e => setPlannerMonth(e.target.value)}
-                    className="text-[12px] h-8 px-3 rounded-lg border border-[#1e293b] bg-[#111827] text-[#CBD5E1] focus:outline-none focus:border-[#29457a] transition-all cursor-pointer"
-                  >
-                    {availableMonths.map(m => (
-                      <option key={m} value={m}>{monthLabel(m)}</option>
-                    ))}
-                  </select>
-                </div>
+                <select value={plannerMonth} onChange={e => setPlannerMonth(e.target.value)}
+                  className="h-10 px-3 rounded-xl border text-[13px] outline-none cursor-pointer [color-scheme:light_dark]"
+                  style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>
+                  {availableMonths.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
+                </select>
               )}
 
-              {/* Custom date range */}
               {plannerFilter === 'personalizado' && (
                 <div className="flex flex-wrap gap-2 items-center">
-                  <input
-                    type="date"
-                    value={plannerDateStart}
-                    onChange={e => setPlannerDateStart(e.target.value)}
-                    className="text-[12px] h-8 px-3 rounded-lg border border-[#1e293b] bg-[#111827] text-[#CBD5E1] focus:outline-none focus:border-[#29457a] transition-all flex-1 min-w-[140px]"
-                  />
-                  <span className="text-[11px] text-[#64748b] flex-shrink-0">até</span>
-                  <input
-                    type="date"
-                    value={plannerDateEnd}
-                    onChange={e => setPlannerDateEnd(e.target.value)}
-                    className="text-[12px] h-8 px-3 rounded-lg border border-[#1e293b] bg-[#111827] text-[#CBD5E1] focus:outline-none focus:border-[#29457a] transition-all flex-1 min-w-[140px]"
-                  />
+                  <input type="date" value={plannerDateStart} onChange={e => setPlannerDateStart(e.target.value)}
+                    className="h-10 px-3 rounded-xl border text-[13px] outline-none flex-1 min-w-[150px] [color-scheme:light_dark]"
+                    style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
+                  <span className="text-[12px]" style={{ color: 'var(--sm-text-4)' }}>até</span>
+                  <input type="date" value={plannerDateEnd} onChange={e => setPlannerDateEnd(e.target.value)}
+                    className="h-10 px-3 rounded-xl border text-[13px] outline-none flex-1 min-w-[150px] [color-scheme:light_dark]"
+                    style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
                 </div>
               )}
             </div>
 
-            {/* ── Kanban ─────────────────────────────────────────────────── */}
             {(() => {
               const weeks = groupPlannerByWeek(filteredPlanner)
-
-              // Sem nenhum post cadastrado
-              if ((planner || []).length === 0) {
-                return (
-                  <div className="text-center py-14 border border-dashed border-[#1e293b] rounded-xl">
-                    <CalendarDays className="w-7 h-7 text-[#94a3b8] mx-auto mb-2" />
-                    <p className="text-[12px] text-[#64748b]">Nenhum planejamento ainda.</p>
-                  </div>
-                )
-              }
-
-              // Sem posts no período filtrado
-              if (weeks.length === 0) {
-                return (
-                  <div className="text-center py-14 border border-dashed border-[#1e293b] rounded-xl">
-                    <CalendarDays className="w-7 h-7 text-[#94a3b8] mx-auto mb-2" />
-                    <p className="text-[12px] text-[#64748b] mb-2">Nenhum post neste período.</p>
-                    <button
-                      onClick={() => setPlannerFilter('todos')}
-                      className="text-[11px] font-medium text-[#6f93c9] hover:underline"
-                    >
-                      Ver todos os planejamentos →
-                    </button>
-                  </div>
-                )
-              }
+              const vazio = (texto: string, acao?: React.ReactNode) => (
+                <div className="rounded-2xl border border-dashed py-14 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+                  <CalendarDays className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+                  <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>{texto}</p>
+                  {acao}
+                </div>
+              )
+              if ((planner || []).length === 0) return vazio('Nenhum planejamento ainda.')
+              if (weeks.length === 0) return vazio('Nenhum post neste período.',
+                <button onClick={() => setPlannerFilter('todos')} className="text-[12.5px] font-semibold mt-2" style={{ color: '#2563EB' }}>
+                  Ver todos os planejamentos →
+                </button>)
 
               return (
                 <div className="overflow-x-auto pb-2">
@@ -1675,82 +1395,41 @@ export function ClientProfile() {
                       const summary = getWeekSummaryBadge(week.items)
                       const isLast = wi === weeks.length - 1
                       return (
-                        <div
-                          key={week.key}
-                          className={`flex-shrink-0 w-[272px] px-4 ${!isLast ? 'border-r border-[#1e293b]' : ''}`}
-                          style={{ paddingLeft: wi === 0 ? 0 : undefined, paddingRight: isLast ? 0 : undefined }}
-                        >
-                          {/* Week header */}
+                        <div key={week.key} className={`flex-shrink-0 w-[272px] px-4 ${!isLast ? 'border-r' : ''}`}
+                          style={{ borderColor: 'var(--sm-border)', paddingLeft: wi === 0 ? 0 : undefined, paddingRight: isLast ? 0 : undefined }}>
                           <div className="flex items-start justify-between mb-3">
                             <div>
-                              <p className="text-[13px] font-semibold text-[#F8FAFC]">{week.label}</p>
-                              <p className="text-[11px] text-[#64748b] mt-0.5">{week.dateRange}</p>
+                              <p className="font-display text-[15px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{week.label}</p>
+                              <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>{week.dateRange}</p>
                             </div>
-                            <span
-                              className="text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5"
-                              style={{ background: summary.bg, color: '#ffffff' }}
-                            >
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium mt-1" style={{ color: 'var(--sm-text-3)' }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: summary.bg }} />
                               {summary.label}
                             </span>
                           </div>
 
-                          {/* Cards column */}
                           <div className="space-y-2">
                             {week.items.map(item => {
                               const badge  = getPlannerBadge(item)
                               const accent = getCardAccentColor(item)
                               const thumb  = item.attachments?.find(a => a.file_type.startsWith('image/'))
                               return (
-                                <button
-                                  key={item.id}
-                                  onClick={() => { setSelectedPlannerItem(item); setPlannerItemOpen(true) }}
-                                  className="w-full text-left rounded-xl border border-[#1e293b] bg-[#111827] hover:bg-[#182233] hover:border-[#1e293b] transition-all group overflow-hidden shadow-sm"
-                                >
-                                  <div className="flex">
-                                    {/* Left accent bar */}
-                                    <div className="w-[4px] flex-shrink-0 rounded-l-xl" style={{ backgroundColor: accent }} />
-
-                                    {/* Card content */}
-                                    <div className="flex-1 min-w-0 p-3">
-                                      {/* Thumb */}
-                                      {thumb && (
-                                        <img
-                                          src={thumb.file_url}
-                                          alt=""
-                                          className="w-full h-28 object-cover rounded-lg mb-2.5 border border-[#1e293b]"
-                                        />
-                                      )}
-
-                                      {/* Date */}
-                                      <p className="text-[10px] text-[#64748b] mb-1 font-medium tracking-wide">
-                                        {format(parseISO(item.scheduled_date), 'dd MMM', { locale: ptBR }).replace('.', '')}
-                                        {item.scheduled_time ? ` · ${item.scheduled_time.slice(0, 5)}` : ''}
-                                      </p>
-
-                                      {/* Title */}
-                                      <p className="text-[12px] font-semibold text-[#F8FAFC] leading-snug mb-2.5 line-clamp-2">
-                                        {item.title}
-                                      </p>
-
-                                      {/* Bottom row */}
-                                      <div className="flex items-center gap-1.5">
-                                        <div
-                                          className="w-[18px] h-[18px] rounded-[5px] flex items-center justify-center flex-shrink-0"
-                                          style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}
-                                        >
-                                          <Instagram className="w-2.5 h-2.5 text-white" />
-                                        </div>
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium" style={{ background: 'rgba(37,99,235,0.12)', color: '#6f93c9' }}>
-                                          {contentTypeLabels[item.content_type] || item.content_type}
-                                        </span>
-                                        <span
-                                          className="ml-auto text-[10px] px-1.5 py-0.5 rounded-md font-semibold"
-                                          style={{ background: badge.bg, color: '#ffffff' }}
-                                        >
-                                          {badge.label}
-                                        </span>
-                                      </div>
-                                    </div>
+                                <button key={item.id} onClick={() => { setSelectedPlannerItem(item); setPlannerItemOpen(true) }}
+                                  className="relative w-full text-left rounded-xl border overflow-hidden transition-colors hover:border-[#2563EB]/50"
+                                  style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                                  <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: accent }} />
+                                  <div className="pl-4 pr-3 py-3">
+                                    {thumb && <img src={thumb.file_url} alt="" className="w-full h-28 object-cover rounded-lg mb-2.5" />}
+                                    <p className="text-[11px] font-medium mb-1" style={{ color: 'var(--sm-text-4)' }}>
+                                      {format(parseISO(item.scheduled_date), 'dd MMM', { locale: ptBR }).replace('.', '')}
+                                      {item.scheduled_time ? ` · ${item.scheduled_time.slice(0, 5)}` : ''}
+                                      {' · '}{contentTypeLabels[item.content_type] || item.content_type}
+                                    </p>
+                                    <p className="text-[13px] font-semibold leading-snug mb-2 line-clamp-2" style={{ color: 'var(--sm-text-1)' }}>{item.title}</p>
+                                    <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: 'var(--sm-text-2)' }}>
+                                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.bg }} />
+                                      {badge.label}
+                                    </span>
                                   </div>
                                 </button>
                               )
@@ -1838,7 +1517,7 @@ export function ClientProfile() {
             />
 
             <div>
-              <label className="block text-[12px] font-normal text-[#94a3b8] mb-1.5">Tipo</label>
+              <label className="block text-[12px] font-normal text-[color:var(--sm-text-3)] mb-1.5">Tipo</label>
               <Select
                 value={assetForm.content_type}
                 onValueChange={v => setAssetForm(p => ({ ...p, content_type: v as ContentType }))}
@@ -1862,7 +1541,7 @@ export function ClientProfile() {
 
             {/* Mídia */}
             <div>
-              <label className="block text-[12px] font-normal text-[#94a3b8] mb-1.5">Mídia</label>
+              <label className="block text-[12px] font-normal text-[color:var(--sm-text-3)] mb-1.5">Mídia</label>
 
               {editingAsset?.media_url && !assetFile && (() => {
                 const isImg = isImageUrl(editingAsset.media_url)
@@ -1872,12 +1551,12 @@ export function ClientProfile() {
                       <img
                         src={editingAsset.media_url!}
                         alt=""
-                        className="w-full max-h-32 object-cover rounded-md border border-[#1e293b]"
+                        className="w-full max-h-32 object-cover rounded-md border border-[color:var(--sm-border)]"
                       />
                     ) : (
-                      <div className="flex items-center gap-2 p-2.5 rounded-md border border-[#1e293b] bg-[#182233]">
-                        <ImageIcon className="w-3.5 h-3.5 text-[#64748b]" />
-                        <span className="text-[12px] text-[#94a3b8] truncate flex-1">Arquivo atual</span>
+                      <div className="flex items-center gap-2 p-2.5 rounded-md border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)]">
+                        <ImageIcon className="w-3.5 h-3.5 text-[color:var(--sm-text-4)]" />
+                        <span className="text-[12px] text-[color:var(--sm-text-3)] truncate flex-1">Arquivo atual</span>
                       </div>
                     )}
                     <button
@@ -1892,13 +1571,13 @@ export function ClientProfile() {
               })()}
 
               {assetFile ? (
-                <div className="flex items-center gap-2 p-2.5 rounded-md border border-[#1e293b] bg-[#182233]">
-                  <ImageIcon className="w-3.5 h-3.5 text-[#64748b]" />
-                  <span className="text-[12px] text-[#CBD5E1] truncate flex-1">{assetFile.name}</span>
+                <div className="flex items-center gap-2 p-2.5 rounded-md border border-[color:var(--sm-border)] bg-[color:var(--sm-bg-alt)]">
+                  <ImageIcon className="w-3.5 h-3.5 text-[color:var(--sm-text-4)]" />
+                  <span className="text-[12px] text-[color:var(--sm-text-2)] truncate flex-1">{assetFile.name}</span>
                   <button
                     type="button"
                     onClick={() => setAssetFile(null)}
-                    className="text-[#64748b] hover:text-red-500 flex-shrink-0"
+                    className="text-[color:var(--sm-text-4)] hover:text-red-500 flex-shrink-0"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -1907,7 +1586,7 @@ export function ClientProfile() {
                 <button
                   type="button"
                   onClick={() => assetFileRef.current?.click()}
-                  className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-[#1e293b] bg-[#111827] text-[#64748b] text-[12px] hover:border-[#2563EB]/30 hover:bg-[#182233] transition-colors"
+                  className="flex items-center gap-2 w-full h-9 px-3 rounded-md border border-dashed border-[color:var(--sm-border)] bg-[color:var(--sm-bg-card)] text-[color:var(--sm-text-4)] text-[12px] hover:border-[#2563EB]/30 hover:bg-[color:var(--sm-bg-alt)] transition-colors"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   Clique para selecionar imagem ou vídeo
