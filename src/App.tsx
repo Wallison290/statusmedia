@@ -34,7 +34,6 @@ const LeadCapturePage    = lazy(() => import('@/pages/public/LeadCapturePage').t
 const FeedOrganizer     = lazy(() => import('@/pages/feed/FeedOrganizer').then(m => ({ default: m.FeedOrganizer })))
 const Planner           = lazy(() => import('@/pages/planner/Planner').then(m => ({ default: m.Planner })))
 const Tasks             = lazy(() => import('@/pages/tasks/Tasks').then(m => ({ default: m.Tasks })))
-const Library           = lazy(() => import('@/pages/library/Library').then(m => ({ default: m.Library })))
 const Financial         = lazy(() => import('@/pages/financial/FinancePage').then(m => ({ default: m.FinancePage })))
 const Notes             = lazy(() => import('@/pages/notes/Notes').then(m => ({ default: m.Notes })))
 const AIPage            = lazy(() => import('@/pages/ai/AIPage').then(m => ({ default: m.AIPage })))
@@ -238,7 +237,7 @@ function AppRoutes() {
         <Route path="/planner"       element={<Planner />} />
         <Route path="/tasks"         element={<Tasks />} />
         <Route path="/notes"         element={<Notes />} />
-        <Route path="/library"       element={<Library />} />
+        <Route path="/library"       element={<Navigate to="/dashboard" replace />} />
         <Route path="/financial"     element={<Financial />} />
         <Route path="/ai"            element={<AIHub />} />
         <Route path="/ai/squad/:squadId" element={<AIPageRoute />} />

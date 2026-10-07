@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  LayoutDashboard, Users, Calendar, CheckSquare, BookOpen,
+  LayoutDashboard, Users, Calendar, CheckSquare,
   LogOut, ChevronLeft, ChevronRight, Wallet, NotebookPen, LayoutGrid, Zap, UserCheck, Instagram, HardDrive, Info, MessageCircle, BarChart3,
   ShieldCheck, Target,
   type LucideIcon,
@@ -59,7 +59,6 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/planner', icon: Calendar,    label: 'Planejamento', hint: 'Planner — plan, approve and schedule the content that gets published to Instagram.' },
       { href: '/tasks',   icon: CheckSquare, label: 'Tarefas'      },
-      { href: '/library', icon: BookOpen,    label: 'Biblioteca'   },
       { href: '/notes',   icon: NotebookPen, label: 'Notas'        },
     ],
   },
