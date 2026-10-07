@@ -155,7 +155,7 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
             {/* O lead respondeu e está esperando: é a vez da agência */}
             {waiting && (
               <span className="flex items-center gap-1 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md leading-none"
-                    style={{ color: '#fff', background: '#2563EB' }}
+                    style={{ color: '#fff', background: 'var(--sm-primary)' }}
                     title="O lead respondeu no WhatsApp e está esperando você">
                 <MessageCircle className="w-2.5 h-2.5" /> respondeu há {waiting}
               </span>

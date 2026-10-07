@@ -6,6 +6,9 @@
 
 @layer base {
   :root {
+    /* Botão principal do sistema (azul escuro). Use background: var(--sm-primary)
+       em botões com estilo inline; a classe bg-[#2563EB] já vira este gradiente. */
+    --sm-primary: linear-gradient(135deg, #29457a 0%, #16284d 100%);
     /* Core */
     --background:          0 0% 97%;       /* #f7f7f7 */
     --foreground:          0 0% 6%;        /* #0f0f0f */

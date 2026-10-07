@@ -858,7 +858,7 @@ export function ReportsTab({ clientId }: { clientId: string }) {
     return (
       <EmptyState Icon={BarChart3} title="Relatórios disponíveis no Pro e Agency"
         hint="Faça upgrade para criar e compartilhar relatórios com seus clientes."
-        action={<a href="/assinatura" className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center text-white" style={{ background: '#2563EB' }}>Ver planos</a>} />
+        action={<a href="/assinatura" className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center text-white" style={{ background: 'var(--sm-primary)' }}>Ver planos</a>} />
     )
   }
 

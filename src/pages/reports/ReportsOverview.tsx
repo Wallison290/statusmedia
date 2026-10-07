@@ -130,7 +130,7 @@ export function ReportsOverview() {
           <BarChart3 className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
           <p className="font-display text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Relatórios no Pro e Agency</p>
           <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Faça upgrade para acompanhar os relatórios de todos os seus clientes num só lugar.</p>
-          <a href="/assinatura" className="h-10 px-4 inline-flex items-center rounded-xl text-white text-[13px] font-semibold hover:opacity-90 transition-opacity" style={{ background: '#2563EB' }}>
+          <a href="/assinatura" className="h-10 px-4 inline-flex items-center rounded-xl text-white text-[13px] font-semibold hover:opacity-90 transition-opacity" style={{ background: 'var(--sm-primary)' }}>
             Ver planos
           </a>
         </div>

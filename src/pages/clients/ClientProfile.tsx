@@ -1154,7 +1154,7 @@ export function ClientProfile() {
             )}
             <Link to={`/clients/${id}/edit`}
               className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
-              style={{ background: '#2563EB' }}>
+              style={{ background: 'var(--sm-primary)' }}>
               <Edit className="w-3.5 h-3.5" /> Editar
             </Link>
           </div>
@@ -1276,7 +1276,7 @@ export function ClientProfile() {
                 </div>
                 <button onClick={handleSaveDNA} disabled={upsertDNA.isPending}
                   className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white disabled:opacity-50"
-                  style={{ background: '#2563EB' }}>
+                  style={{ background: 'var(--sm-primary)' }}>
                   <Save className="w-3.5 h-3.5" /> {upsertDNA.isPending ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
@@ -1309,7 +1309,7 @@ export function ClientProfile() {
                 </div>
                 <button onClick={openCreateAsset}
                   className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
-                  style={{ background: '#2563EB' }}>
+                  style={{ background: 'var(--sm-primary)' }}>
                   <Plus className="w-3.5 h-3.5" /> Adicionar
                 </button>
               </div>

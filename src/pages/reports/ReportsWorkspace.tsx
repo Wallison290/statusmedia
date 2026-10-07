@@ -553,7 +553,7 @@ export function ReportsWorkspace() {
         <div className="flex flex-col items-center text-center gap-3 max-w-sm">
           <BarChart3 className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
           <p className="font-display text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Relatórios no Pro e Agency</p>
-          <a href="/assinatura" className="h-10 px-4 inline-flex items-center rounded-xl text-white text-[13px] font-semibold hover:opacity-90" style={{ background: '#2563EB' }}>
+          <a href="/assinatura" className="h-10 px-4 inline-flex items-center rounded-xl text-white text-[13px] font-semibold hover:opacity-90" style={{ background: 'var(--sm-primary)' }}>
             Ver planos
           </a>
         </div>
@@ -576,7 +576,7 @@ export function ReportsWorkspace() {
             className="inline-flex items-center gap-1.5 text-[12.5px] font-medium hover:underline" style={{ color: 'var(--sm-text-3)' }}>
             <ArrowLeft className="w-4 h-4" /> Relatórios
           </button>
-          <button onClick={() => setCreateOpen(true)} className={primaryBtn} style={{ background: '#2563EB' }}>
+          <button onClick={() => setCreateOpen(true)} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-3.5 h-3.5" /> Novo relatório
           </button>
         </div>
@@ -610,7 +610,7 @@ export function ReportsWorkspace() {
             <BarChart3 className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
             <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum relatório ainda</p>
             <p className="text-[12.5px] mt-1 mb-4" style={{ color: 'var(--sm-text-3)' }}>Crie o primeiro relatório mensal para este cliente.</p>
-            <button onClick={() => setCreateOpen(true)} className={primaryBtn} style={{ background: '#2563EB' }}>
+            <button onClick={() => setCreateOpen(true)} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
               <Plus className="w-3.5 h-3.5" /> Criar primeiro relatório
             </button>
           </div>
@@ -654,7 +654,7 @@ export function ReportsWorkspace() {
                         <button onClick={() => { setEditMode(false); setForm(toForm(selected)) }} className={ghostBtn} style={ghostStyle}>
                           <X className="w-3.5 h-3.5" /> Cancelar
                         </button>
-                        <button onClick={handleSave} disabled={updateReport.isPending} className={primaryBtn} style={{ background: '#2563EB' }}>
+                        <button onClick={handleSave} disabled={updateReport.isPending} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
                           <Save className="w-3.5 h-3.5" /> Salvar
                         </button>
                       </>
@@ -676,7 +676,7 @@ export function ReportsWorkspace() {
                         <button onClick={() => setEditMode(true)} className={ghostBtn} style={ghostStyle}>
                           <Pencil className="w-3.5 h-3.5" /> Editar
                         </button>
-                        <button onClick={handleAutoGenerate} disabled={syncing} className={primaryBtn} style={{ background: '#2563EB' }}
+                        <button onClick={handleAutoGenerate} disabled={syncing} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}
                           title="Preencher com os dados reais da conta de Instagram conectada">
                           {syncing
                             ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sincronizando...</>
@@ -814,7 +814,7 @@ export function ReportsWorkspace() {
                 {/* ── Análise por IA ── */}
                 <Secao n={proxima()} title="Análise do mês" accent="#2563EB"
                   aside={!editMode && (
-                    <button onClick={handleAiAnalysis} disabled={aiLoading} className={primaryBtn} style={{ background: '#2563EB' }}
+                    <button onClick={handleAiAnalysis} disabled={aiLoading} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}
                       title="Gera uma narrativa combinando Instagram e execução do planejamento">
                       {aiLoading
                         ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Gerando...</>

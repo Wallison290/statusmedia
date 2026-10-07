@@ -530,7 +530,7 @@ function DayTasksModal({
 
         <DialogFooter className="pt-1 gap-2 flex-row">
           <button onClick={onClose} className={`${ghostBtn} h-9 flex-shrink-0`} style={ghostStyle}>Fechar</button>
-          <button onClick={() => { onClose(); onAddTask(date) }} className={`${primaryBtn} h-9 flex-1 justify-center`} style={{ background: '#2563EB' }}>
+          <button onClick={() => { onClose(); onAddTask(date) }} className={`${primaryBtn} h-9 flex-1 justify-center`} style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-3.5 h-3.5" /> Nova tarefa neste dia
           </button>
         </DialogFooter>
@@ -610,7 +610,7 @@ function MonthView({ tasks, onView, onEdit, onDelete, onStatusChange, onAddTask 
                   className="min-h-[96px] md:min-h-[112px] p-1.5 md:p-2 text-left align-top transition-colors hover:bg-black/[0.02] flex flex-col"
                   style={{ background: 'var(--sm-bg-card)' }}>
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold mb-1 tabular-nums ${today ? 'text-white' : ''}`}
-                    style={today ? { background: '#2563EB' } : { color: 'var(--sm-text-2)' }}>
+                    style={today ? { background: 'var(--sm-primary)' } : { color: 'var(--sm-text-2)' }}>
                     {format(date, 'd')}
                   </span>
                   <span className="space-y-0.5 overflow-hidden w-full block">
@@ -1176,7 +1176,7 @@ export function Tasks() {
             <button onClick={() => setTemplatesOpen(true)} className={ghostBtn} style={ghostStyle}>
               <ClipboardList className="w-4 h-4" /> Modelos
             </button>
-            <button onClick={handleNewTask} className={primaryBtn} style={{ background: '#2563EB' }}>
+            <button onClick={handleNewTask} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
               <Plus className="w-4 h-4" /> Nova tarefa
             </button>
           </div>

@@ -238,7 +238,7 @@ export function ClientList() {
           </div>
           <Link to="/clients/new"
             className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-95 max-md:hidden"
-            style={{ background: '#2563EB' }}>
+            style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-4 h-4" /> Novo cliente
           </Link>
         </header>
@@ -290,7 +290,7 @@ export function ClientList() {
 
           <Link to="/clients/new" aria-label="Novo cliente"
             className="md:hidden inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl text-[13px] font-semibold text-white"
-            style={{ background: '#2563EB' }}>
+            style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-4 h-4" /> Novo
           </Link>
         </div>
@@ -317,7 +317,7 @@ export function ClientList() {
             </p>
             {!search && (
               <Link to="/clients/new" className="mt-1 inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white"
-                style={{ background: '#2563EB' }}>
+                style={{ background: 'var(--sm-primary)' }}>
                 <Plus className="w-4 h-4" /> Novo cliente
               </Link>
             )}

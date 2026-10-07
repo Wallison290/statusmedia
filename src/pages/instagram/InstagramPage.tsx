@@ -286,7 +286,7 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
           {post.status === 'failed' && (
             <button onClick={() => onRetry(post.id)}
               className="inline-flex items-center gap-1.5 h-8 px-3 ml-2 rounded-lg text-[12px] font-semibold text-white hover:opacity-90"
-              style={{ background: '#2563EB' }}>
+              style={{ background: 'var(--sm-primary)' }}>
               <RefreshCw className="w-3 h-3" />
               Tentar novamente
             </button>
@@ -323,7 +323,7 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
             <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-4)' }}>Horário</p>
             <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)} className={field} style={fieldStyle} />
           </div>
-          <button onClick={saveReschedule} className="h-9 px-3.5 rounded-lg text-[12.5px] font-semibold text-white hover:opacity-90" style={{ background: '#2563EB' }}>
+          <button onClick={saveReschedule} className="h-9 px-3.5 rounded-lg text-[12.5px] font-semibold text-white hover:opacity-90" style={{ background: 'var(--sm-primary)' }}>
             Salvar
           </button>
         </div>
@@ -559,7 +559,7 @@ function ConnectInstagramModal({
             <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
               Cadastre um cliente antes de conectar o Instagram dele.
             </p>
-            <Link to="/clients/new" className={`${primaryBtn} h-9 mt-4`} style={{ background: '#2563EB' }}>
+            <Link to="/clients/new" className={`${primaryBtn} h-9 mt-4`} style={{ background: 'var(--sm-primary)' }}>
               <Plus className="w-4 h-4" />
               Novo cliente
             </Link>
@@ -723,7 +723,7 @@ export function InstagramPage() {
               onClick={() => setConnectOpen(true)}
               title="Connect Instagram — starts Business Login for Instagram so the agency can publish and read insights for a client account"
               className={`${primaryBtn} flex-1 sm:flex-none`}
-              style={{ background: '#2563EB' }}
+              style={{ background: 'var(--sm-primary)' }}
             >
               <Instagram className="w-4 h-4" />
               Conectar Instagram
@@ -802,7 +802,7 @@ export function InstagramPage() {
                         onClick={() => setConnectOpen(true)}
                         title="Connect Instagram — starts Business Login for Instagram so the agency can publish and read insights for a client account"
                         className={primaryBtn}
-                        style={{ background: '#2563EB' }}
+                        style={{ background: 'var(--sm-primary)' }}
                       >
                         <Instagram className="w-4 h-4" />
                         Conectar Instagram

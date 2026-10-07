@@ -394,7 +394,7 @@ export function NoteModal({
 
         <button onClick={handleSave} disabled={saving}
           className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-          style={{ background: '#2563EB' }}>
+          style={{ background: 'var(--sm-primary)' }}>
           {saving ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
@@ -607,7 +607,7 @@ export function Notes() {
           </div>
           <button onClick={() => setSelected('new')}
             className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
-            style={{ background: '#2563EB' }}>
+            style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-4 h-4" /> Nova nota
           </button>
         </header>
@@ -637,7 +637,7 @@ export function Notes() {
               {!filtrando && (
                 <button onClick={() => setSelected('new')}
                   className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12.5px] font-semibold text-white hover:opacity-90"
-                  style={{ background: '#2563EB' }}>
+                  style={{ background: 'var(--sm-primary)' }}>
                   <Plus className="w-3.5 h-3.5" /> Nova nota
                 </button>
               )}

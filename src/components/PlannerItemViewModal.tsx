@@ -430,7 +430,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem }) {
         size="sm"
         onClick={handleSchedule}
         disabled={publishing || !hasMedia}
-        className="w-full h-9 text-white border-0 hover:opacity-90" style={{ background: '#2563EB' }}
+        className="w-full h-9 text-white border-0 hover:opacity-90" style={{ background: 'var(--sm-primary)' }}
       >
         {publishing
           ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Agendando...</>

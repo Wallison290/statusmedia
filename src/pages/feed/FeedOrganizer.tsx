@@ -152,7 +152,7 @@ function InstagramHeader({
                 style={field}
               />
               <div className="flex items-center gap-2">
-                <button onClick={saveBio} className={primaryBtn} style={{ background: '#2563EB' }}>
+                <button onClick={saveBio} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
                   <Check className="w-3.5 h-3.5" /> Salvar
                 </button>
                 <button onClick={() => setEditingBio(false)} className={ghostBtn} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
@@ -641,7 +641,7 @@ export function FeedOrganizer() {
 
             <div className="relative">
               <button onClick={() => setClientMenuOpen(m => !m)} aria-expanded={clientMenuOpen}
-                className={`${primaryBtn} h-10 px-4 text-[13px]`} style={{ background: '#2563EB' }}>
+                className={`${primaryBtn} h-10 px-4 text-[13px]`} style={{ background: 'var(--sm-primary)' }}>
                 <Plus className="w-4 h-4" /> Novo feed
               </button>
 
@@ -733,7 +733,7 @@ export function FeedOrganizer() {
                         {activeVersions[0]?.name ?? 'Versão 1'}
                         {activeVersions.length > 1 && <span style={{ color: 'var(--sm-text-4)' }}> · +{activeVersions.length - 1} versõe{activeVersions.length - 1 > 1 ? 's' : ''}</span>}
                       </span>
-                      <button onClick={() => openEditor(activeClient.id)} className={primaryBtn} style={{ background: '#2563EB' }}>
+                      <button onClick={() => openEditor(activeClient.id)} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
                         <Pencil className="w-3.5 h-3.5" /> Editar feed
                       </button>
                     </div>
@@ -817,7 +817,7 @@ export function FeedOrganizer() {
             className="inline-flex items-center gap-1.5 text-[12.5px] font-medium hover:underline" style={{ color: 'var(--sm-text-3)' }}>
             <ArrowLeft className="w-4 h-4" /> Feed do Perfil
           </button>
-          <button onClick={handleSaveAndBack} className={primaryBtn} style={{ background: '#2563EB' }}>
+          <button onClick={handleSaveAndBack} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
             <Save className="w-3.5 h-3.5" /> Salvar e voltar
           </button>
         </div>
@@ -851,7 +851,7 @@ export function FeedOrganizer() {
               <div className="rounded-2xl border border-dashed py-14 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
                 <GripVertical className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
                 <p className="text-[13px] font-medium" style={{ color: 'var(--sm-text-2)' }}>Crie uma versão para começar</p>
-                <button onClick={createVersion} className={`${primaryBtn} mt-3`} style={{ background: '#2563EB' }}>
+                <button onClick={createVersion} className={`${primaryBtn} mt-3`} style={{ background: 'var(--sm-primary)' }}>
                   <Plus className="w-3.5 h-3.5" /> Criar Versão 1
                 </button>
               </div>
@@ -866,7 +866,7 @@ export function FeedOrganizer() {
                       <GripVertical className="w-3 h-3" /> {posts.length} post{posts.length !== 1 ? 's' : ''} · arraste para mudar a ordem
                     </p>
                   </div>
-                  <button onClick={() => setPickerOpen(true)} disabled={isUploading} className={primaryBtn} style={{ background: '#2563EB' }}>
+                  <button onClick={() => setPickerOpen(true)} disabled={isUploading} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
                     {isUploading
                       ? <><Upload className="w-3.5 h-3.5 animate-pulse" /> Enviando...</>
                       : <><Plus className="w-3.5 h-3.5" /> Adicionar post</>}

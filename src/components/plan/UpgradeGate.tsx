@@ -46,7 +46,7 @@ function UpgradeBanner({ message }: { message?: string }) {
       </div>
       <Link
         to="/assinatura"
-        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 text-white text-[12.5px] font-semibold hover:bg-violet-700 transition-colors"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[12.5px] font-semibold transition-colors"
       >
         <Zap className="w-3.5 h-3.5" />
         Ver planos

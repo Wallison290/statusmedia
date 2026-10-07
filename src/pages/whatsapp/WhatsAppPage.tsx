@@ -56,9 +56,9 @@ function Switch({ on, onClick, disabled, label }: { on: boolean; onClick: () => 
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled}
       onClick={onClick}
-      className="relative w-9 h-5 rounded-full transition-colors flex-shrink-0 disabled:cursor-not-allowed"
-      style={{ background: on ? '#2563EB' : 'var(--sm-border-alt)' }}>
-      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      className="relative block w-9 h-5 p-0 rounded-full transition-colors flex-shrink-0 disabled:cursor-not-allowed"
+      style={{ background: on ? 'var(--sm-primary)' : 'var(--sm-border-alt)' }}>
+      <span className={`absolute left-0 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
     </button>
   )
 }
@@ -225,14 +225,14 @@ function AddGroupModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className={ghostBtn} style={ghostStyle}>Cancelar</button>
 
           {mode === 'link' && (
-            <button onClick={handleResolveLink} disabled={busy || !link.trim()} className={primaryBtn} style={{ background: '#2563EB' }}>
+            <button onClick={handleResolveLink} disabled={busy || !link.trim()} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
               {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {busy ? 'Verificando...' : 'Continuar'}
             </button>
           )}
 
           {mode === 'config' && (
-            <button onClick={handleSave} disabled={addGroup.isPending} className={primaryBtn} style={{ background: '#2563EB' }}>
+            <button onClick={handleSave} disabled={addGroup.isPending} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
               {addGroup.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Salvar grupo
             </button>
@@ -421,7 +421,7 @@ export function WhatsAppPage() {
                   style={inputStyle}
                 />
                 <button onClick={handleSend} disabled={busy || phone.replace(/\D/g, '').length < 10}
-                  className={primaryBtn} style={{ background: '#2563EB' }}>
+                  className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : isConnected ? 'Reverificar' : 'Verificar'}
                 </button>
               </div>
@@ -437,7 +437,7 @@ export function WhatsAppPage() {
                     className="flex-1 min-w-0 h-9 px-3 rounded-xl border text-[13px] tracking-widest outline-none focus:ring-2 focus:ring-[#2563EB]/20 placeholder:tracking-normal placeholder:text-[color:var(--sm-text-4)]"
                     style={{ ...inputStyle, borderColor: '#2563EB' }}
                   />
-                  <button onClick={handleConfirm} disabled={busy || code.length !== 6} className={primaryBtn} style={{ background: '#2563EB' }}>
+                  <button onClick={handleConfirm} disabled={busy || code.length !== 6} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
                     Confirmar
                   </button>
                 </div>
@@ -528,7 +528,7 @@ export function WhatsAppPage() {
               <Users className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
               <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum grupo configurado</p>
               <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Adicione um grupo para receber notificações por lá também</p>
-              <button onClick={() => setShowAddModal(true)} className={`${primaryBtn} mt-4`} style={{ background: '#2563EB' }}>
+              <button onClick={() => setShowAddModal(true)} className={`${primaryBtn} mt-4`} style={{ background: 'var(--sm-primary)' }}>
                 <Plus className="w-4 h-4" /> Adicionar grupo
               </button>
             </div>

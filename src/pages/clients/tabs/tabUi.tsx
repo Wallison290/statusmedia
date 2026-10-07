@@ -21,7 +21,7 @@ export function PrimaryButton({ className = '', children, ...props }: ButtonHTML
   return (
     <button {...props}
       className={`h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white transition-opacity hover:opacity-90 disabled:opacity-50 ${className}`}
-      style={{ background: '#2563EB', ...props.style }}>
+      style={{ background: 'var(--sm-primary)', ...props.style }}>
       {children}
     </button>
   )

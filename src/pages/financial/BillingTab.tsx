@@ -93,7 +93,7 @@ export function BillingTab() {
           className="h-10 px-5 rounded-xl text-[13px] font-semibold disabled:opacity-50"
           style={d.enabled
             ? { border: '1px solid var(--sm-border)', color: 'var(--sm-text-2)' }
-            : { background: '#2563EB', color: '#fff' }}>
+            : { background: 'var(--sm-primary)', color: '#fff' }}>
           {d.enabled ? 'Desligar' : 'Ligar cobrança automática'}
         </button>
         {missing.length > 0 && (

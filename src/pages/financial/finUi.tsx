@@ -54,7 +54,7 @@ export function PrimaryButton({ children, className = '', style, ...p }: React.B
     <button
       {...p}
       className={`h-10 px-4 rounded-xl text-white text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-50 transition-opacity hover:opacity-95 ${className}`}
-      style={{ background: '#2563EB', ...style }}
+      style={{ background: 'var(--sm-primary)', ...style }}
     >
       {children}
     </button>

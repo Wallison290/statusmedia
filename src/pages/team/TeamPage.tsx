@@ -290,7 +290,7 @@ function LinksEditor({
                 <button
                   type="button"
                   onClick={confirmLink}
-                  className={`px-3 rounded-lg bg-violet-600 text-white font-medium hover:bg-violet-700 flex-shrink-0 ${compact ? 'text-[11px]' : 'text-[12px]'}`}
+                  className={`px-3 rounded-lg bg-[#2563EB] text-white font-medium flex-shrink-0 ${compact ? 'text-[11px]' : 'text-[12px]'}`}
                 >
                   OK
                 </button>
@@ -489,7 +489,7 @@ function TaskEditPanel({
       {/* Botões */}
       <div className="flex gap-2 pt-1">
         <button onClick={handleSave} disabled={saving || !title.trim()}
-          className="flex-1 h-8 rounded-lg bg-violet-600 text-white text-[12px] font-semibold hover:bg-violet-700 disabled:opacity-60 flex items-center justify-center gap-1.5">
+          className="flex-1 h-8 rounded-lg bg-[#2563EB] text-white text-[12px] font-semibold disabled:opacity-60 flex items-center justify-center gap-1.5">
           {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
           Salvar
         </button>
@@ -549,7 +549,7 @@ function TaskViewModal({
                 {pri.label}
               </span>
               {task.clients && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: '#2563EB', color: '#ffffff' }}>
+                <span className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: 'var(--sm-primary)', color: '#ffffff' }}>
                   <Building2 className="w-2.5 h-2.5" /> {task.clients.company_name}
                 </span>
               )}
@@ -808,7 +808,7 @@ function MemberDetailModal({
           <div className="flex items-center gap-2">
             <button
               onClick={() => { onClose(); onNewTask() }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-semibold hover:bg-violet-700 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#2563EB] text-white text-[11px] font-semibold transition-colors"
             >
               <Plus className="w-3 h-3" /> Demanda
             </button>
@@ -860,7 +860,7 @@ function MemberDetailModal({
               <p className="text-[13px] text-[#94a3b8] font-medium">Nenhuma demanda atribuída</p>
               <button
                 onClick={() => { onClose(); onNewTask() }}
-                className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[12px] font-medium hover:bg-violet-700"
+                className="px-3 py-1.5 rounded-lg bg-[#2563EB] text-white text-[12px] font-medium"
               >
                 Criar primeira demanda
               </button>

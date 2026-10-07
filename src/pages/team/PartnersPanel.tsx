@@ -136,7 +136,7 @@ export function PartnersPanel() {
           <Link
             to="/assinatura"
             className="mt-1 px-4 py-2 rounded-xl text-white text-[13px] font-semibold"
-            style={{ background: '#2563EB' }}
+            style={{ background: 'var(--sm-primary)' }}
           >
             Ver planos
           </Link>
@@ -166,7 +166,7 @@ export function PartnersPanel() {
               type="submit"
               disabled={invite.isPending || !email.trim()}
               className="h-10 px-4 rounded-xl text-white text-[13px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
-              style={{ background: '#2563EB' }}
+              style={{ background: 'var(--sm-primary)' }}
             >
               {invite.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Enviar convite

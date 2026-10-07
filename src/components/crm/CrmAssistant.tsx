@@ -144,7 +144,7 @@ export function CrmAssistant({ open, onClose, leads, columns, memberOf }: Props)
                 <div
                   className="max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-line"
                   style={m.role === 'user'
-                    ? { background: '#2563EB', color: '#fff' }
+                    ? { background: 'var(--sm-primary)', color: '#fff' }
                     : { background: 'var(--sm-bg-alt)', color: 'var(--sm-text-1)' }}
                 >
                   {m.content || <Loader2 className="w-3.5 h-3.5 animate-spin" />}

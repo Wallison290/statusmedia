@@ -716,7 +716,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
 
       <Button size="sm" onClick={handleSchedule} disabled={publishing}
         title="Schedule on Instagram — queues this approved content to be published to the client's connected Instagram account at the date and time above"
-        className="w-full h-9 text-white border-0 hover:opacity-90" style={{ background: '#2563EB' }}>
+        className="w-full h-9 text-white border-0 hover:opacity-90" style={{ background: 'var(--sm-primary)' }}>
         {publishing
           ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Agendando...</>
           : <><Instagram className="w-3.5 h-3.5" /> Agendar no Instagram</>}
@@ -2215,7 +2215,7 @@ export function Planner() {
               setOpen(true)
             }}
             size="sm"
-            className="!bg-[#2563EB] hover:!bg-[#1D4ED8] !text-white !border-0 !shadow-none flex-shrink-0"
+            className="bg-[#2563EB] !text-white !border-0 !shadow-none flex-shrink-0"
           >
             <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Novo post</span><span className="sm:hidden">Novo</span>
           </Button>
@@ -2511,7 +2511,7 @@ export function Planner() {
               <button
                 onClick={sendWhatsApp}
                 disabled={(waClientIds.length === 0 && waGroupJids.length === 0) || waSending}
-                className="w-full h-11 rounded-xl bg-[#25D366] text-white text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1eb858] transition-colors"
+                className="w-full h-11 rounded-xl bg-[#2563EB] text-white text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1eb858] transition-colors"
               >
                 {waSending
                   ? <Loader2 className="w-4 h-4 animate-spin" />

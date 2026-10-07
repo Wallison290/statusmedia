@@ -397,7 +397,7 @@ function IssueModal({ group, fiscal, onClose, onOpenSettings }: {
 
           <a href={portal} target="_blank" rel="noopener noreferrer"
             className="w-full h-11 rounded-xl text-white text-[13.5px] font-semibold flex items-center justify-center gap-2"
-            style={{ background: '#2563EB' }}>
+            style={{ background: 'var(--sm-primary)' }}>
             <ExternalLink className="w-4 h-4" /> Abrir o {fiscal?.issuing_portal === 'prefeitura' ? 'portal da prefeitura' : 'Emissor Nacional'} em outra aba
           </a>
           <p className="text-[11.5px] text-center" style={{ color: 'var(--sm-text-4)' }}>
