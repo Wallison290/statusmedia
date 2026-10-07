@@ -18,7 +18,8 @@ function fmtPhone(p?: string | null) {
   return d.length >= 10 ? `(${d.slice(0, 2)}) ${d.slice(2, -4)}-${d.slice(-4)}` : p
 }
 
-export function CrmWhatsappConnect() {
+// n: número da seção quando o bloco entra numa página numerada (ex.: "01").
+export function CrmWhatsappConnect({ n }: { n?: string } = {}) {
   const { toast } = useToast()
   const { data, isLoading } = useAgencyWhatsapp({ poll: true })
   const connect    = useConnectAgencyWhatsapp()
@@ -29,10 +30,15 @@ export function CrmWhatsappConnect() {
   const qr = data.qrcode ? (data.qrcode.startsWith('data:') ? data.qrcode : `data:image/png;base64,${data.qrcode}`) : null
 
   return (
-    <section className="rounded-xl border p-4 sm:p-5 space-y-3" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+    <section className="rounded-2xl border p-4 sm:p-5 space-y-3" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
       <div>
-        <h2 className="flex items-center gap-2 text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
-          <Smartphone className="w-4 h-4" style={{ color: '#22C55E' }} /> Meu WhatsApp
+        <h2 className="flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
+          {n && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>}
+          <span className="font-display text-[17px] font-bold">Meu WhatsApp</span>
+          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium self-center ml-1" style={{ color: 'var(--sm-text-3)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: data.status === 'connected' ? '#22C55E' : '#F59E0B' }} />
+            {data.status === 'connected' ? 'Conectado' : data.status === 'connecting' ? 'Aguardando leitura' : 'Desconectado'}
+          </span>
         </h2>
         <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
           Conecte o WhatsApp da agência. Por ele saem os avisos de conteúdo para os seus clientes, os avisos de post publicado e as mensagens, propostas e contratos do CRM. Sem ele conectado, nenhuma mensagem de WhatsApp é enviada: os avisos ficam só no sininho do app.
