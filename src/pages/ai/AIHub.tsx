@@ -19,7 +19,7 @@ export function AIHub() {
           onClick={() => navigate('/ai/livre')}
           className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-[#e0e0e0] bg-white hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
         >
-          <div className="w-9 h-9 rounded-xl bg-[#0f0f0f] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-[#16284d] flex items-center justify-center">
             <MessageSquare className="w-4.5 h-4.5 text-white" />
           </div>
           <span className="text-[13px] font-semibold text-[#0f0f0f]">Chat livre</span>

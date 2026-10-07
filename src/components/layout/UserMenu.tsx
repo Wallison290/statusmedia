@@ -35,7 +35,7 @@ function Avatar({
         <img src={src} alt="avatar" className="w-full h-full object-cover" />
       ) : (
         <div className={`w-full h-full flex items-center justify-center text-[10px] font-semibold ${
-          dark ? 'bg-white/15 border border-white/20' : 'bg-[#0f0f0f] border border-[#0f0f0f]'
+          dark ? 'bg-white/15 border border-white/20' : 'bg-[#16284d] border border-[#16284d]'
         }`}>
           <span style={{ color: '#ffffff', fontSize: `${size * 1.6}px` }}>{initial}</span>
         </div>
@@ -307,7 +307,7 @@ export function UserMenu({ dark = true }: UserMenuProps) {
               {avatarUrl ? (
                 <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
               ) : (
-                <div className={`w-full h-full flex items-center justify-center ${dark ? 'bg-white/15' : 'bg-[#0f0f0f]'}`}>
+                <div className={`w-full h-full flex items-center justify-center ${dark ? 'bg-white/15' : 'bg-[#16284d]'}`}>
                   <span className="text-white text-[10px] font-semibold">{initial}</span>
                 </div>
               )}
