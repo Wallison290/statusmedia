@@ -152,7 +152,7 @@ export function ImageBuilder({
             <div key={i} className="relative">
               <img src={src} alt="" className="w-14 h-14 rounded-xl object-cover border border-[#e0e0e0]" />
               <button onClick={() => onRemoveAttachedImage(i)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#0f0f0f] text-white flex items-center justify-center shadow">
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/80 text-white flex items-center justify-center shadow">
                 <X className="w-2.5 h-2.5" />
               </button>
             </div>

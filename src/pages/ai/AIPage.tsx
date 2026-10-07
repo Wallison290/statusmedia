@@ -1241,7 +1241,7 @@ ${subAgentContext}`
                     <img src={src} alt="" className="w-16 h-16 rounded-xl object-cover border border-[#e0e0e0]" />
                     <button
                       onClick={() => setAttachedImages(prev => prev.filter((_, j) => j !== i))}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#0f0f0f] text-white flex items-center justify-center shadow"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/80 text-white flex items-center justify-center shadow"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
@@ -1260,7 +1260,7 @@ ${subAgentContext}`
                     {pdf.truncated && <span className="text-[9px] text-amber-600 flex-shrink-0" title="Documento grande — só o início foi lido">✂️</span>}
                     <button
                       onClick={() => setAttachedPdfs(prev => prev.filter((_, j) => j !== i))}
-                      className="w-4 h-4 rounded-full bg-[#0f0f0f] text-white flex items-center justify-center flex-shrink-0"
+                      className="w-4 h-4 rounded-full bg-black/80 text-white flex items-center justify-center flex-shrink-0"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
@@ -1392,7 +1392,7 @@ ${subAgentContext}`
                 {(isStreaming || isLoading) ? (
                   <button
                     onClick={stopGeneration}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0f0f0f] text-white hover:bg-[#333] transition-all"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-black/80 text-white hover:bg-[#333] transition-all"
                     title="Parar geração"
                   >
                     <Square className="w-3.5 h-3.5 fill-current" />

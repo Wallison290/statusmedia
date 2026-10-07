@@ -577,7 +577,7 @@ export function TasksTab({ clientId }: { clientId: string }) {
           </button>
           <button
             onClick={handleNew}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium bg-[#0f0f0f] text-white hover:bg-[#1e293b] transition-colors"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> Nova tarefa
           </button>
@@ -720,7 +720,7 @@ export function TasksTab({ clientId }: { clientId: string }) {
           </div>
           <button
             onClick={handleNew}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium bg-[#0f0f0f] text-white hover:bg-[#1e293b] transition-colors"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> Nova tarefa
           </button>
