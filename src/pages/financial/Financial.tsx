@@ -182,7 +182,7 @@ function PaymentHistoryModal({ client, onClose }: { client: Client | null; onClo
 // botão que não se aplica vira um espaço vazio do mesmo tamanho.
 // No celular cada cliente vira um cartão empilhado.
 
-const COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_132px_140px_128px_324px] md:items-center md:gap-x-4'
+const COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_132px_140px_128px_340px] md:items-center md:gap-x-4'
 
 function ClientTableHeader() {
   return (
@@ -264,12 +264,12 @@ function ClientRow({ client, first, onPay, onHistory }: {
             </button>
           )}
         </span>
-        <span className="w-[74px]">
+        <span className="w-[90px]">
           {canPay && (
-            <button onClick={() => onPay(client)} title="Registrar pagamento"
-              className="h-8 w-full rounded-lg text-[12px] font-semibold inline-flex items-center justify-center gap-1"
-              style={{ background: 'rgba(34,197,94,0.12)', color: '#16A34A' }}>
-              <Check className="w-3.5 h-3.5" /> Pago
+            <button onClick={() => onPay(client)} title="Registrar que o cliente pagou a mensalidade"
+              className="h-8 w-full rounded-lg border text-[12px] font-semibold inline-flex items-center justify-center gap-1 hover:bg-black/5"
+              style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+              <Check className="w-3.5 h-3.5" /> Dar baixa
             </button>
           )}
         </span>
@@ -390,7 +390,7 @@ export function ClientBillingTab() {
         </Card>
         {list.length > 0 && (
           <p className="text-[11.5px] mt-2" style={{ color: 'var(--sm-text-4)' }}>
-            {list.length} cliente(s). "Pago" dá baixa na mensalidade do mês no Financeiro; "Cobrar" envia a mensagem com Pix da cobrança automática.
+            {list.length} cliente(s). "Dar baixa" registra o pagamento na mensalidade do mês no Financeiro; "Cobrar" envia a mensagem com Pix da cobrança automática.
           </p>
         )}
       </section>

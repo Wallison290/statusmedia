@@ -121,7 +121,8 @@ export function getFinancialAuxText(client: Client, status: FinancialStatus): st
     return `Vence em ${days} dia${days !== 1 ? 's' : ''}`
   }
 
-  // ativo
-  if (lastPaid) return `Pago em ${lastPaid.toLocaleDateString('pt-BR')}`
-  return null
+  // ativo: "Pago em" só quando o pagamento cobre o ciclo atual; senão mostra o
+  // próximo vencimento (um pagamento antigo não significa que este mês foi pago)
+  if (paidThisCycle) return `Pago em ${lastPaid!.toLocaleDateString('pt-BR')}`
+  return `Aguardando pagamento · vence ${dueThisMonth.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
 }
