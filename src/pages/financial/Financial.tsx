@@ -8,6 +8,8 @@ import { Link } from 'react-router-dom'
 import {
   Search, ExternalLink, ChevronDown, MessageCircle, History, Loader2, RefreshCw, Check, AlertTriangle,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/integrations/supabase/client'
 import { useClients, useUpdateClient } from '@/hooks/useClients'
 import { useCreatePayment, useClientPayments } from '@/hooks/usePayments'
 import { useSendBillingNow } from '@/hooks/useFinance'
@@ -145,12 +147,45 @@ function RegisterPaymentModal({ client, onClose }: { client: Client | null; onCl
 
 // ── Histórico de pagamentos ──────────────────────────────────────────────────
 
+// Próxima mensalidade em aberto do cliente (parcela do Financeiro)
+function useNextOpenEntry(clientId: string | null) {
+  return useQuery({
+    queryKey: ['fin-next-open-entry', clientId],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('fin_entries')
+        .select('id, amount, due_date, competence')
+        .eq('client_id', clientId!).eq('type', 'receita').eq('status', 'aberto')
+        .order('due_date').limit(1).maybeSingle()
+      if (error) throw error
+      return data as { id: string; amount: number; due_date: string; competence: string } | null
+    },
+  })
+}
+
 function PaymentHistoryModal({ client, onClose }: { client: Client | null; onClose: () => void }) {
   const { data: payments = [], isLoading } = useClientPayments(client?.id ?? null)
+  const { data: next } = useNextOpenEntry(client?.id ?? null)
   if (!client) return null
   return (
     <Modal open onClose={onClose} title="Histórico de pagamentos" footer={<GhostButton onClick={onClose}>Fechar</GhostButton>}>
       <p className="text-[13px] font-semibold mb-3" style={{ color: 'var(--sm-text-1)' }}>{client.company_name}</p>
+      {next && (
+        <div className="mb-4">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--sm-text-4)' }}>Próximo a receber</p>
+          <div className="relative rounded-xl border pl-4 pr-3 py-2.5 flex items-center gap-3" style={{ borderColor: 'var(--sm-border)' }}>
+            <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r" style={{ background: '#F59E0B' }} />
+            <p className="flex-1 text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>
+              {MONTHS_PT[Number(next.competence.slice(5, 7)) - 1]} {next.competence.slice(0, 4)}
+            </p>
+            <div className="text-right">
+              <p className="text-[13px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{brl(Number(next.amount))}</p>
+              <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>vence {fmtDate(next.due_date)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--sm-text-4)' }}>Pagamentos recebidos</p>
       {isLoading ? (
         <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--sm-text-4)' }} /></div>
       ) : payments.length === 0 ? (
