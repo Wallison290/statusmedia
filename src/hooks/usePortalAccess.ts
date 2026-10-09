@@ -14,7 +14,9 @@ export interface PortalStatus {
   email_differs?:   boolean
   invited_at?:      string | null
   password_set_at?: string | null
-  last_sign_in_at?: string | null
+  last_sign_in_at?: string | null   // último login (e-mail e senha)
+  last_seen_at?:    string | null   // última atividade: login ou sessão renovada com o portal aberto
+  active_days_30?:  number          // dias diferentes com uso do portal nos últimos 30 dias
 }
 
 export interface PortalEvent {

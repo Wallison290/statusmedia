@@ -70,7 +70,7 @@ export function PortalAccessPanel({ clientId }: { clientId: string }) {
           <div className="flex-1 flex flex-col sm:flex-row gap-3 sm:gap-4 lg:border-l lg:pl-5" style={{ borderColor: 'var(--sm-border)' }}>
             <Step n="1" title="Convite enviado" done={invited} when={invited ? sentAt : null} />
             <Step n="2" title="Senha criada" done={st.state === 'ativo'} when={st.state === 'ativo' ? (fmt(st.password_set_at) ?? 'concluída') : null} />
-            <Step n="3" title="Último acesso" done={!!st.last_sign_in_at} when={fmt(st.last_sign_in_at, true)} last />
+            <Step n="3" title="Último acesso" done={!!st.last_seen_at} when={st.last_seen_at ? `${fmt(st.last_seen_at, true)}${st.active_days_30 ? ` · usou em ${st.active_days_30} dia${st.active_days_30 === 1 ? "" : "s"} (30 dias)` : ""}` : null} last />
           </div>
         )}
 

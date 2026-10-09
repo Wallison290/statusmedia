@@ -487,8 +487,8 @@ export function ClientList() {
                         const p = portal[client.id]
                         const pc = PORTAL_STATE[p.state]
                         const dm = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-                        const extra = p.state === 'ativo' && p.last_sign_in_at
-                          ? ` · último acesso ${dm(p.last_sign_in_at)}`
+                        const extra = p.state === 'ativo' && p.last_seen_at
+                          ? ` · último acesso ${dm(p.last_seen_at)}`
                           : p.state === 'aguardando_senha' && p.invited_at
                             ? ` · convite de ${dm(p.invited_at)}`
                             : ''
