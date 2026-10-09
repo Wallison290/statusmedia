@@ -131,6 +131,8 @@ async function enviarParaR2(file: File, onProgress?: (pct: number) => void): Pro
       await enviarPut(uploadUrl, file, onProgress)
       return publicUrl
     } catch (err: any) {
+      // Armazenamento do plano cheio (413): tentar de novo não adianta
+      if (err?.status === 413) throw err
       ultimo = err
       await registrarFalha(file, { stage: err?.stage ?? 'enviar', message: err?.message ?? String(err), http_status: err?.status ?? null, attempt: tentativa })
       onProgress?.(0)
@@ -166,6 +168,8 @@ export async function uploadArquivo(
       const url = await enviarParaR2(file, onProgress)
       return { url, destino: 'r2' }
     } catch (err: any) {
+      // Sem espaço no plano: não é falha de rede, a reserva não entra
+      if (err?.status === 413) throw err
       // Reserva: o R2 falhou em todas as tentativas. Arquivo que cabe no
       // Supabase vai por lá, para o post não ficar sem a mídia.
       if (file.size > LIMITE_SUPABASE) {

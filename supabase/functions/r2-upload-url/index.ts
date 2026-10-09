@@ -77,6 +77,30 @@ Deno.serve(async (req) => {
       return json({ error: 'Arquivo acima de 1 GB. O Instagram não aceita.' }, 400)
     }
 
+    // ── Espaço do plano (migration 094) ────────────────────────────────────
+    // Cliente do portal enviando material conta no espaço da agência dele.
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    let billingAgency = agencyId
+    const { data: prof } = await admin.from('profiles').select('role, linked_client_id').eq('id', user.id).maybeSingle()
+    if (prof?.role === 'client' && prof.linked_client_id) {
+      const { data: cli } = await admin.from('clients').select('user_id').eq('id', prof.linked_client_id).maybeSingle()
+      if (cli?.user_id) billingAgency = cli.user_id
+    }
+    const declared = typeof sizeBytes === 'number' && sizeBytes > 0 ? Math.round(sizeBytes) : 0
+    const [{ data: limitGB }, { data: usedBytes }] = await Promise.all([
+      admin.rpc('agency_limit', { p_agency: billingAgency, p_key: 'storage_gb' }),
+      admin.rpc('agency_storage_bytes', { p_agency: billingAgency }),
+    ])
+    const limitBytes = Number(limitGB ?? 0) * 1024 ** 3
+    if (Number(limitGB ?? 0) !== -1 && Number(usedBytes ?? 0) + declared > limitBytes) {
+      const usado = (Number(usedBytes ?? 0) / 1024 ** 3).toFixed(1)
+      return json({
+        error: Number(limitGB ?? 0) === 0
+          ? 'Assinatura inativa: não é possível enviar arquivos.'
+          : `Armazenamento do plano cheio (${usado} GB de ${limitGB} GB). Apague arquivos antigos ou faça upgrade do plano.`,
+      }, 413)
+    }
+
     // ── Caminho: separa por usuário e evita colisão de nome ────────────────
     const limpo = String(fileName).replace(/[^\w.\-]/g, '_').slice(-80)
     const key = `${agencyId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${limpo}`
@@ -97,6 +121,14 @@ Deno.serve(async (req) => {
       headers: { 'Content-Type': contentType },
       aws: { signQuery: true },
     })
+
+    // Entra no inventário já com o tamanho declarado: conta no espaço da agência
+    // antes da próxima sincronização (r2-storage-sync corrige o tamanho real e
+    // tira a linha se o envio não chegar a acontecer)
+    await admin.from('r2_objects').upsert(
+      { key, url: `${publicUrl}/${key}`, bytes: declared, owner_hint: billingAgency },
+      { onConflict: 'key' },
+    )
 
     return json({
       uploadUrl: assinada.url,   // para onde o navegador manda o arquivo

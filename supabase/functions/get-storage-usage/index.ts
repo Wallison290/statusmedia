@@ -34,9 +34,9 @@ Deno.serve(async (req) => {
     // Sócio age como o dono da agência (migration 088)
     const agencyId = await agencyIdFor(user.id)
 
-    // Chama função SQL SECURITY DEFINER que acessa storage.objects
-    const { data, error } = await sb.rpc('get_user_storage_bytes', {
-      p_user_id: agencyId,
+    // R2 (arquivos que a agência ainda usa) + Supabase Storage — migration 094
+    const { data, error } = await sb.rpc('agency_storage_bytes', {
+      p_agency: agencyId,
     })
 
     if (error) {
