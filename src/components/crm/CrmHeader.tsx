@@ -4,17 +4,34 @@
 // e o voltar do navegador funciona.
 
 import { NavLink } from 'react-router-dom'
-import { Columns3, FileText, PenLine, Zap, BarChart3, Settings2, Eye, EyeOff } from 'lucide-react'
+import { Columns3, FileText, PenLine, Zap, BarChart3, Settings2, Eye, EyeOff, Lock } from 'lucide-react'
 import { useHideValues, setHideValues } from '@/hooks/useHideValues'
+import { PlanLocked, usePlanFeature } from '@/components/plan/PlanLocked'
 
+// `full`: aba do CRM completo (planos Pro e Agency). No Starter ela aparece com
+// cadeado e abre o convite de upgrade.
 const TABS = [
   { to: '/crm',               label: 'Funil',         icon: Columns3,  end: true },
-  { to: '/crm/propostas',     label: 'Propostas',     icon: FileText },
-  { to: '/crm/contratos',     label: 'Contratos',     icon: PenLine },
-  { to: '/crm/automacoes',    label: 'Automações',    icon: Zap },
-  { to: '/crm/relatorios',    label: 'Relatórios',    icon: BarChart3 },
-  { to: '/crm/configuracoes', label: 'Configurações', icon: Settings2 },
+  { to: '/crm/propostas',     label: 'Propostas',     icon: FileText,  full: true },
+  { to: '/crm/contratos',     label: 'Contratos',     icon: PenLine,   full: true },
+  { to: '/crm/automacoes',    label: 'Automações',    icon: Zap,       full: true },
+  { to: '/crm/relatorios',    label: 'Relatórios',    icon: BarChart3, full: true },
+  { to: '/crm/configuracoes', label: 'Configurações', icon: Settings2, full: true },
 ]
+
+/** Abas do CRM completo: no Starter mostra o cabeçalho e o convite de upgrade. */
+export function CrmPlanGate({ children }: { children: React.ReactNode }) {
+  const { ready, allowed } = usePlanFeature('crmFull')
+  if (!ready) return null
+  if (allowed) return <>{children}</>
+  return (
+    <div className="h-full flex flex-col" style={{ background: 'var(--sm-bg-page)' }}>
+      <CrmHeader subtitle="Funil comercial da agência" />
+      <PlanLocked feature="crmFull" title="CRM completo"
+        description="Propostas, contratos com assinatura, follow-up automático no WhatsApp, relatórios de vendas e todos os modelos de funil. No seu plano, o CRM tem o funil comercial padrão com os leads movidos à mão." />
+    </div>
+  )
+}
 
 interface Props {
   subtitle?: React.ReactNode
@@ -23,6 +40,7 @@ interface Props {
 
 export function CrmHeader({ subtitle, actions }: Props) {
   const hidden = useHideValues()
+  const { allowed: crmFull } = usePlanFeature('crmFull')
   return (
     // No celular a página reserva 3.5rem no topo para o botão de menu flutuante
     // (sm-menu-gap). O cabeçalho sobe para essa faixa e o título fica ao lado do
@@ -66,6 +84,7 @@ export function CrmHeader({ subtitle, actions }: Props) {
           >
             <t.icon className="w-3.5 h-3.5" />
             {t.label}
+            {t.full && !crmFull && <Lock className="w-3 h-3 opacity-60" aria-label="Disponível no plano Pro" />}
           </NavLink>
         ))}
       </nav>

@@ -28,6 +28,7 @@ import { useArchiveCrmLead } from '@/hooks/useCrmActivities'
 import { CrmLeadModal } from '@/components/crm/CrmLeadModal'
 import { CrmTemplatePicker } from '@/components/crm/CrmTemplatePicker'
 import { CrmHeader } from '@/components/crm/CrmHeader'
+import { usePlanFeature } from '@/components/plan/PlanLocked'
 import { CrmLostReasonDialog } from '@/components/crm/CrmLostReason'
 import { CrmAssistant } from '@/components/crm/CrmAssistant'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -548,6 +549,8 @@ export function CrmBoard() {
   const [quick, setQuick]             = useState<'todos' | 'responderam' | 'retornos' | 'quentes'>('todos')
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [assistantOpen, setAssistantOpen] = useState(false)
+  // Assistente de IA do funil: plano Agency (migration 093)
+  const { allowed: canAssistant } = usePlanFeature('aiAssistant')
   // Movimento para etapa de perda fica em espera até a pessoa dizer o motivo
   const [pendingLost, setPendingLost] = useState<{ lead: CrmLead; toColumnId: string } | null>(null)
 
@@ -785,9 +788,11 @@ export function CrmBoard() {
         actions={columns.length > 0 && (
           <>
             {/* No celular as ações secundárias viram só ícone, para caberem numa linha */}
-            <Button size="sm" variant="outline" onClick={() => setAssistantOpen(true)} title="Perguntar à IA" aria-label="Perguntar à IA">
-              <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} /> <span className="max-md:hidden">Perguntar à IA</span>
-            </Button>
+            {canAssistant && (
+              <Button size="sm" variant="outline" onClick={() => setAssistantOpen(true)} title="Perguntar à IA" aria-label="Perguntar à IA">
+                <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} /> <span className="max-md:hidden">Perguntar à IA</span>
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)} title="Modelos" aria-label="Modelos">
               <LayoutTemplate className="w-3.5 h-3.5" /> <span className="max-md:hidden">Modelos</span>
             </Button>

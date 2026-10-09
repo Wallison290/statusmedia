@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
-import { getPlan, PLAN_AI_LIMITS, type Plan, type PlanId } from '@/config/plans'
+import { getPlan, type Plan, type PlanId } from '@/config/plans'
 // PlanId agora é 'starter' | 'pro' | 'agency'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -25,7 +25,6 @@ export interface SubscriptionData {
   trialDaysLeft: number | null
   isPro: boolean
   isAgency: boolean
-  aiLimit: number
   cancelAtPeriodEnd: boolean
 }
 
@@ -83,7 +82,6 @@ export function useSubscription() {
         trialDaysLeft,
         isPro:             planId === 'pro',
         isAgency:          planId === 'agency',
-        aiLimit:           PLAN_AI_LIMITS[planId] ?? 50,
         cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       }
     },

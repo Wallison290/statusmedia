@@ -4,6 +4,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@14'
 import { agencyIdFor } from '../_shared/agency.ts'
+import { CHECKOUT_PRICES } from '../_shared/plans.ts'
 
 const STRIPE_SECRET_KEY  = Deno.env.get('STRIPE_SECRET_KEY') ?? ''
 const SUPABASE_URL        = Deno.env.get('SUPABASE_URL') ?? ''
@@ -42,8 +43,9 @@ Deno.serve(async (req) => {
   const agencyId = await agencyIdFor(user.id)
 
   const { priceId } = await req.json()
-  if (!priceId || priceId.startsWith('CONFIGURE_')) {
-    return json({ error: 'Plano não disponível. Configure o STRIPE_PRICE_ID.' }, 400)
+  // Só os preços atuais dos planos: nada de preço arbitrário vindo do navegador
+  if (!priceId || !CHECKOUT_PRICES.has(priceId)) {
+    return json({ error: 'Plano não disponível no momento.' }, 400)
   }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)

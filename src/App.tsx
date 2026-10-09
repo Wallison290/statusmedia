@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@/components/ui/toast'
+import { CrmPlanGate } from '@/components/crm/CrmHeader'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { Layout } from '@/components/layout/Layout'
 import { useAuth } from '@/hooks/useAuth'
@@ -36,8 +37,6 @@ const Planner           = lazy(() => import('@/pages/planner/Planner').then(m =>
 const Tasks             = lazy(() => import('@/pages/tasks/Tasks').then(m => ({ default: m.Tasks })))
 const Financial         = lazy(() => import('@/pages/financial/FinancePage').then(m => ({ default: m.FinancePage })))
 const Notes             = lazy(() => import('@/pages/notes/Notes').then(m => ({ default: m.Notes })))
-const AIPage            = lazy(() => import('@/pages/ai/AIPage').then(m => ({ default: m.AIPage })))
-const AIHub             = lazy(() => import('@/pages/ai/AIHub').then(m => ({ default: m.AIHub })))
 const Subscription       = lazy(() => import('@/pages/Subscription').then(m => ({ default: m.Subscription })))
 const Pricing            = lazy(() => import('@/pages/Pricing').then(m => ({ default: m.Pricing })))
 const PortalDashboard    = lazy(() => import('@/pages/portal/PortalDashboard').then(m => ({ default: m.PortalDashboard })))
@@ -165,12 +164,6 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-/** Remonta o AIPage do zero a cada troca de squad/rota — cada card do hub abre um chat limpo. */
-function AIPageRoute() {
-  const { squadId } = useParams()
-  return <AIPage key={squadId ?? 'livre'} />
-}
-
 /** Remonta o workspace de relatório do zero a cada troca de cliente. */
 function ReportsWorkspaceRoute() {
   const { clientId } = useParams()
@@ -221,11 +214,12 @@ function AppRoutes() {
       <Route element={<AuthGuard><SubscriptionGuard><Layout /></SubscriptionGuard></AuthGuard>}>
         <Route path="/dashboard"     element={<Dashboard />} />
         <Route path="/crm"           element={<CrmBoard />} />
-        <Route path="/crm/propostas"     element={<CrmProposals />} />
-        <Route path="/crm/contratos"     element={<CrmContracts />} />
-        <Route path="/crm/automacoes"    element={<CrmAutomations />} />
-        <Route path="/crm/relatorios"    element={<CrmReports />} />
-        <Route path="/crm/configuracoes" element={<CrmSettingsPage />} />
+        {/* CRM completo: planos Pro e Agency (no Starter, só o funil) */}
+        <Route path="/crm/propostas"     element={<CrmPlanGate><CrmProposals /></CrmPlanGate>} />
+        <Route path="/crm/contratos"     element={<CrmPlanGate><CrmContracts /></CrmPlanGate>} />
+        <Route path="/crm/automacoes"    element={<CrmPlanGate><CrmAutomations /></CrmPlanGate>} />
+        <Route path="/crm/relatorios"    element={<CrmPlanGate><CrmReports /></CrmPlanGate>} />
+        <Route path="/crm/configuracoes" element={<CrmPlanGate><CrmSettingsPage /></CrmPlanGate>} />
         <Route path="/clients"       element={<ClientList />} />
         <Route path="/clients/new"   element={<ClientForm />} />
         <Route path="/clients/:id"   element={<ClientProfile />} />
@@ -239,10 +233,8 @@ function AppRoutes() {
         <Route path="/notes"         element={<Notes />} />
         <Route path="/library"       element={<Navigate to="/dashboard" replace />} />
         <Route path="/financial"     element={<Financial />} />
-        <Route path="/ai"            element={<AIHub />} />
-        <Route path="/ai/squad/:squadId" element={<AIPageRoute />} />
-        <Route path="/ai/livre"      element={<AIPage key="livre" />} />
-        <Route path="/ai/imagem"     element={<AIPage key="imagem" />} />
+        {/* StatusIA foi removida: links antigos voltam ao Dashboard */}
+        <Route path="/ai/*"          element={<Navigate to="/dashboard" replace />} />
         <Route path="/equipe"        element={<TeamPage />} />
         <Route path="/instagram"     element={<InstagramPage />} />
         <Route path="/whatsapp"      element={<WhatsAppPage />} />

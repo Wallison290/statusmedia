@@ -16,6 +16,7 @@ import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useCrmActivities, useAddCrmActivity } from '@/hooks/useCrmActivities'
 import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { streamChat } from '@/lib/aiProxy'
+import { usePlanFeature } from '@/components/plan/PlanLocked'
 import { CRM_DEFAULT_MESSAGES } from '@/data/crmTemplates'
 import { fillVars, waLink, copyText, fmtBRL } from '@/utils/crm'
 import type { CrmColumn, CrmLead } from '@/types'
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export function CrmWhatsappActions({ lead, columns, onSent }: Props) {
+  // "Sugerir mensagem" usa a cota de mensagens com IA (planos Pro e Agency)
+  const { allowed: canAi } = usePlanFeature('aiMessages')
   const { toast } = useToast()
   const { agencyProfile: profile } = useAuth()
   const { data: settings } = useCrmSettings()
@@ -104,7 +107,7 @@ export function CrmWhatsappActions({ lead, columns, onSent }: Props) {
       `\nHistórico (mais antigo primeiro):\n${history || '- nenhum registro'}`
 
     try {
-      const full = await streamChat([{ role: 'user', content: user }], system, false, chunk => {
+      const full = await streamChat([{ role: 'user', content: user }], system, 'message', chunk => {
         setDraft(prev => prev + chunk)
       })
       setDraft(full.trim())
@@ -161,10 +164,12 @@ export function CrmWhatsappActions({ lead, columns, onSent }: Props) {
           )}
         </div>
 
-        <Button size="sm" variant="outline" onClick={suggest} disabled={aiBusy}>
-          {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} />}
-          Sugerir mensagem
-        </Button>
+        {canAi && (
+          <Button size="sm" variant="outline" onClick={suggest} disabled={aiBusy}>
+            {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} />}
+            Sugerir mensagem
+          </Button>
+        )}
       </div>
 
       {lead.whatsapp ? (

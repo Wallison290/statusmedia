@@ -18,7 +18,7 @@
 //      o papel do degrau (guia de cadência) e a conversa real com o lead.
 //   5. Depois do de 14 dias, o lead vai para a etapa de perdido.
 //
-// Cada mensagem consome 1 crédito de IA do plano, como o chat do app.
+// Cada mensagem consome 1 da cota "mensagens com IA" do plano (migration 093).
 // Auth: mesmo esquema do whatsapp-health (X-Cron-Secret do Vault ou service role).
 //   supabase functions deploy crm-followup --no-verify-jwt
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +26,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
 import { agencySender, sendVia, phoneKey } from '../_shared/whatsapp.ts'
+import { consumeAi, agencyLimit } from '../_shared/plans.ts'
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -75,8 +76,6 @@ function followupColumn(step: number, columns: any[], chosen: Record<string, str
   return columns.find(c => c.stage_type === 'normal' && STEP_NAME[step].test(plain(c.name))) ?? null
 }
 
-const AI_LIMITS: Record<string, number> = { starter: 150, pro: 600, agency: 2000 }
-
 // O que cada degrau entrega (guia "Cadência de follow-up")
 const STEP_GOAL: Record<number, string> = {
   1:  'Retomar o objetivo do lead usando as palavras que ele mesmo usou na conversa.',
@@ -96,23 +95,6 @@ function inBusinessHours(now = new Date()) {
   const hour = Number(parts.find(p => p.type === 'hour')?.value ?? 0)
   const weekday = parts.find(p => p.type === 'weekday')?.value
   return weekday !== 'Sun' && hour >= 8 && hour < 20
-}
-
-async function consumeCredit(sb: any, userId: string): Promise<boolean> {
-  const month = new Date().toISOString().slice(0, 7)
-  const { data: sub } = await sb.from('subscriptions').select('plan, status, trial_ends_at').eq('user_id', userId).maybeSingle()
-  const active = sub?.status === 'active'
-    || (sub?.status === 'trialing' && sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date())
-  if (!active) return false
-  const limit = AI_LIMITS[sub?.plan ?? 'starter'] ?? 50
-  const { data: usage } = await sb.from('ai_usage').select('requests').eq('user_id', userId).eq('month', month).maybeSingle()
-  const current = usage?.requests ?? 0
-  if (current + 1 > limit) return false
-  await sb.from('ai_usage').upsert(
-    { user_id: userId, month, requests: current + 1, updated_at: new Date().toISOString() },
-    { onConflict: 'user_id,month' },
-  )
-  return true
 }
 
 function briefingText(o: any) {
@@ -181,6 +163,9 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   if (queue?.followup_next_send_at && new Date(queue.followup_next_send_at).getTime() > Date.now()) {
     return { ...report, note: `próximo envio liberado às ${queue.followup_next_send_at}` }
   }
+
+  // Follow-up com IA é recurso dos planos Pro e Agency (migration 093)
+  if (await agencyLimit(sb, userId, 'crm_full') === 0) return { ...report, note: 'plano sem follow-up automático' }
 
   const sender = await agencySender(sb, userId)
   if (!sender) return { ...report, note: 'WhatsApp desconectado' }
@@ -277,9 +262,9 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     const { data: claimed } = await sb.rpc('crm_followup_claim', { p_lead: lead.id, p_step: next })
     if (!claimed) { await sb.rpc('crm_followup_release_slot', { p_user: userId }); break }
 
-    if (!(await consumeCredit(sb, userId))) {
+    if (!(await consumeAi(sb, userId, 'ai_messages')).allowed) {
       await giveBack()
-      report.errors.push('sem créditos de IA ou assinatura inativa')
+      report.errors.push('cota de mensagens com IA esgotada ou assinatura inativa')
       break
     }
 

@@ -15,6 +15,7 @@ import { HistoryTab } from './HistoryTab'
 import { BillingTab } from './BillingTab'
 import { InvoicesTab } from './InvoicesTab'
 import { TabSkeleton } from './finUi'
+import { PlanLocked, usePlanFeature } from '@/components/plan/PlanLocked'
 
 const TABS = [
   { id: 'visao',          label: 'Visão geral' },
@@ -31,6 +32,8 @@ type TabId = typeof TABS[number]['id']
 
 export function FinancePage() {
   const [params, setParams] = useSearchParams()
+  // Cobrança automática e notas fiscais: planos Pro e Agency (migration 093)
+  const { allowed: autoBilling } = usePlanFeature('autoBilling')
   const raw = params.get('aba')
   const tab: TabId = TABS.some(t => t.id === raw) ? (raw as TabId) : 'visao'
   const goTo = (t: string) => setParams(p => { p.set('aba', t); return p }, { replace: false })
@@ -62,8 +65,8 @@ export function FinancePage() {
             {tab === 'visao' && <OverviewTab goTo={goTo} />}
             {tab === 'lancamentos' && <EntriesTab />}
             {tab === 'inadimplencia' && <OverdueTab />}
-            {tab === 'cobranca' && <BillingTab />}
-            {tab === 'notas' && <InvoicesTab />}
+            {tab === 'cobranca' && (autoBilling ? <BillingTab /> : <PlanLocked feature="autoBilling" title="Cobrança automática" description="Lembretes antes, no dia e depois do vencimento pelo WhatsApp da agência e por e-mail, com Pix Copia e Cola do valor exato. Param sozinhos quando você dá baixa no pagamento." />)}
+            {tab === 'notas' && (autoBilling ? <InvoicesTab /> : <PlanLocked feature="autoBilling" title="Notas fiscais" description="Prepare os dados da nota de cada mensalidade, registre o número e o PDF, e o cliente recebe a nota no portal e junto com a cobrança." />)}
             {tab === 'clientes' && <ClientBillingTab />}
             {tab === 'recorrencias' && <RecurrencesTab />}
             {tab === 'configuracoes' && <SettingsTab />}

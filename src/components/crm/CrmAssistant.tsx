@@ -2,7 +2,7 @@
 // Conversa sobre o CRM com os dados reais do board: "quem priorizar hoje?",
 // "quais leads estão parados?". A foto do funil vai como instrução de sistema
 // a cada pergunta, então a resposta usa sempre o estado atual.
-// Cada pergunta consome 1 crédito de IA do plano (mesmo chat do StatusIA).
+// Cada pergunta consome 1 da cota do assistente (plano Agency, migration 093).
 
 import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Send, Loader2 } from 'lucide-react'
@@ -94,7 +94,7 @@ export function CrmAssistant({ open, onClose, leads, columns, memberOf }: Props)
       snapshot(leads, columns, memberOf)
 
     try {
-      await streamChat(history, system, false, chunk => {
+      await streamChat(history, system, 'assistant', chunk => {
         setMessages(prev => {
           const next = [...prev]
           const last = next[next.length - 1]

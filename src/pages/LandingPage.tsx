@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronDown, Lock, Menu, ShieldCheck, X,
   CalendarDays, Instagram, Target, FileSignature, MessageCircle, Users, BarChart3, Wallet,
-  LayoutGrid, BookOpen, StickyNote, ClipboardList,
+  LayoutGrid, StickyNote, ClipboardList,
 } from 'lucide-react'
 import { PLANS } from '@/config/plans'
 
@@ -16,7 +16,7 @@ import { PLANS } from '@/config/plans'
 // faixa cheia, duas colunas editoriais, mosaico, linha do tempo, split com
 // celular, planos e fechamento atmosférico.
 //
-// A página não menciona IA: a StatusMedia deixou de vender IA.
+// IA aparece só nos planos, como recurso com cota (mensagens, análises, assistente).
 
 // Tokens. Só estes; nada de cor solta no meio da página.
 const TOKENS = `
@@ -448,7 +448,7 @@ function Platform() {
   const more = [
     { icon: Users, t: 'Tarefas e equipe' }, { icon: BarChart3, t: 'Relatórios mensais do Instagram' },
     { icon: Wallet, t: 'Financeiro e cobrança' }, { icon: LayoutGrid, t: 'Feed do perfil' },
-    { icon: BookOpen, t: 'Biblioteca de conteúdo' }, { icon: ClipboardList, t: 'Formulário semanal do cliente' },
+    { icon: ClipboardList, t: 'Formulário semanal do cliente' },
     { icon: StickyNote, t: 'Notas por cliente' },
   ]
   return (
@@ -609,7 +609,7 @@ function WhatsAppSection() {
 
 // ─── 7. Planos ────────────────────────────────────────────────────────────────
 // Preços e itens vêm de @/config/plans (fonte única com o app e o Stripe). O
-// grupo "IA" é filtrado aqui: a landing não vende mais IA.
+// grupo "IA" lista as cotas de IA de cada plano.
 function Pricing() {
   const order: ('starter' | 'pro' | 'agency')[] = ['starter', 'pro', 'agency']
   const sectionRef = useRef<HTMLElement>(null)
@@ -646,7 +646,7 @@ function Pricing() {
           {order.map((id, i) => {
             const p = PLANS[id]
             const isPro = id === 'pro'
-            const groups = p.featureGroups.filter(g => g.title !== 'IA')
+            const groups = p.featureGroups
             return (
               <Reveal
                 key={id}

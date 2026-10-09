@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useClients, useUpdateClient } from '@/hooks/useClients'
 import { useCreatePayment, useClientPayments } from '@/hooks/usePayments'
 import { useSendBillingNow } from '@/hooks/useFinance'
+import { usePlanFeature } from '@/components/plan/PlanLocked'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
 import { calcFinancialStatus, financialStatusLabel, getFinancialAuxText } from '@/utils/financial'
@@ -239,7 +240,9 @@ function ClientRow({ client, first, onPay, onHistory }: {
   const sendNow = useSendBillingNow()
   const status = calcFinancialStatus(client)
   const aux = getFinancialAuxText(client, status)
-  const canCharge = (status === 'atrasado' || status === 'vence_em_breve') && !!client.whatsapp
+  // "Cobrar" envia a mensagem da cobrança automática (planos Pro e Agency)
+  const { allowed: autoBilling } = usePlanFeature('autoBilling')
+  const canCharge = autoBilling && (status === 'atrasado' || status === 'vence_em_breve') && !!client.whatsapp
   const canPay = status !== 'cancelado'
 
   const charge = async () => {

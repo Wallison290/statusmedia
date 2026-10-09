@@ -135,7 +135,7 @@ export function CrmFollowupSettings() {
         <li>• A cada follow-up o card vai para a etapa escolhida acima, só para frente: lead que já está mais adiante no funil não volta.</li>
         <li>• Depois do de 14 dias, se o lead seguir sem responder por mais 7 dias, vai para a etapa de perdido.</li>
         <li>• Leads em etapas fechadas ou de descarte (Ganho, Contrato assinado, Perdido, Sem interesse) ou com contrato assinado na aba Contratos nunca recebem follow-up.</li>
-        <li>• Vale para as conversas a partir de agora: o sistema precisa ter visto a conversa para saber quem falou por último. Cada mensagem usa 1 crédito de IA.</li>
+        <li>• Vale para as conversas a partir de agora: o sistema precisa ter visto a conversa para saber quem falou por último. Cada mensagem usa 1 das mensagens com IA do plano no mês.</li>
       </ul>
 
       <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>

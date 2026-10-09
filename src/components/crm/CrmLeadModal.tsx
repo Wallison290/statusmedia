@@ -25,6 +25,7 @@ import { LostReasonField } from './CrmLostReason'
 import { CrmLeadTimeline } from './CrmLeadTimeline'
 import { CrmLeadTasks } from './CrmLeadTasks'
 import { CrmLeadDocs } from './CrmLeadDocs'
+import { usePlanFeature } from '@/components/plan/PlanLocked'
 import { CrmWhatsappActions } from './CrmWhatsappActions'
 import { useHideValues, useMoney } from '@/hooks/useHideValues'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
@@ -140,6 +141,8 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   const [form, setForm] = useState<CrmLeadInput>({ name: '', column_id: columnId })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [panel, setPanel] = useState<Panel>('conversa')
+  // Starter: CRM só com o funil (sem propostas/contratos nem follow-up automático)
+  const { allowed: crmFull } = usePlanFeature('crmFull')
   // Mandou mensagem pelo CRM com o lead na primeira etapa: o contato foi feito,
   // então ao salvar ou fechar ele passa para a etapa seguinte do funil.
   const [sentFromCrm, setSentFromCrm] = useState(false)
@@ -603,7 +606,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
     { id: 'conversa',   label: 'Conversa',   icon: MessagesSquare },
     { id: 'historico',  label: 'Histórico',  icon: History },
     { id: 'tarefas',    label: 'Tarefas',    icon: CheckSquare },
-    { id: 'documentos', label: 'Documentos', icon: FileText },
+    ...(crmFull ? [{ id: 'documentos' as Panel, label: 'Documentos', icon: FileText }] : []),
   ]
 
   return (
@@ -635,7 +638,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
 
             <div className="flex flex-col gap-3 min-w-0 order-first lg:order-none lg:border-l lg:pl-6" style={{ borderColor: 'var(--sm-border)' }}>
               <CrmWhatsappActions lead={lead} columns={columns} onSent={() => setSentFromCrm(true)} />
-              <CrmLeadFollowup lead={lead} />
+              {crmFull && <CrmLeadFollowup lead={lead} />}
 
               <div className="flex gap-1 border-b" style={{ borderColor: 'var(--sm-border)' }}>
                 {PANELS.map(p => (

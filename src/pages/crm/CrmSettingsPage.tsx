@@ -299,7 +299,7 @@ export function CrmSettingsPage() {
             <li>• <em>CRM como está a Clínica Vida?</em></li>
           </ul>
           <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>
-            Só responde ao seu número pessoal verificado; clientes e leads que escreverem "CRM" não recebem nada. Precisa do WhatsApp da agência conectado. Cada pergunta usa 1 crédito de IA do plano.
+            Só responde ao seu número pessoal verificado; clientes e leads que escreverem "CRM" não recebem nada. Precisa do WhatsApp da agência conectado. Recurso do plano Agency: cada pergunta usa a cota mensal do assistente.
           </p>
         </Section>
       </div>

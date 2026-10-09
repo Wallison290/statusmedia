@@ -26,11 +26,12 @@
 //   • só lê, nunca grava no CRM;
 //   • só reage a mensagem que começa com "CRM", para não responder a qualquer
 //     "ok" ou "obrigado" que a agência mande para o número dos avisos;
-//   • cada resposta consome 1 crédito de IA do plano, como o chat do app.
+//   • cada resposta consome 1 da cota do assistente (plano Agency).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
+import { consumeAi, aiDeniedMessage } from '../_shared/plans.ts'
 
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -41,7 +42,6 @@ const APP_URL   = (Deno.env.get('APP_PUBLIC_URL') ?? 'https://statusmedia.com.br
 const UAZ_URL   = (Deno.env.get('AGENCY_UAZAPI_URL') ?? '').replace(/\/$/, '')
 
 // Mesmos limites do ai-proxy / ai-chat
-const AI_LIMITS: Record<string, number> = { starter: 150, pro: 600, agency: 2000 }
 
 const MAX_LEADS = 150
 
@@ -187,26 +187,13 @@ async function optOut(sb: any, userId: string, lead: any, text: string) {
   })
 }
 
-// ─── Créditos de IA (mesma regra do ai-chat) ──────────────────────────────────
+// ─── Cota do assistente (plano Agency, migration 093) ─────────────────────────
 
 async function consumeCredit(sb: any, userId: string): Promise<string | null> {
-  const month = new Date().toISOString().slice(0, 7)
-  const { data: sub } = await sb.from('subscriptions').select('plan, status, trial_ends_at').eq('user_id', userId).maybeSingle()
-  const plan = sub?.plan ?? 'starter'
-  const active = sub?.status === 'active'
-    || (sub?.status === 'trialing' && sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date())
-  if (!active) return 'Sua assinatura da StatusMedia está inativa, então não consigo consultar o CRM agora.'
-
-  const limit = AI_LIMITS[plan] ?? 50
-  const { data: usage } = await sb.from('ai_usage').select('requests').eq('user_id', userId).eq('month', month).maybeSingle()
-  const current = usage?.requests ?? 0
-  if (current + 1 > limit) return `Os créditos de IA do plano acabaram este mês (${limit}). Dá para continuar pelo CRM no app.`
-
-  await sb.from('ai_usage').upsert(
-    { user_id: userId, month, requests: current + 1, updated_at: new Date().toISOString() },
-    { onConflict: 'user_id,month' },
-  )
-  return null
+  const q = await consumeAi(sb, userId, 'ai_assistant')
+  if (q.allowed) return null
+  if (q.reason === 'subscription_inactive') return 'Sua assinatura da StatusMedia está inativa, então não consigo consultar o CRM agora.'
+  return aiDeniedMessage(q, 'ai_assistant')
 }
 
 // ─── Foto do funil ────────────────────────────────────────────────────────────

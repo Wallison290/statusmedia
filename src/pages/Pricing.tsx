@@ -5,7 +5,6 @@ import { Check, Loader2, LogOut, Zap, Crown, Building2, Shield, RefreshCw, Arrow
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
-import { useAIUsage } from '@/hooks/useAIUsage'
 import { PLANS, type PlanId } from '@/config/plans'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -16,7 +15,7 @@ function fmtBRL(n: number) {
 
 async function startCheckout(priceId: string): Promise<void> {
   if (priceId.startsWith('CONFIGURE_')) {
-    alert('Stripe ainda não configurado. Preencha os Price IDs em src/config/plans.ts')
+    alert('Este plano estará disponível para assinatura em instantes. Tente novamente mais tarde.')
     return
   }
   const { data, error } = await supabase.functions.invoke('create-checkout', { body: { priceId } })
@@ -165,25 +164,12 @@ function PlanCard({
 
 // ── Barra de uso (para quem já tem plano ativo) ───────────────────────────────
 
-function ActiveBar({ used, limit, planName }: { used: number; limit: number; planName: string }) {
-  const pct = Math.min(100, Math.round((used / limit) * 100))
+function ActiveBar({ planName }: { planName: string }) {
   return (
-    <div className="max-w-sm mx-auto bg-white rounded-2xl border border-[#e8e8e8] px-5 py-4 space-y-2 text-center">
+    <div className="max-w-sm mx-auto bg-white rounded-2xl border border-[#e8e8e8] px-5 py-4 text-center">
       <p className="text-[12px] text-[#64748b]">
         Plano <strong className="text-[#0f172a]">{planName}</strong> ativo
       </p>
-      <div className="space-y-1">
-        <div className="flex justify-between text-[11px] text-[#94a3b8]">
-          <span>IA usada este mês</span>
-          <span>{used} / {limit}</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-[#f1f5f9]">
-          <div
-            className="h-full rounded-full bg-violet-500 transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
     </div>
   )
 }
@@ -194,7 +180,6 @@ export function Pricing() {
   const navigate                                     = useNavigate()
   const { signOut, user, agencyId }                            = useAuth()
   const { data: subData }                            = useSubscription()
-  const { data: usage }                              = useAIUsage(agencyId ?? undefined)
   const [loadingPlan, setLoadingPlan]                = useState<PlanId | null>(null)
   const [searchParams]                               = useSearchParams()
   const paymentSuccess                               = searchParams.get('success') === '1'
@@ -290,7 +275,7 @@ export function Pricing() {
             transition={{ delay: 0.1 }}
             className="text-[14px] text-[#64748b]"
           >
-            Gerencie sua agência com IA. Cancele quando quiser.
+            Clientes, conteúdo, vendas e financeiro da agência num lugar só. Cancele quando quiser.
           </motion.p>
         </div>
 
@@ -307,13 +292,7 @@ export function Pricing() {
         )}
 
         {/* Uso atual (apenas quem já tem plano ativo) */}
-        {isActive && usage && (
-          <ActiveBar
-            used={usage.requests}
-            limit={usage.limit}
-            planName={subData?.plan.name ?? ''}
-          />
-        )}
+        {isActive && <ActiveBar planName={subData?.plan.name ?? ''} />}
 
         {/* Cards */}
         <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-5">

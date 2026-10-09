@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { useApplyCrmTemplate } from '@/hooks/useCrm'
 import { CRM_TEMPLATES, type CrmTemplate } from '@/data/crmTemplates'
+import { usePlanFeature } from '@/components/plan/PlanLocked'
+import { Lock } from 'lucide-react'
 
 interface Props {
   open:    boolean
@@ -23,6 +25,9 @@ export function CrmTemplatePicker({ open, onClose, empty, offset }: Props) {
   const { toast } = useToast()
   const apply = useApplyCrmTemplate()
   const [selected, setSelected] = useState<CrmTemplate | null>(null)
+  // Starter: só o funil comercial padrão; os outros modelos são do CRM completo
+  const { allowed: crmFull } = usePlanFeature('crmFull')
+  const isLocked = (t: CrmTemplate) => !crmFull && t.id !== 'padrao'
 
   async function handleApply() {
     if (!selected) return
@@ -52,20 +57,26 @@ export function CrmTemplatePicker({ open, onClose, empty, offset }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {CRM_TEMPLATES.map(t => {
             const active = selected?.id === t.id
+            const locked = isLocked(t)
             return (
               <button
                 key={t.id}
-                onClick={() => setSelected(t)}
+                onClick={() => !locked && setSelected(t)}
+                disabled={locked}
+                title={locked ? 'Modelo disponível a partir do plano Pro' : undefined}
                 className="text-left p-3.5 rounded-xl border transition-all"
                 style={{
                   borderColor: active ? '#2563EB' : 'var(--sm-border)',
                   background:  active ? 'rgba(37,99,235,0.08)' : 'var(--sm-bg-card2)',
+                  opacity:     locked ? 0.55 : 1,
+                  cursor:      locked ? 'not-allowed' : undefined,
                 }}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[15px]">{t.emoji}</span>
                   <span className="text-[13px] font-semibold flex-1" style={{ color: 'var(--sm-text-1)' }}>{t.name}</span>
                   {active && <Check className="w-3.5 h-3.5" style={{ color: '#2563EB' }} />}
+                  {locked && <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold" style={{ color: 'var(--sm-text-4)' }}><Lock className="w-3 h-3" /> Plano Pro</span>}
                 </div>
                 <p className="text-[11.5px] leading-snug mb-2.5" style={{ color: 'var(--sm-text-3)' }}>
                   {t.description}

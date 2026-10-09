@@ -91,21 +91,10 @@ Deno.serve(async (req) => {
     const expiresAt = new Date(Date.now() + expiresIn * 1000)
 
     // ── 4a. Gate: verificar limite de perfis pelo plano ───────────────────────
-    const INSTAGRAM_LIMITS: Record<string, number> = {
-      starter: 1,
-      pro:     5,
-      agency:  20,
-    }
-
-    // Busca o plano do usuário
-    const { data: subRow } = await supabase
-      .from('subscriptions')
-      .select('plan')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    const planId    = subRow?.plan ?? 'starter'
-    const maxProfiles = INSTAGRAM_LIMITS[planId] ?? 1
+    // Limite do plano em vigor (migration 093: 1 / 10 / 40; sem assinatura = 0)
+    const { data: limitRow } = await supabase.rpc('agency_limit', { p_agency: userId, p_key: 'instagram' })
+    const planId      = 'atual'
+    const maxProfiles = Number(limitRow ?? 0)
 
     if (maxProfiles !== -1) {
       // Conta perfis ATIVOS — exclui o ig_user_id atual para permitir reconexão

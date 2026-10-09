@@ -17,7 +17,7 @@ function fmtBRL(n: number) {
 
 async function startCheckout(priceId: string): Promise<string | null> {
   if (priceId.startsWith('CONFIGURE_')) {
-    alert('Configure o Price ID do Stripe em src/config/plans.ts')
+    alert('Este plano estará disponível para assinatura em instantes. Tente novamente mais tarde.')
     return null
   }
   const { data, error } = await supabase.functions.invoke('create-checkout', { body: { priceId } })
@@ -185,7 +185,7 @@ function PlanCard({
 export function Subscription() {
   const { user, agencyId }                                 = useAuth()
   const { data: subData, isLoading: subLoading } = useSubscription()
-  const { data: usage }                          = useAIUsage(agencyId ?? undefined)
+  const { quotas: aiQuotas }                     = useAIUsage(agencyId ?? undefined)
   const { data: storageUsage }                   = useStorageUsage()
   const [searchParams]                           = useSearchParams()
   const [loadingPlan, setLoadingPlan]             = useState<string | null>(null)
@@ -231,24 +231,33 @@ export function Subscription() {
     </div>
   )
 
-  const aiPct = usage ? Math.min(100, Math.round((usage.requests / usage.limit) * 100)) : 0
   const stPct = storageUsage ? Math.min(100, Math.round((storageUsage.usedGB / storageUsage.limitGB) * 100)) : 0
   const stUsedLabel = storageUsage
     ? (storageUsage.usedGB < 1 ? `${(storageUsage.usedGB * 1024).toFixed(0)} MB` : `${storageUsage.usedGB.toFixed(1)} GB`)
     : ''
 
+  // Comparativo gerado dos próprios planos (src/config/plans.ts)
+  const num = (n: number) => n === -1 ? 'Ilimitado' : n.toLocaleString('pt-BR')
+  const perMonth = (n: number) => n > 0 ? `${n.toLocaleString('pt-BR')}/mês` : false
+  const col = <T,>(fn: (p: typeof PLANS[PlanId]) => T) => PLAN_ORDER.map(id => fn(PLANS[id]))
   const linhas: { label: string; values: (string | boolean)[] }[] = [
-    { label: 'Clientes',              values: ['5', '15', '50'] },
-    { label: 'Requests IA/mês',        values: ['150', '600', '2.000'] },
-    { label: 'Armazenamento',          values: ['10 GB', '50 GB', '100 GB'] },
-    { label: 'IA Copilot',             values: [true, true, true] },
-    { label: 'Portal do cliente',      values: ['Até 2 clientes', 'Até 10 clientes', 'Até 50 clientes'] },
-    { label: 'Relatórios',             values: [false, true, true] },
-    { label: 'Equipe (usuários)',       values: ['1', 'Até 3', 'Ilimitado'] },
-    { label: 'Agendamento Instagram',  values: ['1 perfil', 'Até 5 perfis', 'Até 20 perfis'] },
-    { label: 'WhatsApp notifications', values: [true, true, true] },
-    { label: 'Suporte',                values: ['E-mail', 'Prioritário (24h)', 'WhatsApp + SLA 4h'] },
-    { label: 'Preço/mês',              values: [fmtBRL(57), fmtBRL(97), fmtBRL(197)] },
+    { label: 'Clientes',                                    values: col(p => num(p.maxClients)) },
+    { label: 'Equipe (usuários)',                           values: col(p => num(p.maxTeamMembers)) },
+    { label: 'Perfis Instagram com agendamento',            values: col(p => num(p.instagramProfiles)) },
+    { label: 'Armazenamento',                               values: col(p => `${p.storageGB} GB`) },
+    { label: 'Planejamento, aprovação, tarefas e notas',    values: col(() => true) },
+    { label: 'Portal do cliente',                           values: col(p => p.hasClientPortal) },
+    { label: 'Financeiro: mensalidades e lançamentos',      values: col(() => true) },
+    { label: 'Relatórios mensais automáticos do Instagram', values: col(p => p.hasReports) },
+    { label: 'CRM',                                         values: col(p => p.crmFull ? 'Completo' : 'Funil padrão') },
+    { label: 'Propostas, contratos e follow-up automático', values: col(p => p.crmFull) },
+    { label: 'Cobrança automática (WhatsApp/Pix) + nota fiscal', values: col(p => p.autoBilling) },
+    { label: 'Mensagens com IA',                            values: col(p => perMonth(p.aiMessages)) },
+    { label: 'Análises de relatório com IA',                values: col(p => perMonth(p.aiReports)) },
+    { label: 'Assistente do CRM (app e WhatsApp)',          values: col(p => p.aiAssistant > 0) },
+    { label: 'Acesso para sócios',                          values: col(p => p.hasPartners) },
+    { label: 'Suporte',                                     values: col(p => p.supportLabel) },
+    { label: 'Preço/mês',                                   values: col(p => fmtBRL(p.price)) },
   ]
 
   return (
@@ -309,9 +318,17 @@ export function Subscription() {
             </p>
           </div>
           <div style={{ background: 'var(--sm-bg-card)' }}>
-            {usage
-              ? <Meter label="IA usada este mês" valueLabel={`${usage.requests} / ${usage.limit} requests`} pct={aiPct} warn="Quase no limite — considere fazer upgrade" />
-              : <div className="h-full min-h-[76px]" />}
+            {aiQuotas.length > 0
+              ? aiQuotas.map(q => (
+                  <Meter key={q.key} label={q.label} valueLabel={`${q.used} / ${q.limit.toLocaleString('pt-BR')} no mês`}
+                    pct={q.percent} warn="Cota quase no fim — considere fazer upgrade" />
+                ))
+              : (
+                <div className="px-5 py-4">
+                  <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>IA</p>
+                  <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Recursos de IA a partir do plano Pro.</p>
+                </div>
+              )}
           </div>
           <div style={{ background: 'var(--sm-bg-card)' }}>
             {storageUsage

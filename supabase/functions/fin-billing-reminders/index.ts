@@ -23,6 +23,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { sendForAgency, normalizeNumber } from '../_shared/whatsapp.ts'
 import { agencyIdFor } from '../_shared/agency.ts'
+import { agencyLimit } from '../_shared/plans.ts'
 import {
   DEFAULT_TEMPLATES, nowBR, daysBetween, buildMessage, type Entry,
 } from '../_shared/billingMessage.ts'
@@ -112,6 +113,8 @@ async function deliver(sb: any, agency: string, entries: Entry[], today: string,
 async function runAgency(sb: any, agency: string, today: string) {
   const { settings: s, agencyName, agencyEmail } = await loadAgency(sb, agency)
   if (!s?.enabled) return { agency, skipped: 'desligada' }
+  // Cobrança automática é recurso dos planos Pro e Agency (migration 093)
+  if (await agencyLimit(sb, agency, 'auto_billing') === 0) return { agency, skipped: 'plano sem cobrança automática' }
   const stages: number[] = (s.stages ?? [-3, 0, 1, 3, 7]).slice().sort((a: number, b: number) => a - b)
   const minStage = stages[0], maxStage = stages[stages.length - 1]
   // Janela: do vencimento mais antigo ainda dentro da última etapa (+tolerância)
@@ -235,6 +238,9 @@ Deno.serve(async (req) => {
 
     if (action === 'send_now') {
       if (!body.client_id) return json({ error: 'client_id obrigatório.' }, 400)
+      if (await agencyLimit(sb, agency, 'auto_billing') === 0) {
+        return json({ ok: false, error: 'Cobrança automática disponível a partir do plano Pro.' }, 403)
+      }
       const { data } = await sb.from('fin_entries')
         .select('id, description, amount, due_date, client_id, clients!inner(id, company_name, responsible_name, whatsapp, email, auto_billing), fin_invoices(number, pdf_url)')
         .eq('user_id', agency).eq('client_id', body.client_id).eq('type', 'receita').eq('status', 'aberto')

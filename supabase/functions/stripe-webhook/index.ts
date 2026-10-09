@@ -3,6 +3,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@14'
+import { PRICE_TO_PLAN } from '../_shared/plans.ts'
 
 const STRIPE_SECRET_KEY     = Deno.env.get('STRIPE_SECRET_KEY') ?? ''
 const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? ''
@@ -10,14 +11,6 @@ const SUPABASE_URL          = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' })
-
-const PRICE_TO_PLAN: Record<string, string> = {
-  'price_1Tjj4F0khDYycmTvwkNmnfFk': 'starter',
-  'price_1Tjj4w0khDYycmTvDDOmCvi7': 'pro',
-  'price_1Tjj5c0khDYycmTvDDntAKuf': 'agency',
-}
-
-const AI_LIMITS: Record<string, number> = { starter: 150, pro: 600, agency: 2000 }
 
 Deno.serve(async (req) => {
   const sig  = req.headers.get('stripe-signature') ?? ''
@@ -87,7 +80,7 @@ Deno.serve(async (req) => {
         { user_id: userId, month, requests: 0 },
         { onConflict: 'user_id,month', ignoreDuplicates: true }
       )
-      console.log(`[webhook] ${userId} → plano ${plan} (limite ${AI_LIMITS[plan] ?? 0}/mês)`)
+      console.log(`[webhook] ${userId} → plano ${plan}`)
       break
     }
 
