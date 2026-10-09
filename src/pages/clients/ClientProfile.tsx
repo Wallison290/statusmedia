@@ -1323,7 +1323,7 @@ export function ClientProfile() {
               {plannerFilter === 'mes_especifico' && (
                 <select value={plannerMonth} onChange={e => setPlannerMonth(e.target.value)}
                   className="h-10 px-3 rounded-xl border text-[13px] outline-none cursor-pointer [color-scheme:light_dark]"
-                  style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>
+                  style={{ background: 'var(--sm-field-bg)', borderColor: 'var(--sm-field-border)', color: 'var(--sm-text-1)' }}>
                   {availableMonths.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
                 </select>
               )}
@@ -1332,11 +1332,11 @@ export function ClientProfile() {
                 <div className="flex flex-wrap gap-2 items-center">
                   <input type="date" value={plannerDateStart} onChange={e => setPlannerDateStart(e.target.value)}
                     className="h-10 px-3 rounded-xl border text-[13px] outline-none flex-1 min-w-[150px] [color-scheme:light_dark]"
-                    style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
+                    style={{ background: 'var(--sm-field-bg)', borderColor: 'var(--sm-field-border)', color: 'var(--sm-text-1)' }} />
                   <span className="text-[12px]" style={{ color: 'var(--sm-text-4)' }}>até</span>
                   <input type="date" value={plannerDateEnd} onChange={e => setPlannerDateEnd(e.target.value)}
                     className="h-10 px-3 rounded-xl border text-[13px] outline-none flex-1 min-w-[150px] [color-scheme:light_dark]"
-                    style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
+                    style={{ background: 'var(--sm-field-bg)', borderColor: 'var(--sm-field-border)', color: 'var(--sm-text-1)' }} />
                 </div>
               )}
             </div>

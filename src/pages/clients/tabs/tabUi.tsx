@@ -65,4 +65,4 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 export const cardStyle = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
-export const inputStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
+export const inputStyle = { background: 'var(--sm-field-bg, var(--sm-bg-input))', borderColor: 'var(--sm-field-border, var(--sm-border))', color: 'var(--sm-text-1)' } as const

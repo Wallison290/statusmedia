@@ -20,8 +20,8 @@ const SelectTrigger = React.forwardRef<
     <SelectPrimitive.Trigger
       ref={ref}
       style={{
-        background: 'var(--sm-bg-input)',
-        borderColor: 'var(--sm-border)',
+        background: 'var(--sm-field-bg, var(--sm-bg-input))',
+        borderColor: 'var(--sm-field-border, var(--sm-border))',
         color: 'var(--sm-text-1)',
       }}
       className={cn(
