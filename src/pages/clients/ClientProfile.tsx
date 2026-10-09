@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PortalAccessPanel } from '@/components/clients/PortalAccessPanel'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
@@ -994,7 +995,6 @@ export function ClientProfile() {
   })
   const [assetFile, setAssetFile] = useState<File | null>(null)
   const [assetUploading, setAssetUploading] = useState(false)
-  const [resendingInvite, setResendingInvite] = useState(false)
 
   const resetAssetForm = () => {
     setAssetForm({ title: '', caption: '', content_type: 'post', observations: '', link_url: '' })
@@ -1083,33 +1083,6 @@ export function ClientProfile() {
     }
   }
 
-  // ── Reenviar convite ────────────────────────────────────────────────────────
-  const handleResendInvite = async () => {
-    if (!client?.email) {
-      toast('Este cliente não tem e-mail cadastrado.', 'error')
-      return
-    }
-    setResendingInvite(true)
-    try {
-      const { error } = await supabase.functions.invoke('invite-client', {
-        body: {
-          email: client.email,
-          clientId: client.id,
-          clientName: client.responsible_name,
-          companyName: client.company_name,
-          redirectTo: `${window.location.origin}/auth/callback`,
-          resend: true,
-        },
-      })
-      if (error) throw error
-      toast('Convite reenviado com sucesso!', 'success')
-    } catch (err: any) {
-      toast(err.message || 'Erro ao reenviar convite.', 'error')
-    } finally {
-      setResendingInvite(false)
-    }
-  }
-
   // ── Loading / not found ─────────────────────────────────────────────────────
   if (isLoading) return (
     <div className="min-h-full p-4 md:p-6 space-y-5" style={{ background: 'var(--sm-bg-page)' }} aria-busy="true">
@@ -1144,14 +1117,6 @@ export function ClientProfile() {
             <ArrowLeft className="w-4 h-4" /> Clientes
           </Link>
           <div className="flex items-center gap-1.5">
-            {client.email && (
-              <button onClick={handleResendInvite} disabled={resendingInvite} title="Reenviar convite de acesso ao portal"
-                className="h-9 px-3 rounded-xl border text-[12.5px] font-medium inline-flex items-center gap-1.5 hover:bg-black/5 disabled:opacity-50"
-                style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
-                {resendingInvite ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{resendingInvite ? 'Enviando…' : 'Reenviar convite'}</span>
-              </button>
-            )}
             <Link to={`/clients/${id}/edit`}
               className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
               style={{ background: 'var(--sm-primary)' }}>
@@ -1202,6 +1167,9 @@ export function ClientProfile() {
             </div>
           </div>
         </motion.header>
+
+        {/* Acesso ao portal: convite, senha criada, último acesso */}
+        <PortalAccessPanel clientId={client.id} />
 
         {/* ── Mensalidade ──────────────────────────────────────────────────── */}
         <FinancialCard client={client} />

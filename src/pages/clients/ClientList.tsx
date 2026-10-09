@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/integrations/supabase/client'
 import { useQueryClient } from '@tanstack/react-query'
 import { GRADIENTS, DEFAULT_GRADIENT_ID, getBannerStyle } from '@/utils/clientBanner'
+import { usePortalStatusAll, PORTAL_STATE } from '@/hooks/usePortalAccess'
 
 // ─── Capa: degradês e estilo vêm de utils/clientBanner (compartilhado com o perfil)
 
@@ -43,6 +44,7 @@ interface ClientStats {
 
 export function ClientList() {
   const { data: clients = [], isLoading } = useClients()
+  const { data: portal = {} } = usePortalStatusAll()
   const deleteClient = useDeleteClient()
   const { toast }    = useToast()
   const navigate     = useNavigate()
@@ -479,6 +481,26 @@ export function ClientList() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Acesso ao portal: a agência vê sem abrir o cliente */}
+                      {portal[client.id] && (() => {
+                        const p = portal[client.id]
+                        const pc = PORTAL_STATE[p.state]
+                        const dm = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        const extra = p.state === 'ativo' && p.last_sign_in_at
+                          ? ` · último acesso ${dm(p.last_sign_in_at)}`
+                          : p.state === 'aguardando_senha' && p.invited_at
+                            ? ` · convite de ${dm(p.invited_at)}`
+                            : ''
+                        return (
+                          <p className="mt-3 pt-2.5 border-t text-[11.5px] flex items-center gap-1.5 truncate" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}
+                            title={pc.hint}>
+                            <span style={{ color: 'var(--sm-text-4)' }}>Portal</span>
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: pc.color }} />
+                            <span className="truncate">{pc.label}{extra}</span>
+                          </p>
+                        )
+                      })()}
                     </div>
                   </motion.div>
                 )
