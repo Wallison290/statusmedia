@@ -607,6 +607,17 @@ export interface CrmProposalItem {
   recurring?:  boolean   // mensal: aparece como "/mês" para o cliente
 }
 
+/** Uma das opções de uma proposta com várias opções (migration 097) */
+export interface CrmProposalOption {
+  id:           string
+  name:         string
+  description?: string
+  items:        CrmProposalItem[]
+  discount:     number
+  recommended?: boolean
+  total?:       number    // calculado pelo banco
+}
+
 export type CrmProposalStatus = 'rascunho' | 'enviada' | 'visualizada' | 'aceita' | 'recusada'
 
 export interface CrmProposal {
@@ -618,6 +629,8 @@ export interface CrmProposal {
   items:          CrmProposalItem[]
   discount:       number
   total:          number
+  options:        CrmProposalOption[]   // [] = proposta de uma opção só
+  accepted_option: string | null        // id da opção que o cliente aceitou
   valid_until:    string | null
   payment_terms:  string | null
   internal_notes: string | null

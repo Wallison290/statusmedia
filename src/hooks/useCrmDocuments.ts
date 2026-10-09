@@ -129,6 +129,8 @@ export interface PublicProposal {
   items:          CrmProposal['items']
   discount:       number
   total:          number
+  options:        CrmProposal['options']
+  accepted_option: string | null
   valid_until:    string | null
   payment_terms:  string | null
   status:         CrmProposal['status']
@@ -147,9 +149,9 @@ export async function fetchPublicProposal(token: string): Promise<PublicProposal
   return data
 }
 
-export async function respondPublicProposal(token: string, accept: boolean, name: string, reason?: string) {
+export async function respondPublicProposal(token: string, accept: boolean, name: string, reason?: string, optionId?: string | null) {
   const { data, error } = await (supabase as any).rpc('respond_crm_proposal', {
-    p_token: token, p_accept: accept, p_name: name, p_reason: reason ?? null,
+    p_token: token, p_accept: accept, p_name: name, p_reason: reason ?? null, p_option: optionId ?? null,
   })
   if (error) throw error
   return data as { ok: boolean; error?: string; status?: string }

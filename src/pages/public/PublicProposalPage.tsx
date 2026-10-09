@@ -21,6 +21,7 @@ export function PublicProposalPage() {
   const [reason, setReason] = useState('')
   const [busy, setBusy]     = useState(false)
   const [error, setError]   = useState('')
+  const [picked, setPicked] = useState<string | null>(null)
   const responseRef = useRef<HTMLElement>(null)
 
   function load() {
@@ -31,8 +32,15 @@ export function PublicProposalPage() {
   if (data === undefined) return <PublicLoading />
   if (data === null)      return <PublicNotFound what="Proposta" />
 
+  // Várias opções: o cliente escolhe uma (a aceita, a tocada, a recomendada ou a primeira)
+  const options  = data.options ?? []
+  const multi    = options.length > 0
+  const chosenId = data.accepted_option ?? picked ?? options.find(o => o.recommended)?.id ?? options[0]?.id ?? null
+  const chosen   = options.find(o => o.id === chosenId) ?? null
+  const shownItems = chosen ? chosen.items : data.items
+  const shownTotal = chosen ? Number(chosen.total ?? 0) : Number(data.total)
   const subtotal = data.items.reduce((s, i) => s + itemTotal(i), 0)
-  const allMonthly = data.items.length > 0 && data.items.every(i => i.recurring)
+  const allMonthly = shownItems.length > 0 && shownItems.every(i => i.recurring)
   const answered = data.status === 'aceita' || data.status === 'recusada'
   const canAnswer = !answered && !data.expired
 
@@ -50,7 +58,7 @@ export function PublicProposalPage() {
     if (name.trim().split(/\s+/).length < 2) { setError('Digite seu nome completo.'); return }
     setBusy(true)
     try {
-      const r = await respondPublicProposal(token, accept, name.trim(), reason.trim() || undefined)
+      const r = await respondPublicProposal(token, accept, name.trim(), reason.trim() || undefined, multi ? chosenId : null)
       if (!r.ok) { setError(r.error ?? 'Não foi possível registrar sua resposta.'); return }
       load()
       setMode('idle')
@@ -88,7 +96,64 @@ export function PublicProposalPage() {
         </section>
       )}
 
+      {/* Várias opções: cartões lado a lado, o cliente toca para escolher */}
+      {multi && (
+        <section className="mt-14">
+          <SectionLabel n={next()}>{answered ? 'Opção escolhida' : 'Escolha sua opção'}</SectionLabel>
+          <div className={`mt-6 grid gap-4 ${options.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
+            {options.map(o => {
+              const sel = o.id === chosenId
+              const monthly = o.items.length > 0 && o.items.every(i => i.recurring)
+              const sub = o.items.reduce((s, i) => s + itemTotal(i), 0)
+              return (
+                <button key={o.id} type="button" disabled={!canAnswer} onClick={() => setPicked(o.id)} aria-pressed={sel}
+                  className="relative text-left rounded-2xl border-2 p-5 flex flex-col transition-all disabled:cursor-default"
+                  style={{ borderColor: sel ? 'var(--brand)' : LINE, background: sel ? 'rgba(255,255,255,0.9)' : 'transparent', opacity: answered && !sel ? 0.45 : 1 }}>
+                  {o.recommended && (
+                    <span className="absolute -top-3 left-5 text-[10.5px] font-semibold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full"
+                      style={{ background: 'var(--brand)', color: 'var(--on-brand)' }}>Recomendada</span>
+                  )}
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-display text-[22px] font-bold leading-tight">{o.name}</p>
+                    <span className="w-5 h-5 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center" style={{ borderColor: sel ? 'var(--brand)' : LINE }}>
+                      {sel && <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--brand)' }} />}
+                    </span>
+                  </div>
+                  {o.description && <p className="text-[14px] mt-1 leading-relaxed" style={{ color: MUTED }}>{o.description}</p>}
+                  <p className="font-display font-extrabold text-[30px] leading-none tracking-[-0.03em] tabular-nums mt-4">
+                    {fmtBRL(Number(o.total ?? 0), true)}
+                    {monthly && <span className="font-sans text-[13px] font-medium tracking-normal ml-1" style={{ color: MUTED }}>/mês</span>}
+                  </p>
+                  {Number(o.discount) > 0 && (
+                    <p className="text-[12.5px] mt-1 tabular-nums" style={{ color: MUTED }}>
+                      <span className="line-through">{fmtBRL(sub, true)}</span>
+                      <span className="ml-2 font-semibold" style={{ color: '#15803D' }}>−{fmtBRL(Number(o.discount), true)}</span>
+                    </p>
+                  )}
+                  <ul className="mt-4 border-t" style={{ borderColor: LINE }}>
+                    {o.items.map((i, idx) => (
+                      <li key={idx} className="py-2.5 border-b text-[14px]" style={{ borderColor: LINE }}>
+                        <p className="font-semibold leading-snug">{Number(i.quantity) > 1 && <span style={{ color: MUTED }}>{i.quantity}× </span>}{i.description}</p>
+                        {i.details && <p className="text-[13px] mt-0.5 leading-relaxed" style={{ color: MUTED }}>{i.details}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </button>
+              )
+            })}
+          </div>
+          {canAnswer && <p className="text-[13px] mt-3" style={{ color: MUTED }}>Toque numa opção para escolher e aceite no fim da página.</p>}
+          {data.payment_terms && (
+            <div className="mt-8 border-t pt-4 text-[14.5px]" style={{ borderColor: LINE }}>
+              <p className="text-[11px] uppercase tracking-[0.18em] font-semibold" style={{ color: MUTED }}>Pagamento</p>
+              <p className="mt-1.5 leading-relaxed">{data.payment_terms}</p>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* O que entregamos */}
+      {!multi && (<>
       <section className="mt-14">
         <SectionLabel n={next()}>O que entregamos</SectionLabel>
         <ul className="mt-4">
@@ -145,6 +210,7 @@ export function PublicProposalPage() {
           </dl>
         )}
       </section>
+      </>)}
 
       {/* Sua resposta */}
       <section ref={responseRef} className="mt-14 scroll-mt-6 print:hidden">
@@ -157,7 +223,7 @@ export function PublicProposalPage() {
                 : <XCircle className="w-8 h-8 shrink-0" style={{ color: '#B91C1C' }} />}
               <div>
                 <p className="font-display text-[26px] font-bold leading-tight">
-                  {data.status === 'aceita' ? 'Proposta aceita.' : 'Proposta recusada.'}
+                  {data.status === 'aceita' ? (chosen ? `Proposta aceita: ${chosen.name}.` : 'Proposta aceita.') : 'Proposta recusada.'}
                 </p>
                 <p className="text-[15px] mt-1.5 leading-relaxed" style={{ color: MUTED }}>
                   Por {data.responder_name}{data.responded_at && ` em ${fmtDateTime(data.responded_at)}`}.
@@ -177,7 +243,7 @@ export function PublicProposalPage() {
               <button onClick={() => setMode('aceitar')}
                       className="min-h-[52px] flex-1 rounded-full text-[16px] font-semibold transition-opacity hover:opacity-90"
                       style={{ background: 'var(--brand)', color: 'var(--on-brand)' }}>
-                Aceitar proposta
+                {chosen ? `Aceitar ${chosen.name}` : 'Aceitar proposta'}
               </button>
               <button onClick={() => setMode('recusar')}
                       className="min-h-[52px] sm:w-44 rounded-full border text-[15px] transition-colors hover:bg-white"
@@ -188,7 +254,7 @@ export function PublicProposalPage() {
           ) : (
             <div className="space-y-3">
               <p className="font-display text-[22px] font-bold">
-                {mode === 'aceitar' ? 'Confirme seu aceite' : 'Tudo bem. Pode contar o motivo?'}
+                {mode === 'aceitar' ? (chosen ? `Confirme seu aceite: ${chosen.name}` : 'Confirme seu aceite') : 'Tudo bem. Pode contar o motivo?'}
               </p>
               <input className={inputClass} style={{ borderColor: LINE, color: INK }}
                      placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} autoFocus />
@@ -236,9 +302,9 @@ export function PublicProposalPage() {
           <div className="sm:hidden fixed bottom-0 inset-x-0 z-20 border-t px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-center gap-4 print:hidden"
                style={{ background: 'rgba(246,244,239,0.94)', backdropFilter: 'blur(10px)', borderColor: LINE }}>
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.16em]" style={{ color: MUTED }}>Investimento</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] truncate" style={{ color: MUTED }}>{chosen ? chosen.name : 'Investimento'}</p>
               <p className="font-display text-[20px] font-bold leading-tight tabular-nums truncate">
-                {fmtBRL(Number(data.total), true)}{allMonthly && <span className="font-sans text-[12px] font-normal" style={{ color: MUTED }}>/mês</span>}
+                {fmtBRL(shownTotal, true)}{allMonthly && <span className="font-sans text-[12px] font-normal" style={{ color: MUTED }}>/mês</span>}
               </p>
             </div>
             <button onClick={startAccept}

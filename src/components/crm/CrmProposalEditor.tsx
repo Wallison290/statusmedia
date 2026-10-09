@@ -5,7 +5,7 @@
 // aceito (o banco também bloqueia a edição).
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle } from 'lucide-react'
+import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle, Star, Layers } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +18,9 @@ import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhats
 import { PROPOSAL_STATUS } from './crmStatus'
 import { CrmShareBox, proposalMessage } from './CrmShareBox'
 import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime, waLink } from '@/utils/crm'
-import type { CrmLead, CrmProposal, CrmProposalItem } from '@/types'
+import type { CrmLead, CrmProposal, CrmProposalItem, CrmProposalOption } from '@/types'
+
+const newOptionId = () => Math.random().toString(36).slice(2, 10)
 
 interface Props {
   open:      boolean
@@ -60,6 +62,9 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const [terms, setTerms]     = useState('')
   const [notes, setNotes]     = useState('')
   const [shareOpen, setShareOpen] = useState(false)
+  // Várias opções no mesmo envio: [] = proposta de uma opção só (items/discount)
+  const [options, setOptions] = useState<CrmProposalOption[]>([])
+  const [active, setActive]   = useState(0)
 
   useEffect(() => {
     if (!open) return
@@ -75,30 +80,89 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     setValidUntil(proposal?.valid_until ?? todayISO(d.valid_days ?? 7))
     setTerms(proposal?.payment_terms ?? d.payment_terms ?? '')
     setNotes(proposal?.internal_notes ?? '')
+    setOptions(proposal?.options ?? [])
+    setActive(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, proposal?.id, defaultLeadId])
 
   const locked = current?.status === 'aceita' || current?.status === 'recusada'
-  const totals = useMemo(() => proposalTotals(items, discount), [items, discount])
   const lead   = leads.find(l => l.id === leadId) ?? null
   const agency = profile?.agency_name || profile?.full_name || 'nossa agência'
 
-  function setItem(i: number, patch: Partial<CrmProposalItem>) {
-    setItems(prev => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
+  // Itens e desconto em edição: os da proposta ou os da opção aberta
+  const multi       = options.length > 0
+  const opt         = multi ? options[Math.min(active, options.length - 1)] : null
+  const curItems    = opt ? opt.items : items
+  const curDiscount = opt ? opt.discount : discount
+  const totals = useMemo(() => proposalTotals(curItems, curDiscount), [curItems, curDiscount])
+
+  function patchOpt(patch: Partial<CrmProposalOption>) {
+    setOptions(prev => prev.map((o, i) => (i === active ? { ...o, ...patch } : o)))
   }
+  function setCurItems(fn: (prev: CrmProposalItem[]) => CrmProposalItem[]) {
+    if (opt) patchOpt({ items: fn(opt.items) })
+    else setItems(fn)
+  }
+  function setCurDiscount(v: number) {
+    if (opt) patchOpt({ discount: v })
+    else setDiscount(v)
+  }
+  function setItem(i: number, patch: Partial<CrmProposalItem>) {
+    setCurItems(prev => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
+  }
+
+  /** Passa a oferecer opções: o que já estava montado vira a Opção 1. */
+  function addOption() {
+    if (!multi) {
+      setOptions([
+        { id: newOptionId(), name: 'Opção 1', items, discount, recommended: true },
+        { id: newOptionId(), name: 'Opção 2', items: [{ ...EMPTY_ITEM }], discount: 0 },
+      ])
+      setActive(1)
+    } else {
+      setOptions(prev => [...prev, { id: newOptionId(), name: `Opção ${prev.length + 1}`, items: [{ ...EMPTY_ITEM }], discount: 0 }])
+      setActive(options.length)
+    }
+  }
+  /** Remove a opção aberta. Sobrando uma, volta a ser proposta simples. */
+  function removeOption() {
+    if (!window.confirm(`Remover "${opt?.name}" da proposta?`)) return
+    const rest = options.filter((_, i) => i !== active)
+    if (rest.length === 1) {
+      setItems(rest[0].items); setDiscount(rest[0].discount); setOptions([]); setActive(0)
+    } else {
+      if (!rest.some(o => o.recommended)) rest[0] = { ...rest[0], recommended: true }
+      setOptions(rest); setActive(Math.max(0, active - 1))
+    }
+  }
+
+  const cleanItems = (list: CrmProposalItem[]): CrmProposalItem[] => list
+    .filter(i => i.description.trim())
+    .map(i => ({
+      description: i.description.trim(),
+      details:     i.details?.trim() || undefined,
+      quantity:    Math.max(Number(i.quantity) || 1, 0),
+      unit_price:  Math.max(Number(i.unit_price) || 0, 0),
+      recurring:   !!i.recurring,
+    }))
 
   async function persist(status?: CrmProposal['status']) {
     if (!title.trim()) { toast('Dê um título à proposta', 'warning'); return null }
-    const clean = items
-      .filter(i => i.description.trim())
-      .map(i => ({
-        description: i.description.trim(),
-        details:     i.details?.trim() || undefined,
-        quantity:    Math.max(Number(i.quantity) || 1, 0),
-        unit_price:  Math.max(Number(i.unit_price) || 0, 0),
-        recurring:   !!i.recurring,
+    let clean = multi ? [] : cleanItems(items)
+    let cleanOptions: CrmProposalOption[] = []
+    if (multi) {
+      cleanOptions = options.map(o => ({
+        id: o.id, name: o.name.trim(), description: o.description?.trim() || undefined,
+        items: cleanItems(o.items), discount: Number(o.discount) || 0, recommended: !!o.recommended,
       }))
-    if (clean.length === 0) { toast('Adicione ao menos um item', 'warning'); return null }
+      const bad = cleanOptions.findIndex(o => !o.name || o.items.length === 0)
+      if (bad >= 0) {
+        setActive(bad)
+        toast(`Dê um nome e ao menos um item para a ${options[bad].name || `opção ${bad + 1}`}`, 'warning')
+        return null
+      }
+      clean = cleanOptions.find(o => o.recommended)?.items ?? cleanOptions[0].items
+    } else if (clean.length === 0) { toast('Adicione ao menos um item', 'warning'); return null }
 
     try {
       const saved = await save.mutateAsync({
@@ -107,7 +171,8 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
         title:          title.trim(),
         intro:          intro.trim() || null,
         items:          clean,
-        discount:       Number(discount) || 0,
+        options:        cleanOptions,
+        discount:       multi ? 0 : Number(discount) || 0,
         valid_until:    validUntil || null,
         payment_terms:  terms.trim() || null,
         internal_notes: notes.trim() || null,
@@ -186,6 +251,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                style={{ borderColor: `${PROPOSAL_STATUS[current.status].color}55`, background: `${PROPOSAL_STATUS[current.status].color}10` }}>
             <p style={{ color: 'var(--sm-text-1)' }}>
               <strong>{current.status === 'aceita' ? 'Aceita' : 'Recusada'}</strong> por {current.responder_name ?? 'cliente'}
+              {current.accepted_option && ` · opção escolhida: ${current.options?.find(o => o.id === current.accepted_option)?.name ?? '—'} (${fmtBRL(Number(current.total), true)})`}
               {current.responded_at && ` em ${fmtDateTime(current.responded_at)}`}
             </p>
             {current.reject_reason && <p style={{ color: 'var(--sm-text-2)' }}>Motivo: {current.reject_reason}</p>}
@@ -246,16 +312,65 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                       placeholder="Contexto, objetivo e o que a agência vai entregar..." />
           </div>
 
+          {/* Opções: o cliente escolhe uma no mesmo link */}
+          <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)' }}>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-[12.5px] font-semibold flex items-center gap-1.5" style={{ color: 'var(--sm-text-1)' }}>
+                <Layers className="w-3.5 h-3.5" style={{ color: '#8B5CF6' }} />
+                {multi ? `${options.length} opções: o cliente escolhe uma` : 'Uma opção'}
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={addOption}>
+                <Plus className="w-3 h-3" /> {multi ? 'Nova opção' : 'Oferecer mais de uma opção'}
+              </Button>
+            </div>
+
+            {multi && opt && (
+              <>
+                <div className="flex gap-1 overflow-x-auto border-b" style={{ borderColor: 'var(--sm-border)' }}>
+                  {options.map((o, i) => (
+                    <button key={o.id} type="button" onClick={() => setActive(i)}
+                      className={`h-8 px-3 text-[12.5px] whitespace-nowrap border-b-2 -mb-px inline-flex items-center gap-1 ${i === active ? 'font-semibold' : ''}`}
+                      style={{ borderColor: i === active ? '#2563EB' : 'transparent', color: i === active ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
+                      {o.recommended && <Star className="w-3 h-3" style={{ color: '#F59E0B', fill: '#F59E0B' }} />}
+                      {o.name || `Opção ${i + 1}`}
+                      {current?.accepted_option === o.id && <span className="text-[10.5px]" style={{ color: '#22C55E' }}>· escolhida</span>}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Nome da opção</Label>
+                    <Input value={opt.name} onChange={e => patchOpt({ name: e.target.value })} placeholder="Ex: Essencial, Completo, Premium" />
+                  </div>
+                  <div>
+                    <Label>Resumo (opcional)</Label>
+                    <Input value={opt.description ?? ''} onChange={e => patchOpt({ description: e.target.value })} placeholder="Ex: Para começar a presença no Instagram" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <label className="flex items-center gap-1.5 text-[12px] cursor-pointer" style={{ color: 'var(--sm-text-2)' }}>
+                    <input type="checkbox" checked={!!opt.recommended}
+                      onChange={e => setOptions(prev => prev.map((o, i) => ({ ...o, recommended: i === active ? e.target.checked : (e.target.checked ? false : o.recommended) })))} />
+                    Destacar como recomendada
+                  </label>
+                  <Button type="button" size="sm" variant="ghost" onClick={removeOption}>
+                    <Trash2 className="w-3 h-3" /> Remover esta opção
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Itens */}
           <div>
-            <Label>Itens</Label>
+            <Label>{opt ? `Itens da ${opt.name || 'opção'}` : 'Itens'}</Label>
             <div className="space-y-2">
-              {items.map((it, i) => (
+              {curItems.map((it, i) => (
                 <div key={i} className="rounded-xl border p-2.5 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
                   <div className="flex gap-2">
                     <Input value={it.description} onChange={e => setItem(i, { description: e.target.value })}
                            placeholder="Serviço (ex: Gestão de Instagram)" className="flex-1" />
-                    <button type="button" onClick={() => setItems(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev)}
+                    <button type="button" onClick={() => setCurItems(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev)}
                             className="w-9 flex items-center justify-center rounded-md hover:bg-red-500/10" aria-label="Remover item">
                       <Trash2 className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
                     </button>
@@ -283,7 +398,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                   </div>
                 </div>
               ))}
-              <Button type="button" size="sm" variant="outline" onClick={() => setItems(prev => [...prev, { ...EMPTY_ITEM }])}>
+              <Button type="button" size="sm" variant="outline" onClick={() => setCurItems(prev => [...prev, { ...EMPTY_ITEM }])}>
                 <Plus className="w-3 h-3" /> Adicionar item
               </Button>
             </div>
@@ -291,8 +406,8 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label>Desconto (R$)</Label>
-              <Input type="number" min={0} step="0.01" value={discount || ''} placeholder="0,00" onChange={e => setDiscount(Number(e.target.value))} />
+              <Label>{opt ? 'Desconto da opção (R$)' : 'Desconto (R$)'}</Label>
+              <Input type="number" min={0} step="0.01" value={curDiscount || ''} placeholder="0,00" onChange={e => setCurDiscount(Number(e.target.value))} />
             </div>
             <div>
               <Label>Válida até</Label>

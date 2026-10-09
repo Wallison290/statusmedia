@@ -92,7 +92,7 @@ export function CrmProposals() {
     try {
       const copy = await save.mutateAsync({
         lead_id: p.lead_id, title: `${p.title} (cópia)`, intro: p.intro, items: p.items,
-        discount: p.discount, valid_until: todayISO(7), payment_terms: p.payment_terms,
+        discount: p.discount, options: p.options ?? [], accepted_option: null, valid_until: todayISO(7), payment_terms: p.payment_terms,
         internal_notes: p.internal_notes, status: 'rascunho',
       })
       setEditing(copy); setNewLeadId(null); setEditorOpen(true)
@@ -193,6 +193,9 @@ export function CrmProposals() {
                       {p.sent_at && ` · enviada ${fmtShortDate(p.sent_at)}`}
                       {p.view_count > 0 && ` · aberta ${p.view_count}x`}
                       {p.responded_at && ` · respondida ${fmtShortDate(p.responded_at)}`}
+                      {p.options?.length > 0 && (p.accepted_option
+                        ? ` · escolheu "${p.options.find(o => o.id === p.accepted_option)?.name ?? 'opção'}"`
+                        : ` · ${p.options.length} opções`)}
                     </p>
                   </button>
 
