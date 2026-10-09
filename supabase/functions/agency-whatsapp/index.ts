@@ -282,7 +282,8 @@ Deno.serve(async (req) => {
         return json({ ok: true, duplicate: true })
       }
 
-      const r = await uaz('/send/text', inst.instance_token, { method: 'POST', body: { number: normalize(lead.whatsapp), text } })
+      // linkPreview false: sem o cartão grande com imagem do site junto do link
+      const r = await uaz('/send/text', inst.instance_token, { method: 'POST', body: { number: normalize(lead.whatsapp), text, linkPreview: false } })
       if (!r.ok) {
         if (mine) await sb.from('crm_lead_activities').delete().eq('id', mine.id)
         const st = await uaz('/instance/status', inst.instance_token)

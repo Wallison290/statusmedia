@@ -55,7 +55,8 @@ export async function sendVia(s: Sender, to: string, text: string): Promise<{ ok
     const res = await fetch(`${s.base}/send/text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', token: s.token },
-      body: JSON.stringify({ number, text }),
+      // linkPreview false: links (proposta, Pix, portal) sem o cartão grande com imagem
+      body: JSON.stringify({ number, text, linkPreview: false }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${JSON.stringify(data).slice(0, 200)}` }
