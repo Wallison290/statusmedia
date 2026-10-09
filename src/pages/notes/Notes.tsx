@@ -153,7 +153,7 @@ function ChecklistEditor({
             aria-checked={item.done}
             onClick={() => toggle(item.id)}
             className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center transition-colors"
-            style={item.done ? { background: '#2563EB', border: '1px solid #2563EB' } : { border: '1.5px solid var(--sm-border-alt)' }}
+            style={item.done ? { background: '#2563EB', border: '1px solid #2563EB' } : { border: '1.5px solid var(--sm-field-border)' }}
           >
             {item.done && <Check className="w-2.5 h-2.5 text-white" />}
           </button>
@@ -439,7 +439,7 @@ function NoteViewModal({
             {note.checklist.map((it, i) => (
               <div key={it.id} className={`flex items-center gap-2.5 px-3.5 py-2 ${i > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
                 <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
-                  style={it.done ? { background: '#10B981', border: '1px solid #10B981' } : { border: '1.5px solid var(--sm-border-alt)' }}>
+                  style={it.done ? { background: '#10B981', border: '1px solid #10B981' } : { border: '1.5px solid var(--sm-field-border)' }}>
                   {it.done && <Check className="w-2.5 h-2.5 text-white" />}
                 </span>
                 <span className={`text-[13px] ${it.done ? 'line-through' : ''}`} style={{ color: it.done ? 'var(--sm-text-4)' : 'var(--sm-text-1)' }}>{it.text}</span>

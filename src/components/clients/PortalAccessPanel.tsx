@@ -22,7 +22,7 @@ function Step({ n, title, done, when, last }: { n: string; title: string; done: 
       <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-semibold border"
         style={done
           ? { background: '#22C55E', borderColor: '#22C55E', color: '#fff' }
-          : { borderColor: 'var(--sm-border-alt)', color: 'var(--sm-text-4)' }}>
+          : { borderColor: 'var(--sm-field-border)', color: 'var(--sm-text-4)' }}>
         {done ? <Check className="w-3.5 h-3.5" /> : n}
       </span>
       <div className="min-w-0">

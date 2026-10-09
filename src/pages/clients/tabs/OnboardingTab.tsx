@@ -175,7 +175,7 @@ function ChecklistSection({ clientId }: { clientId: string }) {
             <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
               style={item.completed
                 ? { background: '#22C55E', border: '1px solid #22C55E' }
-                : { border: '1.5px solid var(--sm-border-alt)' }}>
+                : { border: '1.5px solid var(--sm-field-border)' }}>
               {item.completed && <Check className="w-2.5 h-2.5 text-white" />}
             </span>
             <span className={`text-[13px] ${item.completed ? 'line-through' : ''}`}
@@ -519,7 +519,7 @@ function BriefingSection({ clientId }: { clientId: string }) {
                       >
                         <span
                           className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
-                          style={val ? { background: '#2563EB', border: '1px solid #2563EB' } : { border: '1.5px solid var(--sm-border-alt)' }}
+                          style={val ? { background: '#2563EB', border: '1px solid #2563EB' } : { border: '1.5px solid var(--sm-field-border)' }}
                         >
                           {val && <Check className="w-2.5 h-2.5 text-white" />}
                         </span>
