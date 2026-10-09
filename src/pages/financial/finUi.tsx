@@ -5,9 +5,9 @@ import { forwardRef } from 'react'
 import type { EntryState, FinType } from '@/hooks/useFinance'
 
 export const inputCls =
-  'w-full h-10 rounded-xl border px-3 text-[13px] outline-none transition-colors focus:border-[#2563EB]/60 [color-scheme:light_dark]'
+  'w-full h-10 rounded-xl border px-3 text-[13px] outline-none transition-colors focus:ring-2 focus:ring-[#3B82F6]/45 placeholder:text-[var(--sm-text-4)]'
 export const inputStyle: React.CSSProperties = {
-  background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)',
+  background: 'var(--sm-field-bg, var(--sm-bg-input))', borderColor: 'var(--sm-field-border, var(--sm-border))', color: 'var(--sm-text-1)',
 }
 
 export function Field({ label, hint, children, className = '' }: {

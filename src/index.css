@@ -158,6 +158,11 @@
   --sm-border:         #1e293b;
   --sm-border-alt:     #182233;
 
+  /* Campos de formulário: fundo mais fundo que o cartão e borda clara,
+     senão o campo some dentro do cartão (#182233 sobre #182233) */
+  --sm-field-bg:       #0f1726;
+  --sm-field-border:   rgba(255,255,255,0.22);
+
   /* Text */
   --sm-text-1:         #F8FAFC;
   --sm-text-2:         #CBD5E1;
@@ -186,6 +191,9 @@
   --sm-border:         #e2e8f0;
   --sm-border-alt:     #e2e8f0;
 
+  --sm-field-bg:       #ffffff;
+  --sm-field-border:   #cbd5e1;
+
   /* Text */
   --sm-text-1:         #1e293b;
   --sm-text-2:         #475569;
@@ -201,6 +209,14 @@
   --sm-sidebar-text:   #64748b;
   --sm-sidebar-icon:   #94a3b8;
 }
+
+/* Campos no tema escuro: ícones nativos (calendário, relógio, setas) claros */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea { color-scheme: dark; }
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea { color-scheme: light; }
 
 /* ── Body background sync ────────────────────────────────────────────────────── */
 [data-theme="light"] body {
