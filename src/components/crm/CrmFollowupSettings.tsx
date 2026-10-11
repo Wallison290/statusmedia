@@ -3,8 +3,8 @@
 // 8h às 20h de segunda a sábado) roda na função crm-followup. Aqui a agência
 // liga a automação e escreve o briefing que a IA usa para escrever cada mensagem.
 
-import { useState } from 'react'
-import { Loader2, Plus, Trash2, Repeat, Star, Pencil } from 'lucide-react'
+import { useId, useState } from 'react'
+import { Loader2, Plus, Trash2, CheckCircle2, Clock3, Pause, Pencil, Play, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,19 +13,20 @@ import { useCrmSettings, useUpdateCrmSettings } from '@/hooks/useCrmSettings'
 import { useCrmColumns } from '@/hooks/useCrm'
 import { useAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import {
-  useCrmOffers, useSaveCrmOffer, useDeleteCrmOffer, FOLLOWUP_STEPS, FOLLOWUP_STEP_GOAL, autoFollowupColumn,
+  useCrmOffers, useSaveCrmOffer, useDeleteCrmOffer, FOLLOWUP_STEPS, autoFollowupColumn,
   type CrmOfferInput,
 } from '@/hooks/useCrmFollowup'
 import type { CrmOffer } from '@/types'
 import { CrmFollowupStyleSettings } from './CrmFollowupStyleSettings'
+import { CrmSetupSection } from './CrmSetupSection'
 
 const FIELDS: { key: keyof CrmOfferInput; label: string; placeholder: string; rows: number }[] = [
   { key: 'product',  label: 'O que você vende',                  rows: 2, placeholder: 'Ex: Site de link na bio: uma página com os botões certos para o cliente agendar, comprar ou chamar no WhatsApp.' },
   { key: 'audience', label: 'Para quem',                         rows: 2, placeholder: 'Ex: Clínicas, salões e profissionais liberais que vendem pelo Instagram.' },
-  { key: 'problem',  label: 'Necessidade que você ataca',        rows: 3, placeholder: 'Ex: O cliente chega pelo Instagram, clica no link da bio e cai num Linktree genérico ou num site lento. Perde contato e venda.' },
-  { key: 'solution', label: 'O que isso resolve na vida do negócio', rows: 3, placeholder: 'Ex: Mais agendamentos pelo Instagram, imagem profissional, tudo num link só, sem depender de agência para trocar.' },
+  { key: 'problem',  label: 'Que problema seu cliente enfrenta?', rows: 3, placeholder: 'Ex: O cliente recebe as mesmas perguntas no WhatsApp e perde tempo no atendimento.' },
+  { key: 'solution', label: 'Como seu serviço ajuda o negócio?', rows: 3, placeholder: 'Ex: Organiza as informações e facilita pedidos ou agendamentos.' },
   { key: 'price',    label: 'Preço e condições',                 rows: 1, placeholder: 'Ex: R$ 497 à vista ou 3x, entrega em 5 dias.' },
-  { key: 'proof',    label: 'Casos e resultados reais',          rows: 3, placeholder: 'Ex: Clínica X passou de 4 para 11 agendamentos por semana vindos da bio. A IA só cita o que estiver aqui.' },
+  { key: 'proof',    label: 'Casos e resultados reais',          rows: 3, placeholder: 'Descreva um resultado comprovado que você tem autorização para mencionar. Se não houver, deixe em branco.' },
   { key: 'tips',     label: 'Dicas úteis que você pode dar',     rows: 3, placeholder: 'Ex: Colocar o botão de WhatsApp em primeiro lugar; usar uma chamada com o benefício, não "clique aqui".' },
   { key: 'tone',     label: 'Tom de voz do briefing',            rows: 1, placeholder: 'Ex: Próximo e direto, sem formalidade.' },
 ]
@@ -33,24 +34,28 @@ const FIELDS: { key: keyof CrmOfferInput; label: string; placeholder: string; ro
 const EMPTY: CrmOfferInput = { name: '' }
 
 export function CrmFollowupSettings() {
+  const id = useId()
   const { toast } = useToast()
   const { data: settings } = useCrmSettings()
   const update = useUpdateCrmSettings()
   const { data: wa } = useAgencyWhatsapp()
-  const { data: offers = [], isLoading } = useCrmOffers()
+  const { data: offers = [], isLoading, isError: offersError, refetch: reloadOffers } = useCrmOffers()
   const save = useSaveCrmOffer()
   const remove = useDeleteCrmOffer()
 
   const [editing, setEditing] = useState<(CrmOfferInput & { id?: string }) | null>(null)
+  const [styleDirty, setStyleDirty] = useState(false)
 
   const { data: allColumns = [] } = useCrmColumns()
   const columns = [...allColumns].sort((a, b) => a.position - b.position)
 
   const enabled = !!settings?.followup_enabled
   const connected = wa?.status === 'connected'
+  const defaultOffer = offers.find(offer => offer.is_default) ?? offers[0]
+  const hasBriefing = !!defaultOffer?.product?.trim()
 
   async function toggle(on: boolean) {
-    if (on && !offers.length) { toast('Cadastre o briefing do que você vende antes de ligar', 'warning'); return }
+    if (on && !hasBriefing) { toast('Cadastre e descreva o serviço padrão antes de ativar.', 'warning'); return }
     try {
       await update.mutateAsync({ followup_enabled: on })
       toast(on ? 'Follow-up automático ligado' : 'Follow-up automático desligado', 'success')
@@ -62,6 +67,7 @@ export function CrmFollowupSettings() {
   async function submit() {
     if (!editing) return
     if (!editing.name.trim()) { toast('Dê um nome ao briefing', 'warning'); return }
+    if (!editing.product?.trim()) { toast('Descreva o que você vende para a IA entender seu serviço.', 'warning'); document.getElementById(`${id}-product`)?.focus(); return }
     const clean = Object.fromEntries(
       Object.entries(editing).map(([k, v]) => [k, typeof v === 'string' ? (v.trim() || null) : v]),
     ) as CrmOfferInput & { id?: string }
@@ -80,141 +86,152 @@ export function CrmFollowupSettings() {
     setEditing(rest)
   }
 
+  function goTo(target: string) {
+    document.getElementById(target)?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
+
   return (
-    <section className="rounded-xl border p-4 sm:p-5 space-y-4" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
-      <div>
-        <h2 className="flex items-center gap-2 text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
-          <Repeat className="w-4 h-4" style={{ color: '#4F8EF7' }} /> Follow-up automático
-        </h2>
-        <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-          Você faz o primeiro contato. Quando o lead para de responder, o sistema manda o follow-up pelo seu WhatsApp, com o estilo que você definir, o briefing abaixo e a conversa real com ele. Sempre sem emojis.
-        </p>
-      </div>
+    <section className="crm-settings-ui space-y-5 min-w-0" aria-label="Configuração do follow-up automático">
+      <header className="flex items-start justify-between gap-4 flex-wrap pb-2">
+        <div className="max-w-xl">
+          <p className="text-[11px] uppercase tracking-[0.14em] font-semibold mb-2" style={{ color: 'var(--crm-accent)' }}>Conversas que continuam</p>
+          <h2 className="font-display text-[26px] sm:text-[30px] font-bold tracking-tight leading-tight">Follow-up automático</h2>
+          <p className="text-[13px] leading-relaxed mt-2" style={{ color: 'var(--sm-text-2)' }}>Quando um cliente deixa de responder, o CRM retoma a conversa pelo seu WhatsApp. Configure o serviço e o jeito de falar antes de ativar.</p>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium" style={{ borderColor: enabled && connected && hasBriefing ? 'var(--crm-accent-border)' : 'var(--sm-border)', background: enabled && connected && hasBriefing ? 'var(--crm-accent-soft)' : 'var(--sm-bg-alt)' }}>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: enabled && connected && hasBriefing ? 'var(--crm-accent)' : 'var(--sm-text-3)' }} />
+          {!enabled ? 'Envios pausados' : !hasBriefing ? 'Aguardando serviço' : !connected ? 'Aguardando WhatsApp' : 'Envios ativados'}
+        </span>
+      </header>
 
-      <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
-        <input type="checkbox" checked={enabled} disabled={update.isPending} onChange={e => toggle(e.target.checked)} />
-        Follow-up automático ligado
-      </label>
-      {enabled && !connected && (
-        <p className="text-[11.5px]" style={{ color: '#f87171' }}>
-          O seu WhatsApp está desconectado. Nenhum follow-up sai até você conectar de novo.
-        </p>
-      )}
-
-      {settings && (
-        <CrmFollowupStyleSettings
-          key={`${settings.user_id}:${JSON.stringify(settings.followup_style ?? null)}`}
-          value={settings.followup_style}
-        />
-      )}
-
-      {/* A cadência e a etapa do funil de cada degrau */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {FOLLOWUP_STEPS.map(d => {
-          const chosen = settings?.followup_columns?.[String(d)]
-          const auto = autoFollowupColumn(d, columns)
-          const value = chosen ?? auto?.id ?? 'none'
-          return (
-            <div key={d} className="rounded-lg border px-3 py-2 flex flex-col gap-1.5" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
-              <div className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{d} dia{d > 1 ? 's' : ''}</div>
-              <div className="text-[11.5px] leading-snug flex-1" style={{ color: 'var(--sm-text-3)' }}>
-                {settings?.followup_style?.steps?.[String(d)]?.goal || FOLLOWUP_STEP_GOAL[d]}
-              </div>
-              <select
-                aria-label={`Etapa do follow-up de ${d} dias`}
-                className="h-8 w-full min-w-0 rounded-md border px-2 text-[12px] [color-scheme:dark]"
-                style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}
-                value={value}
-                disabled={update.isPending}
-                onChange={e => update.mutate(
-                  { followup_columns: { ...(settings?.followup_columns ?? {}), [String(d)]: e.target.value } },
-                  { onError: (err: any) => toast(err.message ?? 'Erro ao salvar', 'error') },
-                )}
-              >
-                <option value="none">Não mover o card</option>
-                {columns.filter(c => c.stage_type === 'normal').map(c => <option key={c.id} value={c.id}>→ {c.name}</option>)}
-              </select>
-            </div>
-          )
-        })}
-      </div>
-      <ul className="text-[11.5px] space-y-1" style={{ color: 'var(--sm-text-4)' }}>
-        <li>• Só dispara quando a última mensagem da conversa foi sua. Se o lead mandou a última, quem deve resposta é você.</li>
-        <li>• Cada degrau é usado uma vez por lead. Se ele voltar a conversar e sumir de novo, o sistema espera o próximo degrau que ainda não foi usado.</li>
-        <li>• Sai das 8h às 20h, de segunda a sábado, um de cada vez: entre um envio e outro o sistema espera de 5 a 15 minutos, sorteados, para parecer natural e proteger o seu número.</li>
-        <li>• A cada follow-up o card vai para a etapa escolhida acima, só para frente: lead que já está mais adiante no funil não volta.</li>
-        <li>• Depois do de 14 dias, se o lead seguir sem responder por mais 7 dias, vai para a etapa de perdido.</li>
-        <li>• Leads em etapas fechadas ou de descarte (Ganho, Contrato assinado, Perdido, Sem interesse) ou com contrato assinado na aba Contratos nunca recebem follow-up.</li>
-        <li>• Vale para as conversas a partir de agora: o sistema precisa ter visto a conversa para saber quem falou por último. Cada mensagem usa 1 das mensagens com IA do plano no mês.</li>
-      </ul>
-
-      <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
-        <input type="checkbox" checked={settings?.meeting_reminder ?? true} disabled={update.isPending}
-               onChange={e => update.mutate({ meeting_reminder: e.target.checked }, {
-                 onSuccess: () => toast(e.target.checked ? 'Lembrete de reunião ligado' : 'Lembrete de reunião desligado', 'success'),
-                 onError:   (err: any) => toast(err.message ?? 'Erro ao salvar', 'error'),
-               })} />
-        Lembrar o lead da reunião pelo WhatsApp 24h antes
-      </label>
-
-      {/* Briefings */}
-      <div className="space-y-2">
-        <div className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--sm-text-3)' }}>O que você está vendendo</div>
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--sm-text-3)' }} />
-        ) : offers.map(o => (
-          <div key={o.id} className="flex items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--sm-border)' }}>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>
-                <span className="truncate">{o.name}</span>
-                {o.is_default && <span className="text-[10.5px] px-1.5 rounded" style={{ background: 'rgba(37,99,235,0.12)', color: '#4F8EF7' }}>padrão</span>}
-              </div>
-              {o.product && <div className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-3)' }}>{o.product}</div>}
-            </div>
-            {!o.is_default && (
-              <Button size="icon-sm" variant="ghost" title="Tornar padrão" onClick={() => save.mutate({ id: o.id, name: o.name, is_default: true })}>
-                <Star className="w-3.5 h-3.5" />
-              </Button>
-            )}
-            <Button size="icon-sm" variant="ghost" title="Editar" onClick={() => edit(o)}><Pencil className="w-3.5 h-3.5" /></Button>
-            <Button size="icon-sm" variant="ghost" title="Excluir" onClick={() => {
-              if (window.confirm(`Excluir o briefing "${o.name}"?`)) remove.mutate(o.id, { onError: (e: any) => toast(e.message, 'error') })
-            }}><Trash2 className="w-3.5 h-3.5" /></Button>
-          </div>
+      <nav aria-label="Etapas da configuração do follow-up" className="flex flex-wrap gap-x-5 gap-y-2 py-3 border-y" style={{ borderColor: 'var(--sm-border)' }}>
+        {[['01', 'Serviço', 'followup-service'], ['02', 'Mensagens', 'followup-messages'], ['03', 'Prévia', 'followup-preview'], ['04', 'Ativação', 'followup-activation']].map(([number, title, target]) => (
+          <button key={target} type="button" className="text-[12px] flex items-center gap-2 py-1 hover:underline underline-offset-4" onClick={() => goTo(target)}><span className="tabular-nums" style={{ color: 'var(--crm-accent)' }}>{number}</span>{title}</button>
         ))}
-        {!editing && (
-          <Button size="sm" variant="outline" onClick={() => setEditing({ ...EMPTY })}>
-            <Plus className="w-3 h-3" /> Novo briefing
-          </Button>
-        )}
-      </div>
+      </nav>
 
-      {editing && (
-        <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
-          <div>
-            <label className="block text-[11px] font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--sm-text-3)' }}>Nome</label>
-            <Input value={editing.name} placeholder="Ex: Site de link na bio" onChange={e => setEditing({ ...editing, name: e.target.value })} />
-          </div>
-          {FIELDS.map(f => (
-            <div key={f.key}>
-              <label className="block text-[11px] font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--sm-text-3)' }}>{f.label}</label>
-              {f.rows === 1 ? (
-                <Input value={(editing[f.key] as string) ?? ''} placeholder={f.placeholder}
-                       onChange={e => setEditing({ ...editing, [f.key]: e.target.value })} />
-              ) : (
-                <Textarea rows={f.rows} value={(editing[f.key] as string) ?? ''} placeholder={f.placeholder} className="text-[12.5px]"
-                          onChange={e => setEditing({ ...editing, [f.key]: e.target.value })} />
-              )}
+      <CrmSetupSection id="followup-service" number="01" title="Conte o que você vende"
+        description="Cadastre uma descrição do seu serviço, também chamada de briefing. A IA usa essas informações para escrever mensagens que fazem sentido para sua oferta."
+        aside={!editing && <Button type="button" variant="outline" className="h-9" onClick={() => setEditing({ ...EMPTY })}><Plus className="w-3.5 h-3.5" /> Adicionar serviço</Button>}>
+        <div className="space-y-4">
+          {isLoading ? <p className="text-[13px] flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Carregando seus serviços...</p> : offersError ? (
+            <div role="alert" className="crm-settings-note">Não foi possível carregar seus serviços. <Button type="button" size="sm" variant="ghost" onClick={() => reloadOffers()}>Tentar novamente</Button></div>
+          ) : !offers.length && !editing ? (
+            <div className="border border-dashed rounded-xl p-5 sm:p-6" style={{ borderColor: 'var(--sm-border)' }}>
+              <h4 className="text-[15px] font-semibold">Comece pelo seu primeiro serviço</h4>
+              <p className="text-[13px] leading-relaxed mt-2 max-w-lg" style={{ color: 'var(--sm-text-2)' }}>Explique o que você entrega, para quem e como ajuda o cliente. Não precisa escrever um texto de vendas.</p>
+              <Button type="button" className="mt-4 h-9" onClick={() => setEditing({ ...EMPTY })}><Plus className="w-3.5 h-3.5" /> Cadastrar primeiro serviço</Button>
             </div>
+          ) : offers.map(offer => (
+            <article key={offer.id} className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-[14px] font-semibold break-words">{offer.name}</h4>
+                  <p className="text-[12px] mt-1 line-clamp-2 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>{offer.product || 'Complete o que você vende para a IA entender este serviço.'}</p>
+                </div>
+                {offer.id === defaultOffer?.id && <span className="rounded-md px-2 py-1 text-[11px] font-medium" style={{ color: 'var(--crm-accent)', background: 'var(--crm-accent-soft)' }}>Serviço padrão</span>}
+              </div>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-[11.5px]" style={{ color: 'var(--sm-text-2)' }}>{offer.product?.trim() ? 'Descrição cadastrada' : 'Descrição pendente'}</p>
+                <div className="flex gap-1 flex-wrap">
+                  {offer.id !== defaultOffer?.id && <Button type="button" size="sm" variant="ghost" disabled={save.isPending || !!editing} onClick={() => save.mutate({ id: offer.id, name: offer.name, is_default: true }, { onError: (error: Error) => toast(error.message, 'error') })}>Usar como padrão</Button>}
+                  <Button type="button" size="sm" variant="outline" disabled={save.isPending || !!editing} onClick={() => edit(offer)}><Pencil className="w-3.5 h-3.5" /> Ver e editar</Button>
+                  <Button type="button" size="icon-sm" variant="ghost" aria-label={`Excluir serviço ${offer.name}`} disabled={remove.isPending || !!editing} onClick={() => {
+                    if (window.confirm(`Excluir o serviço "${offer.name}"?`)) remove.mutate(offer.id, { onError: (error: Error) => toast(error.message, 'error') })
+                  }}><Trash2 className="w-3.5 h-3.5" /></Button>
+                </div>
+              </div>
+            </article>
           ))}
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
-            <Button size="sm" disabled={save.isPending} onClick={submit}>
-              {save.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Salvar briefing
-            </Button>
+
+          {editing && <form onSubmit={event => { event.preventDefault(); submit() }} className="rounded-xl border p-4 sm:p-5 space-y-5" style={{ borderColor: 'var(--crm-accent-border)', background: 'var(--sm-bg-alt)' }}>
+            <div><h4 className="font-display text-[17px] font-semibold">{editing.id ? 'Editar descrição do serviço' : 'Cadastrar um serviço'}</h4><p className="text-[12px] mt-1" style={{ color: 'var(--sm-text-2)' }}>Nome e descrição são obrigatórios. Os outros campos ajudam a IA a escrever com mais contexto.</p></div>
+            <fieldset disabled={save.isPending} className="space-y-4">
+              <legend className="sr-only">Descrição do serviço</legend>
+              <div><label htmlFor={`${id}-name`} className="block text-[13px] font-medium mb-2">Nome do serviço <span style={{ color: 'var(--sm-text-2)' }}>(obrigatório)</span></label>
+                <Input id={`${id}-name`} required value={editing.name} placeholder="Ex: Gestão de redes sociais" onChange={event => setEditing({ ...editing, name: event.target.value })} />
+                <p className="text-[12px] mt-1.5" style={{ color: 'var(--sm-text-2)' }}>Esse nome aparece na escolha do serviço na ficha do lead.</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {FIELDS.slice(0, 4).map(field => <div key={field.key}>
+                  <label htmlFor={`${id}-${field.key}`} className="block text-[13px] font-medium mb-2">{field.label}{field.key === 'product' && <span style={{ color: 'var(--sm-text-2)' }}> (obrigatório)</span>}</label>
+                  <Textarea id={`${id}-${field.key}`} required={field.key === 'product'} rows={3} value={(editing[field.key] as string) ?? ''} placeholder={field.placeholder} className="text-[13px]" onChange={event => setEditing({ ...editing, [field.key]: event.target.value })} />
+                  <p className="text-[12px] mt-1.5 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>{field.key === 'product' ? 'Liste o que está incluído e como você entrega.' : field.key === 'audience' ? 'Descreva o tipo de cliente que costuma comprar de você.' : field.key === 'problem' ? 'Conte o que dificulta o dia a dia desse cliente.' : 'Explique o benefício prático, sem prometer resultados garantidos.'}</p>
+                </div>)}
+              </div>
+              <details>
+                <summary className="cursor-pointer text-[13px] font-medium">Preços, resultados e orientações do serviço (opcional)</summary>
+                <div className="grid gap-4 sm:grid-cols-2 mt-4">
+                  {FIELDS.slice(4).map(field => <div key={field.key}>
+                    <label htmlFor={`${id}-${field.key}`} className="block text-[13px] font-medium mb-2">{field.label}</label>
+                    <Textarea id={`${id}-${field.key}`} rows={field.rows === 1 ? 2 : field.rows} value={(editing[field.key] as string) ?? ''} placeholder={field.placeholder} className="text-[13px]" onChange={event => setEditing({ ...editing, [field.key]: event.target.value })} />
+                    <p className="text-[12px] mt-1.5 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>{field.key === 'price' ? 'Informe valor, pagamento e prazo. Se depende de orçamento, explique isso.' : field.key === 'proof' ? 'Use apenas casos comprovados. Sem casos reais, deixe em branco.' : field.key === 'tips' ? 'Dicas que ajudam seu cliente mesmo antes de contratar.' : 'Usado quando você escolhe "Usar o tom do briefing" na etapa 2.'}</p>
+                  </div>)}
+                </div>
+              </details>
+            </fieldset>
+            <div className="flex justify-end gap-2"><Button type="button" variant="ghost" disabled={save.isPending} onClick={() => setEditing(null)}>Cancelar</Button><Button type="submit" className="h-9" disabled={save.isPending}>{save.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar serviço</Button></div>
+          </form>}
+          {!!offers.length && <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>O serviço padrão é usado quando o lead não tem outro serviço selecionado na ficha. Você pode cadastrar mais de uma oferta.</p>}
+        </div>
+      </CrmSetupSection>
+
+      {settings && <CrmFollowupStyleSettings key={`${settings.user_id}:${JSON.stringify(settings.followup_style ?? null)}`} value={settings.followup_style} onDirtyChange={setStyleDirty} />}
+
+      <CrmSetupSection id="followup-activation" number="04" title="Revise e ative os envios"
+        description="A sequência tem quatro contatos, após 1, 3, 7 e 14 dias sem resposta. Os períodos são fixos; você controla o conteúdo e pode pausar os envios a qualquer momento.">
+        <div className="space-y-5">
+          <div className="grid grid-cols-4 gap-2 border-b pb-5" style={{ borderColor: 'var(--sm-border)' }} aria-label="Sequência de contatos">
+            {FOLLOWUP_STEPS.map((day, index) => <div key={day}><p className="text-[11px]" style={{ color: 'var(--sm-text-2)' }}>{index + 1}º contato</p><p className="font-display text-[20px] sm:text-[24px] font-semibold mt-1">{day}<span className="text-[11px] sm:text-[12px] ml-1 font-normal" style={{ color: 'var(--sm-text-2)' }}>dia{day > 1 ? 's' : ''}</span></p></div>)}
+          </div>
+          <div className="grid sm:grid-cols-[1.2fr_1fr] gap-5">
+            <div className="space-y-3">
+              <h4 className="text-[14px] font-semibold">Quando uma mensagem pode sair?</h4>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Você fez o último contato e o cliente ainda não respondeu. Se ele responder, o CRM aguarda sua próxima resposta.</p>
+              <p className="text-[12px] flex items-start gap-2 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}><Clock3 className="w-4 h-4 shrink-0 mt-0.5" /> Das 8h às 20h, de segunda a sábado, no horário de Brasília. Um envio por vez, com intervalo de 5 a 15 minutos entre clientes.</p>
+              <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Cada envio usa 1 unidade da cota de mensagens com IA. Cada contato da sequência é usado uma vez por lead.</p>
+            </div>
+            <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+              <p className="text-[13px] font-semibold">Antes de ativar</p>
+              <p className="text-[12px] flex items-center gap-2"><CheckCircle2 className="w-4 h-4" style={{ color: hasBriefing ? 'var(--crm-accent)' : 'var(--sm-text-3)' }} />{hasBriefing ? 'Serviço padrão descrito' : 'Cadastre e descreva o serviço padrão'}</p>
+              <p className="text-[12px] flex items-center gap-2"><Smartphone className="w-4 h-4" style={{ color: connected ? 'var(--crm-accent)' : 'var(--sm-text-3)' }} />{connected ? 'WhatsApp conectado' : 'Conecte o WhatsApp na aba WhatsApp'}</p>
+              {(styleDirty || editing) && <p className="text-[12px] leading-relaxed">Salve ou descarte as alterações antes de ativar.</p>}
+              <Button type="button" className="h-10 w-full" variant={enabled ? 'outline' : 'default'} disabled={update.isPending || (!enabled && (!hasBriefing || styleDirty || !!editing || isLoading || offersError))} onClick={() => toggle(!enabled)}>
+                {update.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : enabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}{enabled ? 'Pausar envios automáticos' : 'Ativar follow-up automático'}
+              </Button>
+              <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>{enabled ? connected ? 'A automação está ligada. Os envios seguem as regras acima.' : 'A automação está ligada, mas nenhum envio sai enquanto o WhatsApp estiver desconectado.' : connected ? 'Ativar permite os próximos envios elegíveis. Não envia uma mensagem imediatamente.' : 'Você pode deixar a automação preparada. Ela só envia quando o WhatsApp estiver conectado.'}</p>
+            </div>
+          </div>
+
+          <details className="border-t pt-4" style={{ borderColor: 'var(--sm-border)' }}>
+            <summary className="cursor-pointer text-[13px] font-medium">Mover o lead no funil a cada contato (opcional)</summary>
+            <p className="text-[12px] leading-relaxed mt-2" style={{ color: 'var(--sm-text-2)' }}>Escolha a etapa para onde o card vai após cada envio. O card só avança: nunca volta para uma etapa anterior. Essas escolhas são salvas automaticamente.</p>
+            <div className="grid gap-3 sm:grid-cols-2 mt-4">
+              {FOLLOWUP_STEPS.map(day => {
+                const chosen = settings?.followup_columns?.[String(day)]
+                const auto = autoFollowupColumn(day, columns)
+                return <div key={day}><label htmlFor={`${id}-column-${day}`} className="block text-[12px] font-medium mb-2">Após o contato de {day} dia{day > 1 ? 's' : ''}</label><select id={`${id}-column-${day}`} className="h-10 w-full min-w-0 rounded-lg border px-3 text-[13px]" style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} value={chosen ?? auto?.id ?? 'none'} disabled={update.isPending}
+                  onChange={event => update.mutate({ followup_columns: { ...(settings?.followup_columns ?? {}), [String(day)]: event.target.value } }, { onError: (error: Error) => toast(error.message, 'error') })}>
+                  <option value="none">Não mover o card</option>{columns.filter(column => column.stage_type === 'normal').map(column => <option key={column.id} value={column.id}>{column.name}</option>)}
+                </select></div>
+              })}
+            </div>
+          </details>
+          <details className="border-t pt-4" style={{ borderColor: 'var(--sm-border)' }}>
+            <summary className="cursor-pointer text-[13px] font-medium">Entenda as pausas e o fim da sequência</summary>
+            <ul className="text-[12px] leading-relaxed list-disc pl-5 mt-3 space-y-2" style={{ color: 'var(--sm-text-2)' }}>
+              <li>Leads pausados, arquivados ou que pediram para não receber mensagens não entram na sequência.</li>
+              <li>Leads em etapas de fechamento ou descarte, ou com contrato assinado, não recebem follow-up.</li>
+              <li>Quando o lead volta a conversar e some de novo, a sequência continua pelo próximo contato ainda não utilizado.</li>
+              <li>Depois do contato de 14 dias, se o lead continuar na etapa desse contato e sem responder por mais 7 dias, vai para Perdido. Sem uma etapa para o último contato, ele vai para Perdido após esse envio. Essa movimentação depende de haver uma etapa Perdido no funil.</li>
+              <li>O CRM precisa ter a conversa registrada para saber quem falou por último.</li>
+            </ul>
+          </details>
+          <div className="border-t pt-4" style={{ borderColor: 'var(--sm-border)' }}>
+            <label className="flex items-start gap-3 text-[13px] cursor-pointer"><input type="checkbox" className="mt-1" checked={settings?.meeting_reminder ?? true} disabled={update.isPending} onChange={event => update.mutate({ meeting_reminder: event.target.checked }, { onSuccess: () => toast('Preferência de lembrete salva.', 'success'), onError: (error: Error) => toast(error.message, 'error') })} /><span><span className="font-medium">Lembrar o cliente de uma reunião</span><span className="block text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Envia uma confirmação pelo seu WhatsApp na janela de 24 horas antes da reunião cadastrada na ficha. O lembrete é independente da sequência de follow-up e pode ser enviado mesmo com ela pausada. Essa preferência é salva automaticamente.</span></span></label>
           </div>
         </div>
-      )}
+      </CrmSetupSection>
     </section>
   )
 }

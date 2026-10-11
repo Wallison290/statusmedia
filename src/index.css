@@ -2,6 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Configurações do CRM: hierarquia e estados próprios, sobre o tema do app. */
+.crm-settings-ui {
+  --crm-accent: #34d399;
+  --crm-accent-soft: rgba(52, 211, 153, 0.08);
+  --crm-accent-border: rgba(52, 211, 153, 0.24);
+  color: var(--sm-text-1);
+}
+[data-theme='light'] .crm-settings-ui {
+  --crm-accent: #047857;
+  --crm-accent-soft: rgba(4, 120, 87, 0.06);
+  --crm-accent-border: rgba(4, 120, 87, 0.22);
+}
+.crm-setup-section {
+  scroll-margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--sm-border);
+  border-radius: 16px;
+  background: var(--sm-bg-card);
+}
+.crm-setup-heading { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.crm-setup-number {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--crm-accent-border);
+  border-radius: 8px;
+  color: var(--crm-accent);
+  background: var(--crm-accent-soft);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.crm-settings-note {
+  border-left: 2px solid var(--crm-accent);
+  background: var(--crm-accent-soft);
+  padding: 12px 16px;
+  color: var(--sm-text-2);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.crm-settings-nav-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--sm-text-2);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.crm-settings-nav-button:hover { background: var(--sm-bg-alt); }
+.crm-settings-nav-button[aria-selected='true'] {
+  background: var(--crm-accent-soft);
+  border-color: var(--crm-accent-border);
+  color: var(--sm-text-1);
+}
+.crm-settings-ui :is(button, a, select, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--crm-accent);
+  outline-offset: 3px;
+}
+.crm-settings-panel[hidden] { display: none; }
+@keyframes crm-settings-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.crm-settings-panel:not([hidden]) { animation: crm-settings-reveal 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .crm-settings-panel:not([hidden]) { animation: none; }
+  .crm-settings-nav-button { transition: none; }
+}
+@media (max-width: 640px) {
+  .crm-setup-section { padding: 18px 14px; }
+  .crm-settings-ui textarea { font-size: 16px; }
+}
+
 /* ── StatusMedia Design System ──────────────────────────────────────────────── */
 
 @layer base {
