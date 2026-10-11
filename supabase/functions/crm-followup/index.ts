@@ -27,6 +27,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
 import { agencySender, sendVia, phoneKey } from '../_shared/whatsapp.ts'
 import { consumeAi, agencyLimit } from '../_shared/plans.ts'
+import { buildFollowupPrompt, cleanFollowupMessage, type FollowupPromptArgs } from '../_shared/followup-style.ts'
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -76,14 +77,6 @@ function followupColumn(step: number, columns: any[], chosen: Record<string, str
   return columns.find(c => c.stage_type === 'normal' && STEP_NAME[step].test(plain(c.name))) ?? null
 }
 
-// O que cada degrau entrega (guia "Cadência de follow-up")
-const STEP_GOAL: Record<number, string> = {
-  1:  'Retomar o objetivo do lead usando as palavras que ele mesmo usou na conversa.',
-  3:  'Contar um caso de cliente parecido que alcançou o resultado. Use SOMENTE casos e resultados que estão no briefing. Se o briefing não tiver nenhum, fale do resultado que a solução costuma trazer para negócios como o dele, sem inventar nomes, números nem depoimentos.',
-  7:  'Dar uma dica útil que o lead pode aplicar mesmo sem comprar, ligada ao problema dele.',
-  14: 'Encerrar de forma leve, sem cobrança, deixando a porta aberta para quando fizer sentido.',
-}
-
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -97,63 +90,15 @@ function inBusinessHours(now = new Date()) {
   return weekday !== 'Sun' && hour >= 8 && hour < 20
 }
 
-function briefingText(o: any) {
-  return [
-    `Oferta: ${o.name}`,
-    o.product  && `O que vendemos: ${o.product}`,
-    o.audience && `Para quem: ${o.audience}`,
-    o.problem  && `Necessidade/dor que resolvemos: ${o.problem}`,
-    o.solution && `O que isso muda na vida do negócio: ${o.solution}`,
-    o.price    && `Preço/condições: ${o.price}`,
-    o.proof    && `Casos e resultados reais: ${o.proof}`,
-    o.tips     && `Dicas úteis que podemos dar: ${o.tips}`,
-    o.tone     && `Tom de voz: ${o.tone}`,
-  ].filter(Boolean).join('\n')
-}
-
-async function writeMessage(ai: OpenAI, args: {
-  agency: string; lead: any; offer: any; step: number; conversation: any[]
-}) {
-  const { agency, lead, offer, step, conversation } = args
-  const firstName = String(lead.name ?? '').trim().split(/\s+/)[0] ?? ''
-  const history = conversation.slice().reverse().map(m => {
-    const who = m.direction === 'in' ? firstName || 'Lead' : 'Nós'
-    const tag = m.source === 'followup' ? ' (follow-up automático)' : ''
-    return `${who}${tag}: ${String(m.text).slice(0, 600)}`
-  }).join('\n')
-
-  const system =
-    `Você escreve mensagens de follow-up de WhatsApp em nome de "${agency}", em português do Brasil.\n` +
-    'O lead conversou com a agência e parou de responder. A mensagem reconecta o lead com o problema e os objetivos que ELE disse, sem cobrar resposta.\n\n' +
-    'Regras obrigatórias:\n' +
-    '- Nada de "e aí, pensou?", "conseguiu ver minha proposta?" ou qualquer cobrança.\n' +
-    '- Curta e humana: no máximo 3 linhas, uma pergunta só, como uma pessoa escrevendo.\n' +
-    '- Termine com uma pergunta fácil de responder.\n' +
-    '- Sem pressão e sem escassez falsa. Nunca invente fatos, números, casos ou promessas que não estejam no briefing.\n' +
-    '- Não repita o que já foi dito nos follow-ups anteriores.\n' +
-    '- Nunca atribua ao lead algo que ele não escreveu na conversa. Nada de "você comentou", "você disse" ou "lembrei que você" sem a fala real dele.\n' +
-    '- Sem markdown, sem aspas, no máximo 1 emoji. Chame o lead pelo primeiro nome.\n' +
-    '- Responda somente com o texto da mensagem.\n\n' +
-    `BRIEFING DO QUE ESTAMOS VENDENDO:\n${briefingText(offer)}`
-
-  const user =
-    `Lead: ${lead.name}${lead.company ? ` (${lead.company})` : ''}\n` +
-    (lead.notes ? `Anotações da agência: ${String(lead.notes).slice(0, 800)}\n` : '') +
-    `\nEste é o follow-up de ${step} dia${step > 1 ? 's' : ''}. Objetivo desta mensagem: ${STEP_GOAL[step]}\n\n` +
-    `Conversa (mais antiga primeiro):\n${history}`
-
-  // Lead que ainda não respondeu nada não tem palavras dele para retomar
-  const leadSpoke = conversation.some(m => m.direction === 'in')
-  const silentNote = leadSpoke ? '' :
-    '\nO lead AINDA NÃO RESPONDEU nada: não existe fala dele para retomar. Parta do motivo do contato e da necessidade descrita no briefing, em forma de pergunta, sem afirmar o que ele pensa ou precisa.\n'
-
+async function writeMessage(ai: OpenAI, args: FollowupPromptArgs) {
+  const { system, user, maxTokens } = buildFollowupPrompt(args)
   const res = await ai.chat.completions.create({
     model: 'gpt-4o-mini',
     temperature: 0.6,
-    max_tokens: 220,
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user + silentNote }],
+    max_tokens: maxTokens,
+    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
   })
-  return (res.choices[0]?.message?.content ?? '').trim().replace(/^["']|["']$/g, '')
+  return cleanFollowupMessage(res.choices[0]?.message?.content ?? '')
 }
 
 async function runAgency(sb: any, ai: OpenAI, userId: string) {
@@ -170,15 +115,17 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   const sender = await agencySender(sb, userId)
   if (!sender) return { ...report, note: 'WhatsApp desconectado' }
 
-  const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }, { data: settings }, { data: signed }] = await Promise.all([
+  const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }, { data: settings, error: settingsError }, { data: signed }] = await Promise.all([
     sb.from('crm_columns').select('id, name, stage_type, position').eq('user_id', userId).order('position'),
     sb.from('crm_offers').select('*').eq('user_id', userId).order('created_at'),
     sb.from('crm_leads').select('id, name, company, notes, whatsapp, column_id, followup_offer_id, followup_done, followup_last_at')
       .eq('user_id', userId).is('archived_at', null).eq('followup_paused', false).is('opted_out_at', null).not('whatsapp', 'is', null),
     sb.from('profiles').select('agency_name, full_name').eq('id', userId).maybeSingle(),
-    sb.from('crm_settings').select('followup_columns').eq('user_id', userId).maybeSingle(),
+    sb.from('crm_settings').select('*').eq('user_id', userId).maybeSingle(),
     sb.from('crm_contracts').select('lead_id').eq('user_id', userId).eq('status', 'assinado').not('lead_id', 'is', null),
   ])
+  // Sem ler as preferências, não envie uma mensagem com estilo ou etapa errados.
+  if (settingsError) throw settingsError
   if (!offers?.length) return { ...report, note: 'sem briefing' }
 
   const stage = new Map((columns ?? []).map((c: any) => [c.id, c.stage_type]))
@@ -215,8 +162,9 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     // Cadência inteira usada: só falta ver se o lead do último degrau vai para perdido
     if (!next && !(done.includes(lastStep) && stepColumn(lastStep) && lostColumn)) continue
 
-    const { data: conv } = await sb.from('crm_messages').select('direction, text, source, sent_at')
-      .eq('lead_id', lead.id).order('sent_at', { ascending: false }).limit(40)
+    const { data: conv, error: conversationError } = await sb.from('crm_messages').select('direction, text, source, sent_at')
+      .eq('user_id', userId).eq('lead_id', lead.id).order('sent_at', { ascending: false }).limit(100)
+    if (conversationError) throw conversationError
     const lastReal = (conv ?? []).find((m: any) => m.source !== 'followup')
 
     if (!next) {
@@ -270,7 +218,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
 
     let text = ''
     try {
-      text = await writeMessage(ai, { agency, lead, offer, step: next, conversation: conv ?? [] })
+      text = await writeMessage(ai, { agency, lead, offer, step: next, conversation: conv ?? [], style: settings?.followup_style })
     } catch (err) {
       console.error('crm-followup: IA', err)
     }

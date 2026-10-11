@@ -8,6 +8,13 @@
 
 project_id = "hhmcicccxhkfmmryatxi"
 
+[functions.crm-followup]
+verify_jwt = false
+
+# Autenticação de usuário também validada no corpo; consultas respeitam RLS.
+[functions.crm-followup-compose]
+verify_jwt = true
+
 [auth.email.template.invite]
 subject = "Seu acesso ao StatusMedia"
 content_path = "./supabase/email-templates/convite.html"

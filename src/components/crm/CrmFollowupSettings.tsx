@@ -17,6 +17,7 @@ import {
   type CrmOfferInput,
 } from '@/hooks/useCrmFollowup'
 import type { CrmOffer } from '@/types'
+import { CrmFollowupStyleSettings } from './CrmFollowupStyleSettings'
 
 const FIELDS: { key: keyof CrmOfferInput; label: string; placeholder: string; rows: number }[] = [
   { key: 'product',  label: 'O que você vende',                  rows: 2, placeholder: 'Ex: Site de link na bio: uma página com os botões certos para o cliente agendar, comprar ou chamar no WhatsApp.' },
@@ -26,7 +27,7 @@ const FIELDS: { key: keyof CrmOfferInput; label: string; placeholder: string; ro
   { key: 'price',    label: 'Preço e condições',                 rows: 1, placeholder: 'Ex: R$ 497 à vista ou 3x, entrega em 5 dias.' },
   { key: 'proof',    label: 'Casos e resultados reais',          rows: 3, placeholder: 'Ex: Clínica X passou de 4 para 11 agendamentos por semana vindos da bio. A IA só cita o que estiver aqui.' },
   { key: 'tips',     label: 'Dicas úteis que você pode dar',     rows: 3, placeholder: 'Ex: Colocar o botão de WhatsApp em primeiro lugar; usar uma chamada com o benefício, não "clique aqui".' },
-  { key: 'tone',     label: 'Tom de voz',                        rows: 1, placeholder: 'Ex: Próximo e direto, sem formalidade.' },
+  { key: 'tone',     label: 'Tom de voz do briefing',            rows: 1, placeholder: 'Ex: Próximo e direto, sem formalidade.' },
 ]
 
 const EMPTY: CrmOfferInput = { name: '' }
@@ -86,7 +87,7 @@ export function CrmFollowupSettings() {
           <Repeat className="w-4 h-4" style={{ color: '#4F8EF7' }} /> Follow-up automático
         </h2>
         <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-          Você faz o primeiro contato. Quando o lead para de responder, o sistema manda o follow-up pelo seu WhatsApp, escrito pela IA a partir do briefing abaixo e da conversa real com ele.
+          Você faz o primeiro contato. Quando o lead para de responder, o sistema manda o follow-up pelo seu WhatsApp, com o estilo que você definir, o briefing abaixo e a conversa real com ele. Sempre sem emojis.
         </p>
       </div>
 
@@ -100,6 +101,13 @@ export function CrmFollowupSettings() {
         </p>
       )}
 
+      {settings && (
+        <CrmFollowupStyleSettings
+          key={`${settings.user_id}:${JSON.stringify(settings.followup_style ?? null)}`}
+          value={settings.followup_style}
+        />
+      )}
+
       {/* A cadência e a etapa do funil de cada degrau */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {FOLLOWUP_STEPS.map(d => {
@@ -109,7 +117,9 @@ export function CrmFollowupSettings() {
           return (
             <div key={d} className="rounded-lg border px-3 py-2 flex flex-col gap-1.5" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
               <div className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{d} dia{d > 1 ? 's' : ''}</div>
-              <div className="text-[11.5px] leading-snug flex-1" style={{ color: 'var(--sm-text-3)' }}>{FOLLOWUP_STEP_GOAL[d]}</div>
+              <div className="text-[11.5px] leading-snug flex-1" style={{ color: 'var(--sm-text-3)' }}>
+                {settings?.followup_style?.steps?.[String(d)]?.goal || FOLLOWUP_STEP_GOAL[d]}
+              </div>
               <select
                 aria-label={`Etapa do follow-up de ${d} dias`}
                 className="h-8 w-full min-w-0 rounded-md border px-2 text-[12px] [color-scheme:dark]"

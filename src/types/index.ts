@@ -1,3 +1,5 @@
+import type { FollowupStyle } from '../../supabase/functions/_shared/followup-style'
+
 export interface Profile {
   id: string
   email: string
@@ -707,6 +709,7 @@ export interface CrmSettings {
   meeting_reminder?:   boolean
   custom_fields?:      CrmCustomField[]
   followup_columns?:   Record<string, string>  // degrau -> etapa do funil ("none" = não mover)
+  followup_style?:     FollowupStyle | null
   wa_first_contact_label?:      string | null   // id da etiqueta do WhatsApp Business
   wa_first_contact_label_name?: string | null
   created_at:          string
