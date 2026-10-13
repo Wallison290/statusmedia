@@ -144,15 +144,10 @@ async function storeConversation(sb: any, instId: string, body: any) {
     return
   }
 
-  // Lead respondeu: entra na fila "sua vez" e a agência é avisada uma vez por rodada
+  // Lead respondeu: entra na fila "sua vez" do funil. Sem notificação no sino:
+  // a conversa já acontece no WhatsApp e o aviso a cada resposta virava ruído.
   if (!lead.awaiting_reply_since) {
     await sb.from('crm_leads').update({ awaiting_reply_since: sentAt }).eq('id', lead.id)
-    await sb.rpc('crm_notify', {
-      p_user: inst.user_id, p_type: 'CRM_REPLY',
-      p_title: `${lead.name} respondeu no WhatsApp`,
-      p_message: text.slice(0, 200),
-      p_lead: lead.id,
-    })
   }
 }
 
