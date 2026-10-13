@@ -28,7 +28,7 @@ export function useCrmFollowupCompose() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: {
-      action: 'suggest' | 'preview'; offerId: string; style: FollowupStyle; leadId?: string; step?: number;
+      action: 'suggest' | 'preview'; offerId: string; style: FollowupStyle; leadId?: string; step?: number; days: number[];
     }) => {
       const { data, error } = await supabase.functions.invoke('crm-followup-compose', { body: { ...input, agencyId } })
       if (error) {

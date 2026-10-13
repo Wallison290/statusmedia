@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  buildFollowupPrompt, cleanFollowupMessage, normalizeFollowupStyle,
-  FOLLOWUP_DEFAULT_GOALS, type FollowupPromptArgs,
+  buildFollowupPrompt, cleanFollowupMessage, normalizeFollowupStyle, normalizeFollowupDays,
+  followupDefaultGoal, followupStageName, nextFollowupDay, FOLLOWUP_GOALS, type FollowupPromptArgs,
 } from './followup-style.ts'
 
 const context: FollowupPromptArgs = {
@@ -24,7 +24,7 @@ test('agências sem configuração mantêm tom do briefing, mensagem curta e obj
     assert.equal(normalized.closing, 'pergunta')
     for (const step of [1, 3, 7, 14]) {
       const prompt = buildFollowupPrompt({ ...context, step, style })
-      assert.ok(prompt.user.includes(FOLLOWUP_DEFAULT_GOALS[step]))
+      assert.ok(prompt.user.includes(followupDefaultGoal(step)))
       assert.ok(prompt.system.includes('tom de voz do briefing'))
       assert.equal(prompt.maxTokens, 220)
     }
@@ -53,11 +53,11 @@ test('objetivo e exemplo manuais se aplicam somente ao contato escolhido', () =>
   const style = { steps: { '3': { goal: 'Esclarecer uma dúvida sobre a entrega.', example: 'Qual detalhe posso te explicar?' } } }
   const chosen = buildFollowupPrompt({ ...context, style })
   assert.ok(chosen.user.includes('Esclarecer uma dúvida sobre a entrega.'))
-  assert.ok(!chosen.user.includes(FOLLOWUP_DEFAULT_GOALS[3]))
+  assert.ok(!chosen.user.includes(followupDefaultGoal(3)))
   assert.ok(chosen.system.includes('Qual detalhe posso te explicar?'))
   assert.ok(chosen.system.includes('não copie nomes, valores ou fatos do exemplo'))
   const other = buildFollowupPrompt({ ...context, step: 7, style })
-  assert.ok(other.user.includes(FOLLOWUP_DEFAULT_GOALS[7]))
+  assert.ok(other.user.includes(followupDefaultGoal(7)))
   assert.ok(!other.system.includes('Qual detalhe posso te explicar?'))
 })
 
@@ -122,7 +122,7 @@ test('configurações inválidas ou excessivas são normalizadas antes do uso', 
   const style = normalizeFollowupStyle({
     tone: 'toString', length: false, closing: 'constructor',
     instructions: 'a'.repeat(1800), avoid: 'b'.repeat(800),
-    steps: { '1': { goal: 'c'.repeat(900), example: 'd'.repeat(1200) }, '3': null, '5': { goal: 'Não usado' } },
+    steps: { '1': { goal: 'c'.repeat(900), example: 'd'.repeat(1200) }, '3': null, '5': { goal: 'Dia novo' }, '99': { goal: 'Fora do limite' }, abc: { goal: 'x' } },
   })
   assert.equal(style.tone, 'briefing')
   assert.equal(style.closing, 'pergunta')
@@ -130,8 +130,46 @@ test('configurações inválidas ou excessivas são normalizadas antes do uso', 
   assert.equal(style.avoid.length, 500)
   assert.equal(style.steps['1'].goal.length, 700)
   assert.equal(style.steps['1'].example.length, 1000)
-  assert.deepEqual(style.steps['3'], { goal: '', example: '' })
-  assert.equal(style.steps['5'], undefined)
+  assert.equal(style.steps['3'], undefined)
+  assert.equal(style.steps['5'].goal, 'Dia novo')
+  assert.equal(style.steps['99'], undefined)
+  assert.equal(style.steps.abc, undefined)
+})
+
+test('dias do follow-up: padrão, ordem, limites e duplicados', () => {
+  assert.deepEqual(normalizeFollowupDays(undefined), [1, 3, 7, 14])
+  assert.deepEqual(normalizeFollowupDays([]), [1, 3, 7, 14])
+  assert.deepEqual(normalizeFollowupDays([10, 2, 2, '5', 0, 61, 1.5]), [2, 5, 10])
+  assert.deepEqual(normalizeFollowupDays([1, 2, 3, 4, 5, 6, 7, 8]), [1, 2, 3, 4, 5, 6])
+})
+
+test('objetivo padrão segue a posição do contato na sequência escolhida', () => {
+  assert.equal(followupDefaultGoal(1), FOLLOWUP_GOALS.first)
+  assert.equal(followupDefaultGoal(3), FOLLOWUP_GOALS.proof)
+  assert.equal(followupDefaultGoal(7), FOLLOWUP_GOALS.tip)
+  assert.equal(followupDefaultGoal(14), FOLLOWUP_GOALS.last)
+  assert.equal(followupDefaultGoal(2, [2, 5]), FOLLOWUP_GOALS.first)
+  assert.equal(followupDefaultGoal(5, [2, 5]), FOLLOWUP_GOALS.last)
+  assert.equal(followupDefaultGoal(4, [4]), FOLLOWUP_GOALS.first)
+  const prompt = buildFollowupPrompt({ ...context, step: 5, days: [2, 5, 10] })
+  assert.ok(prompt.user.includes('contato 2 de 3'))
+  assert.ok(prompt.user.includes(FOLLOWUP_GOALS.proof))
+})
+
+test('próximo contato continua depois do último usado, mesmo com dias alterados', () => {
+  assert.equal(nextFollowupDay([1, 3, 7, 14], []), 1)
+  assert.equal(nextFollowupDay([1, 3, 7, 14], [1]), 3)
+  assert.equal(nextFollowupDay([2, 5, 10], [1, 3]), 5)
+  assert.equal(nextFollowupDay([1, 3, 7, 14], [1, 3, 7, 14]), undefined)
+  assert.equal(nextFollowupDay([2, 5], [7]), undefined)
+})
+
+test('etapa do funil é reconhecida pelo nome do dia', () => {
+  assert.ok(followupStageName(1).test('follow-up 24h'))
+  assert.ok(followupStageName(3).test('fup 03 dias'))
+  assert.ok(followupStageName(5).test('follow-up 5 dias'))
+  assert.ok(!followupStageName(5).test('follow-up 15 dias'))
+  assert.ok(!followupStageName(1).test('follow-up 14 dias'))
 })
 
 test('remove emojis simples, compostos, bandeiras e números em emoji preservando o texto', () => {

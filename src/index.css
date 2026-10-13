@@ -2,24 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Configurações do CRM: hierarquia e estados próprios, sobre o tema do app. */
+/* Configurações do CRM: hierarquia e estados próprios, sobre o tema do app.
+   Regra da tela: o que se digita tem fundo próprio (mais claro que o cartão no
+   escuro, branco com borda firme no claro) e o que se escolhe fica preenchido
+   com o acento quando está selecionado. */
 .crm-settings-ui {
   --crm-accent: #34d399;
-  --crm-accent-soft: rgba(52, 211, 153, 0.08);
-  --crm-accent-border: rgba(52, 211, 153, 0.24);
+  --crm-accent-ink: #052e22;           /* texto sobre o acento cheio */
+  --crm-accent-soft: rgba(52, 211, 153, 0.10);
+  --crm-accent-border: rgba(52, 211, 153, 0.35);
+  --crm-field-bg: #22304a;
+  --crm-field-hover: #283857;
+  --crm-field-border: rgba(226, 232, 240, 0.20);
+  --crm-field-border-hover: rgba(226, 232, 240, 0.38);
+  --crm-panel: #121c2e;                /* bloco dentro de um cartão */
+  --crm-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px -16px rgba(0, 0, 0, 0.6);
+  --sm-field-bg: var(--crm-field-bg);
+  --sm-field-border: var(--crm-field-border);
   color: var(--sm-text-1);
 }
 [data-theme='light'] .crm-settings-ui {
   --crm-accent: #047857;
-  --crm-accent-soft: rgba(4, 120, 87, 0.06);
-  --crm-accent-border: rgba(4, 120, 87, 0.22);
+  --crm-accent-ink: #ffffff;
+  --crm-accent-soft: rgba(4, 120, 87, 0.07);
+  --crm-accent-border: rgba(4, 120, 87, 0.30);
+  --crm-field-bg: #ffffff;
+  --crm-field-hover: #ffffff;
+  --crm-field-border: #b8c4d3;
+  --crm-field-border-hover: #64748b;
+  --crm-panel: #f4f7fa;
+  --crm-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px -18px rgba(15, 23, 42, 0.25);
 }
+
+/* Campos: valem para todas as abas das configurações, inclusive selects com estilo inline */
+.crm-settings-ui :is(select, textarea, input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file'])) {
+  background-color: var(--crm-field-bg) !important;
+  border-color: var(--crm-field-border) !important;
+  color: var(--sm-text-1) !important;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+.crm-settings-ui :is(select, textarea, input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file'])):not(:disabled):hover {
+  background-color: var(--crm-field-hover) !important;
+  border-color: var(--crm-field-border-hover) !important;
+}
+.crm-settings-ui :is(select, textarea, input):focus {
+  border-color: var(--crm-accent) !important;
+  box-shadow: 0 0 0 3px var(--crm-accent-soft);
+}
+.crm-settings-ui :is(textarea, input)::placeholder { color: var(--sm-text-3); opacity: 0.8; }
+.crm-settings-ui :is(textarea, input)[readonly] { background-color: var(--crm-panel) !important; }
+.crm-settings-ui select { cursor: pointer; }
+
 .crm-setup-section {
   scroll-margin-top: 24px;
   padding: 24px;
   border: 1px solid var(--sm-border);
   border-radius: 16px;
   background: var(--sm-bg-card);
+  box-shadow: var(--crm-shadow);
 }
 .crm-setup-heading { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
 .crm-setup-number {
@@ -28,22 +68,141 @@
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--crm-accent-border);
-  border-radius: 8px;
-  color: var(--crm-accent);
-  background: var(--crm-accent-soft);
+  border-radius: 999px;
+  color: var(--crm-accent-ink);
+  background: var(--crm-accent);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+.crm-panel {
+  border: 1px solid var(--sm-border);
+  border-radius: 12px;
+  background: var(--crm-panel);
+}
 .crm-settings-note {
-  border-left: 2px solid var(--crm-accent);
+  border-left: 3px solid var(--crm-accent);
+  border-radius: 0 8px 8px 0;
   background: var(--crm-accent-soft);
   padding: 12px 16px;
   color: var(--sm-text-2);
   font-size: 12px;
   line-height: 1.65;
 }
+.crm-field-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--sm-text-1); }
+.crm-field-hint { font-size: 12px; line-height: 1.6; margin-top: 6px; color: var(--sm-text-2); }
+
+/* Opções clicáveis (dias, tom, tamanho, contato): borda visível e, quando
+   escolhidas, preenchidas com o acento. Valem para aria-pressed, aria-checked
+   e aria-selected. */
+.crm-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--crm-field-border);
+  border-radius: 10px;
+  background: var(--crm-field-bg);
+  color: var(--sm-text-1);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+.crm-choice:hover:not(:disabled) { border-color: var(--crm-accent); background: var(--crm-field-hover); }
+.crm-choice:active:not(:disabled) { transform: scale(0.98); }
+.crm-choice:disabled { opacity: 0.45; cursor: not-allowed; }
+.crm-choice:is([aria-pressed='true'], [aria-checked='true'], [aria-selected='true']),
+.crm-choice:is([aria-pressed='true'], [aria-checked='true'], [aria-selected='true']):hover:not(:disabled) {
+  border-color: var(--crm-accent);
+  background: var(--crm-accent);
+  color: var(--crm-accent-ink);
+  font-weight: 600;
+}
+.crm-choice-sub { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; }
+
+/* Blocos que abrem e fecham: parecem um botão, com seta que gira */
+.crm-disclosure { border: 1px solid var(--sm-border); border-radius: 12px; background: var(--crm-panel); }
+.crm-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sm-text-1);
+  cursor: pointer;
+  list-style: none;
+  border-radius: 12px;
+}
+.crm-disclosure > summary::-webkit-details-marker { display: none; }
+.crm-disclosure > summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-right: 2px solid var(--sm-text-2);
+  border-bottom: 2px solid var(--sm-text-2);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 160ms ease;
+}
+.crm-disclosure[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+.crm-disclosure > summary:hover { background: var(--crm-accent-soft); }
+.crm-disclosure-body { padding: 4px 14px 16px; }
+
+/* Chave liga/desliga no lugar do checkbox */
+.crm-switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--sm-text-4);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.crm-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 160ms ease;
+}
+.crm-switch:checked { background: var(--crm-accent); }
+.crm-switch:checked::after { transform: translateX(18px); }
+.crm-switch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Barra de salvar que acompanha a rolagem enquanto há alterações */
+.crm-save-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--sm-border);
+  border-radius: 14px;
+  background: var(--sm-bg-card);
+  box-shadow: var(--crm-shadow);
+}
+.crm-save-bar[data-dirty='true'] { border-color: var(--crm-accent); box-shadow: 0 0 0 3px var(--crm-accent-soft), var(--crm-shadow); }
+
 .crm-settings-nav-button {
   display: flex;
   align-items: center;
@@ -51,17 +210,20 @@
   width: 100%;
   padding: 12px;
   text-align: left;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  border: 1px solid var(--sm-border);
+  border-radius: 12px;
+  background: var(--sm-bg-card);
   color: var(--sm-text-2);
   transition: background 160ms ease, border-color 160ms ease;
 }
-.crm-settings-nav-button:hover { background: var(--sm-bg-alt); }
+.crm-settings-nav-button:hover { border-color: var(--crm-accent-border); color: var(--sm-text-1); }
 .crm-settings-nav-button[aria-selected='true'] {
   background: var(--crm-accent-soft);
-  border-color: var(--crm-accent-border);
+  border-color: var(--crm-accent);
+  box-shadow: inset 3px 0 0 var(--crm-accent);
   color: var(--sm-text-1);
 }
+.crm-settings-nav-button[aria-selected='true'] svg { color: var(--crm-accent); }
 .crm-settings-ui :is(button, a, select, input, textarea, summary):focus-visible {
   outline: 2px solid var(--crm-accent);
   outline-offset: 3px;
@@ -74,11 +236,12 @@
 .crm-settings-panel:not([hidden]) { animation: crm-settings-reveal 220ms ease-out; }
 @media (prefers-reduced-motion: reduce) {
   .crm-settings-panel:not([hidden]) { animation: none; }
-  .crm-settings-nav-button { transition: none; }
+  .crm-settings-nav-button, .crm-choice, .crm-switch, .crm-switch::after, .crm-disclosure > summary::after { transition: none; }
 }
 @media (max-width: 640px) {
-  .crm-setup-section { padding: 18px 14px; }
-  .crm-settings-ui textarea { font-size: 16px; }
+  .crm-setup-section { padding: 18px 14px; border-radius: 14px; }
+  .crm-settings-ui :is(textarea, input, select) { font-size: 16px !important; }
+  .crm-save-bar { bottom: 8px; }
 }
 
 /* ── StatusMedia Design System ──────────────────────────────────────────────── */

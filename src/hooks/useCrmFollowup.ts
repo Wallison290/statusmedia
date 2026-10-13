@@ -1,36 +1,25 @@
 // ── Hook: follow-up automático do CRM ────────────────────────────────────────
 // Briefings do que a agência vende (`crm_offers`) e a conversa de WhatsApp de
 // cada lead (`crm_messages`, só leitura: quem grava é o servidor).
-// A regra do follow-up mora na função crm-followup (migration 080).
+// A regra do follow-up mora na função crm-followup (migrations 080 e 100).
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from './useAuth'
+import { useCrmSettings } from './useCrmSettings'
 import type { CrmMessage, CrmOffer } from '@/types'
+import { followupStageName, normalizeFollowupDays } from '../../supabase/functions/_shared/followup-style'
 
-export const FOLLOWUP_STEPS = [1, 3, 7, 14] as const
-
-/** O que cada degrau entrega, igual ao que a função pede para a IA. */
-export const FOLLOWUP_STEP_GOAL: Record<number, string> = {
-  1:  'Retoma o objetivo do lead com as palavras dele',
-  3:  'Um caso de cliente parecido que teve resultado',
-  7:  'Uma dica útil que ele aplica mesmo sem comprar',
-  14: 'Encerramento leve, com a porta aberta',
-}
-
-const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
-// Mesmo reconhecimento pelo nome da função crm-followup
-const STEP_NAME: Record<number, RegExp> = {
-  1:  /(^|\D)(24\s*h|24\s*horas|0?1\s*dia)(\D|$)/,
-  3:  /(^|\D)0?3\s*dias?(\D|$)/,
-  7:  /(^|\D)0?7\s*dias?(\D|$)/,
-  14: /(^|\D)14\s*dias?(\D|$)/,
+/** Dias da sequência da agência (padrão 1, 3, 7 e 14), já em ordem e validados. */
+export function useFollowupDays() {
+  const { data: settings } = useCrmSettings()
+  return normalizeFollowupDays(settings?.followup_steps)
 }
 
 /** Etapa que o degrau usa quando a agência não escolheu nenhuma. */
 export function autoFollowupColumn<T extends { id: string; name: string; stage_type: string }>(step: number, columns: T[]) {
-  return columns.find(c => c.stage_type === 'normal' && STEP_NAME[step].test(plain(c.name))) ?? null
+  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  return columns.find(c => c.stage_type === 'normal' && followupStageName(step).test(plain(c.name))) ?? null
 }
 
 export function useCrmOffers() {

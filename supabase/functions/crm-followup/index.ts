@@ -7,16 +7,17 @@
 //   1. A última mensagem REAL da conversa precisa ser da agência. Se o lead
 //      falou por último, quem deve resposta é a agência: nada sai.
 //      Follow-up automático não conta como mensagem real.
-//   2. Degraus de 1, 3, 7 e 14 dias de silêncio, cada um usado uma vez só por
-//      lead. O próximo degrau é o menor que ainda não foi usado, e sai quando o
-//      silêncio chega nele. Ex.: o de 1 dia já foi, o lead respondeu e sumiu de
-//      novo: espera completar 3 dias.
+//   2. Degraus de silêncio escolhidos pela agência (crm_settings.followup_steps,
+//      padrão 1, 3, 7 e 14 dias), cada um usado uma vez só por lead. O próximo
+//      degrau é o primeiro depois do último já usado, e sai quando o silêncio
+//      chega nele. Ex.: o de 1 dia já foi, o lead respondeu e sumiu de novo:
+//      espera completar 3 dias. Mudar os dias não recomeça a sequência.
 //   3. Dois degraus seguidos no mesmo silêncio respeitam a distância entre eles
 //      (do de 1 para o de 3 dias, 2 dias). Lead parado há um mês não recebe
 //      os quatro de uma vez.
 //   4. A IA escreve a mensagem na hora com o briefing do que está sendo vendido,
 //      o papel do degrau (guia de cadência) e a conversa real com o lead.
-//   5. Depois do de 14 dias, o lead vai para a etapa de perdido.
+//   5. Depois do último degrau, o lead vai para a etapa de perdido.
 //
 // Cada mensagem consome 1 da cota "mensagens com IA" do plano (migration 093).
 // Auth: mesmo esquema do whatsapp-health (X-Cron-Secret do Vault ou service role).
@@ -27,7 +28,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
 import { agencySender, sendVia, phoneKey } from '../_shared/whatsapp.ts'
 import { consumeAi, agencyLimit } from '../_shared/plans.ts'
-import { buildFollowupPrompt, cleanFollowupMessage, type FollowupPromptArgs } from '../_shared/followup-style.ts'
+import {
+  buildFollowupPrompt, cleanFollowupMessage, followupDayLabel, followupStageName, nextFollowupDay,
+  normalizeFollowupDays, type FollowupPromptArgs,
+} from '../_shared/followup-style.ts'
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -35,7 +39,6 @@ const CRON_SECRET      = Deno.env.get('CRON_SECRET') ?? ''
 const REFRESH_SECRET   = Deno.env.get('TOKEN_REFRESH_SECRET') ?? ''
 const OPENAI_API_KEY   = Deno.env.get('OPENAI_API_KEY') ?? ''
 
-const STEPS = [1, 3, 7, 14]
 const DAY = 86_400_000
 
 // Fila: a varredura roda a cada minuto e manda UMA mensagem por agência.
@@ -56,15 +59,6 @@ const LOST_AFTER_DAYS = 7
 /** Remove acento e caixa para comparar nomes de etapa. */
 const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-// Como reconhecer pelo nome a etapa de cada degrau: "Follow-up 24h",
-// "Follow-Up 03 dias", "FUP 7 dias"...
-const STEP_NAME: Record<number, RegExp> = {
-  1:  /(^|\D)(24\s*h|24\s*horas|0?1\s*dia)(\D|$)/,
-  3:  /(^|\D)0?3\s*dias?(\D|$)/,
-  7:  /(^|\D)0?7\s*dias?(\D|$)/,
-  14: /(^|\D)14\s*dias?(\D|$)/,
-}
-
 // Etapas comuns ("normal") que na prática encerram a conversa (descarte ou
 // negócio fechado): sem follow-up
 const NO_FOLLOWUP_NAME = /sem\s*interesse|desisti|descartad|perdid|nao\s*qualificad|desqualificad|contrato\s*assinad|fechad|ganh/
@@ -74,7 +68,8 @@ function followupColumn(step: number, columns: any[], chosen: Record<string, str
   const pick = chosen?.[String(step)]
   if (pick === 'none') return null
   if (pick) return columns.find(c => c.id === pick) ?? null
-  return columns.find(c => c.stage_type === 'normal' && STEP_NAME[step].test(plain(c.name))) ?? null
+  // Pelo nome: "Follow-up 24h", "Follow-Up 03 dias", "FUP 7 dias"...
+  return columns.find(c => c.stage_type === 'normal' && followupStageName(step).test(plain(c.name))) ?? null
 }
 
 const json = (body: unknown, status = 200) =>
@@ -128,6 +123,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   if (settingsError) throw settingsError
   if (!offers?.length) return { ...report, note: 'sem briefing' }
 
+  const steps = normalizeFollowupDays(settings?.followup_steps)
   const stage = new Map((columns ?? []).map((c: any) => [c.id, c.stage_type]))
   // Contrato assinado é negócio fechado, mesmo que o card tenha ficado em outra etapa
   const closedLeads = new Set((signed ?? []).map((k: any) => k.lead_id))
@@ -157,10 +153,10 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     if (st === 'ganho' || st === 'perdido' || NO_FOLLOWUP_NAME.test(colName) || closedLeads.has(lead.id) || !phoneKey(lead.whatsapp)) continue
 
     const done: number[] = lead.followup_done ?? []
-    const next = STEPS.find(d => !done.includes(d))
-    const lastStep = STEPS[STEPS.length - 1]
+    const next = nextFollowupDay(steps, done)
+    const lastStep = steps[steps.length - 1]
     // Cadência inteira usada: só falta ver se o lead do último degrau vai para perdido
-    if (!next && !(done.includes(lastStep) && stepColumn(lastStep) && lostColumn)) continue
+    if (!next && !(done.length && stepColumn(lastStep) && lostColumn)) continue
 
     const { data: conv, error: conversationError } = await sb.from('crm_messages').select('direction, text, source, sent_at')
       .eq('user_id', userId).eq('lead_id', lead.id).order('sent_at', { ascending: false }).limit(100)
@@ -168,7 +164,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     const lastReal = (conv ?? []).find((m: any) => m.source !== 'followup')
 
     if (!next) {
-      // Recebeu o de 14 dias, ficou na etapa dele e seguiu sem responder por
+      // Recebeu o último degrau, ficou na etapa dele e seguiu sem responder por
       // mais LOST_AFTER_DAYS: a cadência acabou, vai para perdido
       const lastFollowAt = lead.followup_last_at ? new Date(lead.followup_last_at).getTime() : 0
       const silentSince = lastReal ? new Date(lastReal.sent_at).getTime() : 0
@@ -218,7 +214,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
 
     let text = ''
     try {
-      text = await writeMessage(ai, { agency, lead, offer, step: next, conversation: conv ?? [], style: settings?.followup_style })
+      text = await writeMessage(ai, { agency, lead, offer, step: next, days: steps, conversation: conv ?? [], style: settings?.followup_style })
     } catch (err) {
       console.error('crm-followup: IA', err)
     }
@@ -235,7 +231,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
       break   // provavelmente desconectou: tenta de novo na próxima varredura
     }
 
-    const label = `Follow-up de ${next} dia${next > 1 ? 's' : ''}`
+    const label = `Follow-up de ${followupDayLabel(next)}`
     await sb.from('crm_messages').insert({
       user_id: userId, lead_id: lead.id, direction: 'out', text, source: 'followup',
       followup_step: next, wa_id: sent.id ?? null,

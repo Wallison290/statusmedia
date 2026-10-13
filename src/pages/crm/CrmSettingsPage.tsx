@@ -22,11 +22,11 @@ import { supabaseUrl } from '@/integrations/supabase/client'
 import type { CrmMessageTemplate } from '@/types'
 
 const selectClass =
-  'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
+  'flex h-10 w-full min-w-0 max-w-full rounded-lg border px-3 text-[13px] focus:outline-none'
 
 function Section({ icon: Icon, title, hint, children }: { icon: React.ElementType; title: string; hint: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border p-4 sm:p-6 space-y-4" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+    <section className="crm-setup-section space-y-4">
       <div>
         <h3 className="flex items-center gap-2 font-display text-[18px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
           <Icon className="w-4 h-4" style={{ color: 'var(--crm-accent)' }} /> {title}
@@ -39,7 +39,7 @@ function Section({ icon: Icon, title, hint, children }: { icon: React.ElementTyp
 }
 
 function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor: string }) {
-  return <label htmlFor={htmlFor} className="block text-[13px] font-medium mb-2" style={{ color: 'var(--sm-text-2)' }}>{children}</label>
+  return <label htmlFor={htmlFor} className="crm-field-label">{children}</label>
 }
 
 const SETTINGS_AREAS = [
@@ -122,9 +122,9 @@ export function CrmSettingsPage() {
                   event.preventDefault()
                   setArea(SETTINGS_AREAS[next].key)
                   document.getElementById(id + '-tab-' + SETTINGS_AREAS[next].key)?.focus()
-                }}><Icon className="w-4 h-4 shrink-0" aria-hidden="true" /><span className="min-w-0"><span className="block text-[13px] font-semibold">{title}</span><span className="hidden sm:block text-[11px] leading-relaxed mt-0.5" style={{ color: 'var(--sm-text-2)' }}>{hint}</span></span></button>)}
+                }}><Icon className="w-4 h-4 shrink-0" aria-hidden="true" /><span className="min-w-0"><span className="block text-[13px] font-semibold">{title}</span><span className="hidden sm:block text-[11.5px] leading-relaxed mt-0.5" style={{ color: 'var(--sm-text-2)' }}>{hint}</span></span></button>)}
               </nav>
-              <div className="hidden lg:block rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--sm-border)' }}><p className="text-[12px] font-semibold">Primeira configuração?</p><p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Conecte o WhatsApp, cadastre seu serviço e ajuste as mensagens. Depois, ative os envios.</p><button type="button" className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--crm-accent)' }} onClick={() => setArea('whatsapp')}>Conectar meu WhatsApp <ArrowRight className="w-3.5 h-3.5" /></button></div>
+              <div className="hidden lg:block crm-panel p-4 space-y-3"><p className="text-[12px] font-semibold">Primeira configuração?</p><p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Conecte o WhatsApp, cadastre seu serviço e ajuste as mensagens. Depois, ative os envios.</p><button type="button" className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--crm-accent)' }} onClick={() => setArea('whatsapp')}>Conectar meu WhatsApp <ArrowRight className="w-3.5 h-3.5" /></button></div>
             </aside>
             <div className="min-w-0">
               <div id={id + '-panel-followup'} role="tabpanel" aria-labelledby={id + '-tab-followup'} hidden={area !== 'followup'} tabIndex={0} className="crm-settings-panel space-y-5 min-w-0"><CrmFollowupSettings /></div>
@@ -135,8 +135,8 @@ export function CrmSettingsPage() {
         {/* Lembrete */}
         <Section icon={Bell} title="Lembrete diário para você"
                  hint="Todo dia às 8h, você recebe a lista de clientes com retorno marcado para hoje ou atrasado. Esse aviso é para você, não para o cliente.">
-          <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
-            <input type="checkbox" checked={settings.daily_digest}
+          <label className="crm-panel flex items-center gap-3 p-3 text-[13px] font-medium cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
+            <input type="checkbox" className="crm-switch" checked={settings.daily_digest}
                    onChange={e => patch({ daily_digest: e.target.checked }, e.target.checked ? 'Lembrete ligado' : 'Lembrete desligado')} />
             Receber o lembrete dos retornos do dia
           </label>
@@ -149,15 +149,15 @@ export function CrmSettingsPage() {
                  hint="Textos para você revisar e enviar pelo botão WhatsApp da ficha do lead. Não são enviados automaticamente. Use {nome}, {primeiro_nome}, {empresa} e {agencia} para preencher os dados do cliente.">
           <div className="space-y-2">
             {templates.map((t, i) => (
-              <div key={i} className="rounded-xl border p-2.5 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+              <div key={i} className="crm-panel p-3 space-y-2">
                 <div className="flex gap-2">
-                  <Input aria-label={`Nome da mensagem ${i + 1}`} value={t.title} placeholder="Nome da mensagem" className="h-8 text-[12.5px]"
+                  <Input aria-label={`Nome da mensagem ${i + 1}`} value={t.title} placeholder="Nome da mensagem" className="h-9 text-[13px] font-medium"
                          onChange={e => setTemplates(ts => ts.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
                   <Button size="icon-sm" variant="ghost" aria-label={`Remover mensagem ${i + 1}`} onClick={() => setTemplates(ts => ts.filter((_, j) => j !== i))}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
-                <Textarea aria-label={`Texto da mensagem ${i + 1}`} rows={2} value={t.text} className="text-[12.5px]"
+                <Textarea aria-label={`Texto da mensagem ${i + 1}`} rows={3} value={t.text} className="text-[13px]"
                           onChange={e => setTemplates(ts => ts.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
               </div>
             ))}
@@ -192,8 +192,8 @@ export function CrmSettingsPage() {
         {/* Captura */}
         <Section icon={Magnet} title="Formulário de captura"
                  hint="Um link para a bio do Instagram, o site ou um anúncio. Quem preenche entra direto no funil, sem duplicar quem já é lead, e você é avisado na hora.">
-          <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
-            <input type="checkbox" checked={settings.capture_enabled}
+          <label className="crm-panel flex items-center gap-3 p-3 text-[13px] font-medium cursor-pointer" style={{ color: 'var(--sm-text-1)' }}>
+            <input type="checkbox" className="crm-switch" checked={settings.capture_enabled}
                    onChange={e => patch({ capture_enabled: e.target.checked }, e.target.checked ? 'Formulário no ar' : 'Formulário fora do ar')} />
             Formulário ativo
           </label>
@@ -248,9 +248,10 @@ export function CrmSettingsPage() {
                 })}>Salvar formulário</Button>
               </div>
 
-              <details className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
-                <summary className="cursor-pointer">Receber leads de anúncios do Meta, n8n, Make ou Zapier</summary>
-                <p className="mt-2 mb-1">
+              <details className="crm-disclosure text-[12px]" style={{ color: 'var(--sm-text-2)' }}>
+                <summary>Receber leads de anúncios do Meta, n8n, Make ou Zapier</summary>
+                <div className="crm-disclosure-body">
+                <p className="mb-2 leading-relaxed">
                   Configure a ferramenta para enviar cada lead (POST, em JSON ou formulário) para este endereço. Campos reconhecidos:
                   nome, whatsapp/telefone, email, empresa, origem e mensagem, inclusive no formato do Lead Ads do Meta.
                   Mesmo número não vira card duplicado.
@@ -261,16 +262,19 @@ export function CrmSettingsPage() {
                     <Copy className="w-3 h-3" />
                   </Button>
                 </div>
+                </div>
               </details>
 
-              <details className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
-                <summary className="cursor-pointer">Colocar o formulário dentro do seu site</summary>
-                <p className="mt-2 mb-1">Cole este código na página do site:</p>
+              <details className="crm-disclosure text-[12px]" style={{ color: 'var(--sm-text-2)' }}>
+                <summary>Colocar o formulário dentro do seu site</summary>
+                <div className="crm-disclosure-body">
+                <p className="mb-2">Cole este código na página do site:</p>
                 <div className="flex gap-2">
                   <Textarea aria-label="Código para incorporar formulário" readOnly rows={3} value={embed} className="text-[11px] font-mono" onFocus={e => e.target.select()} />
                   <Button aria-label="Copiar código do formulário" size="sm" variant="outline" onClick={async () => toast((await copyText(embed)) ? 'Código copiado' : 'Não consegui copiar', 'success')}>
                     <Copy className="w-3 h-3" />
                   </Button>
+                </div>
                 </div>
               </details>
             </>
@@ -316,8 +320,7 @@ export function CrmSettingsPage() {
             {CRM_CONTRACT_VARIABLES.map(v => (
               <button key={v.key} type="button" title={v.label}
                       onClick={async () => toast((await copyText(v.key)) ? `${v.key} copiado` : 'Não consegui copiar', 'success')}
-                      className="text-[11px] font-mono px-1.5 py-0.5 rounded-md border"
-                      style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+                      className="crm-choice !min-h-0 !px-2 !py-1 !text-[11.5px] font-mono">
                 {v.key}
               </button>
             ))}

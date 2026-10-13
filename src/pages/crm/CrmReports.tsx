@@ -20,7 +20,7 @@ import { CrmHeader } from '@/components/crm/CrmHeader'
 import type { CrmLead } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
 import { netValue } from '@/utils/crm'
-import { useFollowupMessages, FOLLOWUP_STEPS } from '@/hooks/useCrmFollowup'
+import { useFollowupMessages, useFollowupDays } from '@/hooks/useCrmFollowup'
 
 type Period = 'mes' | 'mes_passado' | '90d' | 'ano'
 
@@ -140,6 +140,7 @@ export function CrmReports() {
   }, [])
   const { data: moves = [] } = useCrmStageMoves(since)
   const { data: fupMsgs = [] } = useFollowupMessages(since)
+  const followupDays = useFollowupDays()
   const updateColumn = useUpdateCrmColumn()
 
   // Pós-venda: clientes fechados com renovação nos próximos 60 dias, e os sem data
@@ -201,13 +202,15 @@ export function CrmReports() {
       if (!byLead.has(m.lead_id)) byLead.set(m.lead_id, [])
       byLead.get(m.lead_id)!.push(m)
     }
-    const steps = new Map<number, { sent: number; replied: number }>(FOLLOWUP_STEPS.map(s => [s, { sent: 0, replied: 0 }]))
+    // Dias atuais da sequência e também os que já tiveram envios antes de uma mudança
+    const steps = new Map<number, { sent: number; replied: number }>(followupDays.map(s => [s, { sent: 0, replied: 0 }]))
     for (const list of byLead.values()) {
       list.forEach((m, i) => {
         if (m.source !== 'followup' || !m.followup_step) return
         const t = new Date(m.sent_at).getTime()
         if (t < from || t > to) return
-        const e = steps.get(m.followup_step); if (!e) return
+        if (!steps.has(m.followup_step)) steps.set(m.followup_step, { sent: 0, replied: 0 })
+        const e = steps.get(m.followup_step)!
         e.sent++
         // Respondeu: mensagem do lead depois deste follow-up e antes do próximo (até 7 dias)
         for (const n of list.slice(i + 1)) {
@@ -222,7 +225,7 @@ export function CrmReports() {
       && new Date(l.closed_at).getTime() >= from && new Date(l.closed_at).getTime() <= to
       && (byLead.get(l.id) ?? []).some(m => m.source === 'followup' && m.sent_at < l.closed_at!))
     return {
-      rows: FOLLOWUP_STEPS.map(s => {
+      rows: [...steps.keys()].sort((a, b) => a - b).map(s => {
         const e = steps.get(s)!
         return { label: `${s} dia${s > 1 ? 's' : ''}`, value: e.sent ? Math.round((e.replied / e.sent) * 100) : 0, note: `${e.replied} de ${e.sent}` }
       }),
@@ -230,7 +233,7 @@ export function CrmReports() {
       wonCount: won.length,
       wonValue: won.reduce((a, l) => a + (l.estimated_value ?? 0), 0),
     }
-  }, [fupMsgs, leads, columns, r[0].getTime(), r[1].getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fupMsgs, leads, columns, followupDays.join(), r[0].getTime(), r[1].getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [editGoal, setEditGoal] = useState(false)
   const [goalValue, setGoalValue] = useState('')

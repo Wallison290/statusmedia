@@ -8,7 +8,8 @@ import { Loader2, Pause, Play, Bot } from 'lucide-react'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useUpdateCrmLead } from '@/hooks/useCrm'
 import { useToast } from '@/components/ui/toast'
-import { useCrmMessages, useCrmOffers, FOLLOWUP_STEPS } from '@/hooks/useCrmFollowup'
+import { useCrmMessages, useCrmOffers, useFollowupDays } from '@/hooks/useCrmFollowup'
+import { nextFollowupDay } from '../../../supabase/functions/_shared/followup-style'
 import type { CrmLead } from '@/types'
 
 const fmt = (iso: string) =>
@@ -60,6 +61,7 @@ export function CrmLeadFollowup({ lead }: { lead: CrmLead }) {
   const { toast } = useToast()
   const { data: settings } = useCrmSettings()
   const { data: offers = [] } = useCrmOffers()
+  const days = useFollowupDays()
   const updateLead = useUpdateCrmLead()
 
   // Pediu para parar: aviso fixo, com a opção de desfazer se foi engano
@@ -86,7 +88,8 @@ export function CrmLeadFollowup({ lead }: { lead: CrmLead }) {
   if (!settings?.followup_enabled || !lead.whatsapp) return null
 
   const done = lead.followup_done ?? []
-  const next = FOLLOWUP_STEPS.find(d => !done.includes(d))
+  const next = nextFollowupDay(days, done)
+  const lastDone = Math.max(0, ...done)
   const paused = !!lead.followup_paused
 
   function patch(u: Partial<CrmLead>, ok: string) {
@@ -107,8 +110,9 @@ export function CrmLeadFollowup({ lead }: { lead: CrmLead }) {
         </button>
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
-        {FOLLOWUP_STEPS.map(d => {
-          const used = done.includes(d)
+        {days.map(d => {
+          // Dia que ficou para trás (já usado ou incluído depois do último envio)
+          const used = d <= lastDone
           const isNext = d === next && !paused
           return (
             <span key={d} className="text-[11px] px-1.5 py-0.5 rounded-md border"

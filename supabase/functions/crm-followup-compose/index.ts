@@ -4,7 +4,7 @@ import OpenAI from 'npm:openai@4.73.0'
 import { consumeAi, aiDeniedMessage } from '../_shared/plans.ts'
 import {
   buildFollowupPrompt, cleanFollowupMessage, normalizeFollowupStyle,
-  FOLLOWUP_STYLE_STEPS, type FollowupPromptArgs,
+  normalizeFollowupDays, type FollowupPromptArgs,
 } from '../_shared/followup-style.ts'
 
 const CORS = {
@@ -38,7 +38,9 @@ Deno.serve(async req => {
     if (!body || !['suggest', 'preview'].includes(body.action) || !uuid(body.agencyId) || !uuid(body.offerId)) {
       return json({ error: 'Escolha um serviço cadastrado.' }, 400)
     }
-    if (body.action === 'preview' && (!uuid(body.leadId) || !FOLLOWUP_STYLE_STEPS.includes(body.step))) {
+    // Os dias vêm da tela: a prévia vale para a sequência que a agência está editando
+    const days = normalizeFollowupDays(body.days)
+    if (body.action === 'preview' && (!uuid(body.leadId) || !days.includes(body.step))) {
       return json({ error: 'Escolha um lead e um contato válido.' }, 400)
     }
     const { data: offer, error: offerError } = await client.from('crm_offers').select('*')
@@ -85,7 +87,7 @@ Deno.serve(async req => {
     const style = normalizeFollowupStyle(body.style)
     const ai = new OpenAI({ apiKey, timeout: 45_000, maxRetries: 0 })
     if (body.action === 'preview') {
-      const prompt = buildFollowupPrompt({ agency, lead, offer, conversation, step: body.step, style })
+      const prompt = buildFollowupPrompt({ agency, lead, offer, conversation, step: body.step, days, style })
       const response = await ai.chat.completions.create({
         model: 'gpt-4o-mini', temperature: 0.6, max_tokens: prompt.maxTokens,
         messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }],
@@ -96,18 +98,19 @@ Deno.serve(async req => {
       return json({ message, usage: quota, warning: lastReal?.direction === 'in'
         ? 'O lead falou por último. Esta é uma simulação; o follow-up automático aguarda sua resposta ao lead.' : null })
     }
-    const prompts = FOLLOWUP_STYLE_STEPS.map(step => ({
-      step, ...buildFollowupPrompt({ agency, lead: {}, offer, conversation: [], step, style }),
+    const prompts = days.map(step => ({
+      step, ...buildFollowupPrompt({ agency, lead: {}, offer, conversation: [], step, days, style }),
     }))
+    const format = JSON.stringify({ messages: Object.fromEntries(days.map(step => [String(step), 'texto'])) })
     const response = await ai.chat.completions.create({
-      model: 'gpt-4o-mini', temperature: 0.6, max_tokens: 1800,
+      model: 'gpt-4o-mini', temperature: 0.6, max_tokens: 450 * days.length,
       response_format: { type: 'json_object' },
       messages: [{ role: 'system', content:
-        'Crie quatro sugestões de mensagens de referência para o serviço descrito nos prompts. Siga as regras de escrita de cada prompt. Não existe lead concreto: não invente conversa, nome, necessidade ou resultados. Use apenas informações reais do briefing. As mensagens precisam ser diferentes entre si e funcionar como norte adaptável, nunca roteiro fixo. Nunca use emojis ou carinhas. Retorne apenas JSON no formato {"messages":{"1":"texto", "3":"texto", "7":"texto", "14":"texto"}}.' },
+        `Crie ${days.length} sugestões de mensagens de referência para o serviço descrito nos prompts. Siga as regras de escrita de cada prompt. Não existe lead concreto: não invente conversa, nome, necessidade ou resultados. Use apenas informações reais do briefing. As mensagens precisam ser diferentes entre si e funcionar como norte adaptável, nunca roteiro fixo. Nunca use emojis ou carinhas. Retorne apenas JSON no formato ${format}.` },
       { role: 'user', content: JSON.stringify(prompts) }],
     })
     const result = JSON.parse(response.choices[0]?.message?.content ?? '{}')
-    const messages = Object.fromEntries(FOLLOWUP_STYLE_STEPS.map(step => {
+    const messages = Object.fromEntries(days.map(step => {
       const value = result?.messages?.[String(step)]
       const message = typeof value === 'string' ? cleanFollowupMessage(value).slice(0, 1000) : ''
       if (!message) throw new Error('empty_generation')

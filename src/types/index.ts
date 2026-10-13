@@ -708,6 +708,7 @@ export interface CrmSettings {
   followup_enabled?:   boolean
   meeting_reminder?:   boolean
   custom_fields?:      CrmCustomField[]
+  followup_steps?:     number[]                // dias de silêncio de cada contato (padrão 1, 3, 7, 14)
   followup_columns?:   Record<string, string>  // degrau -> etapa do funil ("none" = não mover)
   followup_style?:     FollowupStyle | null
   wa_first_contact_label?:      string | null   // id da etiqueta do WhatsApp Business
