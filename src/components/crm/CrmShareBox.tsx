@@ -92,10 +92,10 @@ export function CrmShareBox({ link, lead, message, hint, label }: Props) {
 /** Mensagens padrão de envio, usadas no editor e nas listas. */
 export function proposalMessage(lead: CrmLead | null, agency: string, link: string) {
   const hi = lead ? `Olá, ${lead.name.trim().split(/\s+/)[0]}!` : 'Olá!'
-  return `${hi} Segue a proposta da ${agency}: ${link}\n\nPor ela você vê os detalhes e aprova direto pelo link. Qualquer dúvida, estou por aqui!`
+  return `${hi} Segue a proposta da ${agency}:\n\n${link}\n\nPor ela você vê os detalhes e aprova direto pelo link. Qualquer dúvida, estou por aqui!`
 }
 
 export function contractMessage(lead: CrmLead | null, agency: string, link: string) {
   const hi = lead ? `Olá, ${lead.name.trim().split(/\s+/)[0]}!` : 'Olá!'
-  return `${hi} Segue o contrato da ${agency} para assinatura: ${link}\n\nÉ só abrir, conferir e assinar pelo celular mesmo.`
+  return `${hi} Segue o contrato da ${agency} para assinatura:\n\n${link}\n\nÉ só abrir, conferir e assinar pelo celular mesmo.`
 }
