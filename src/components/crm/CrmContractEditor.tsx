@@ -19,6 +19,7 @@ import { CRM_DEFAULT_CONTRACT } from '@/data/crmTemplates'
 import { CONTRACT_STATUS } from './crmStatus'
 import { SignaturePad } from './SignaturePad'
 import { CrmShareBox, contractMessage } from './CrmShareBox'
+import { CrmDocViews } from './CrmDocViews'
 import { fillContract, contractLink, fmtDateTime, waLink } from '@/utils/crm'
 import type { CrmContract, CrmLead, CrmProposal } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
@@ -213,6 +214,11 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
                 ? 'O cliente já abriu o contrato, mas ainda não assinou. Precisa mandar de novo?'
                 : 'Contrato enviado, aguardando o cliente abrir.'}
           />
+        )}
+
+        {current && (status === 'enviado' || signed) && (
+          <CrmDocViews kind="contrato" docId={current.id} count={current.view_count ?? 0}
+                       firstAt={current.viewed_at} lastAt={current.last_viewed_at} />
         )}
 
         {current && status === 'enviado' && lead?.email && (

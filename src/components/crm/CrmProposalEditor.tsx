@@ -17,6 +17,7 @@ import { useSaveCrmProposal } from '@/hooks/useCrmDocuments'
 import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { PROPOSAL_STATUS } from './crmStatus'
 import { CrmShareBox, proposalMessage } from './CrmShareBox'
+import { CrmDocViews } from './CrmDocViews'
 import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime, waLink } from '@/utils/crm'
 import type { CrmLead, CrmProposal, CrmProposalItem, CrmProposalOption } from '@/types'
 
@@ -282,6 +283,11 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                 ? `O cliente já abriu a proposta ${current.view_count}x. Precisa mandar de novo?`
                 : 'Proposta enviada, aguardando o cliente abrir.'}
           />
+        )}
+
+        {current && current.status !== 'rascunho' && (
+          <CrmDocViews kind="proposta" docId={current.id} count={current.view_count}
+                       firstAt={current.viewed_at} lastAt={current.last_viewed_at} />
         )}
 
         <fieldset disabled={locked} className="space-y-4 disabled:opacity-80">

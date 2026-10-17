@@ -92,7 +92,10 @@ export function CrmLeadDocs({ leadId, onNavigate }: { leadId: string; onNavigate
                   <PenLine className="w-3.5 h-3.5 flex-shrink-0" style={{ color: S.color }} />
                   <button className="min-w-0 flex-1 text-left" onClick={() => go(`/crm/contratos?abrir=${c.id}`)}>
                     <p className="text-[12.5px] truncate" style={{ color: 'var(--sm-text-1)' }}>{c.title}</p>
-                    <p className="text-[10.5px]" style={{ color: S.color }}>{S.label}</p>
+                    <p className="text-[10.5px]" style={{ color: 'var(--sm-text-4)' }}>
+                      <span style={{ color: S.color }}>{S.label}</span>
+                      {(c.view_count ?? 0) > 0 && ` · aberto ${c.view_count}x`}
+                    </p>
                   </button>
                   {lead?.whatsapp && c.status === 'enviado' && (
                     <a href={waLink(lead.whatsapp, contractMessage(lead, agency, contractLink(c.public_token)))} target="_blank" rel="noreferrer"

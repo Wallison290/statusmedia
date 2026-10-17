@@ -641,6 +641,7 @@ export interface CrmProposal {
   sent_at:        string | null
   viewed_at:      string | null
   view_count:     number
+  last_viewed_at?: string | null   // migration 102
   responded_at:   string | null
   responder_name: string | null
   reject_reason:  string | null
@@ -666,6 +667,8 @@ export interface CrmContract {
   agency_signed_at:   string | null
   sent_at:            string | null
   viewed_at:          string | null
+  view_count?:        number          // aberturas pelo cliente (migration 102)
+  last_viewed_at?:    string | null
   email_sent_at?:     string | null   // último e-mail com o link (migration 101)
   email_sent_to?:     string | null
   signer_name:        string | null

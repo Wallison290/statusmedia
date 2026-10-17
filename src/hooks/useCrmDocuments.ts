@@ -107,6 +107,25 @@ export function useSaveCrmContract() {
   })
 }
 
+// ── Aberturas pelo cliente (migration 102) ───────────────────────────────────
+
+export interface CrmDocView { id: number; viewed_at: string; ip: string | null; user_agent: string | null }
+
+export function useCrmDocViews(kind: 'contrato' | 'proposta', docId: string | null | undefined, enabled = true) {
+  return useQuery<CrmDocView[]>({
+    queryKey: ['crm_doc_views', kind, docId],
+    enabled:  !!docId && enabled,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('crm_doc_views')
+        .select('id, viewed_at, ip, user_agent')
+        .eq('doc_kind', kind).eq('doc_id', docId)
+        .order('viewed_at', { ascending: false }).limit(100)
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
 export function useSendContractEmail() {
   const qc = useQueryClient()
 
