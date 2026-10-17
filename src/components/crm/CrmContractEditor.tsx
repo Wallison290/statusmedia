@@ -5,7 +5,7 @@
 // Assinado, fica travado: o banco guarda o hash do texto como prova.
 
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Send, ExternalLink, PenLine, ShieldCheck, Undo2, Wand2, Ban, MessageCircle } from 'lucide-react'
+import { Loader2, Send, ExternalLink, PenLine, ShieldCheck, Undo2, Wand2, Ban, MessageCircle, Mail } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
-import { useSaveCrmContract } from '@/hooks/useCrmDocuments'
+import { useSaveCrmContract, useSendContractEmail } from '@/hooks/useCrmDocuments'
 import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { CRM_DEFAULT_CONTRACT } from '@/data/crmTemplates'
 import { CONTRACT_STATUS } from './crmStatus'
@@ -52,6 +52,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
   const save = useSaveCrmContract()
   const { data: wa } = useAgencyWhatsapp()
   const sendWa = useSendAgencyWhatsapp()
+  const sendEmail = useSendContractEmail()
   const topRef = useRef<HTMLDivElement>(null)
 
   const agency = profile?.agency_name || profile?.full_name || 'Agência'
@@ -126,10 +127,14 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
     if (!saved) return
     const text = contractMessage(lead, agency, contractLink(saved.public_token))
 
+    // E-mail vai junto sempre que o lead tiver um cadastrado
+    const emailed = lead?.email ? await emailContract(saved.id) : null
+    const alsoEmail = emailed ? ` e por e-mail (${emailed})` : ''
+
     if (wa?.status === 'connected' && lead?.whatsapp) {
       try {
         await sendWa.mutateAsync({ lead_id: lead.id, text, label: 'Contrato enviado' })
-        toast(`Contrato enviado para ${lead.name.split(' ')[0]} no WhatsApp`, 'success')
+        toast(`Contrato enviado para ${lead.name.split(' ')[0]} no WhatsApp${alsoEmail}`, 'success')
         onClose()
         return
       } catch (err: any) {
@@ -137,11 +142,25 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
       }
     } else if (lead?.whatsapp) {
       window.open(waLink(lead.whatsapp, text), '_blank', 'noopener')
+      if (emailed) toast(`Contrato enviado por e-mail para ${emailed}`, 'success')
+    } else if (emailed) {
+      toast(`Contrato enviado por e-mail para ${emailed}`, 'success')
     } else {
-      toast('Contrato salvo. O lead está sem WhatsApp: copie o link no topo.', 'warning')
+      toast('Contrato salvo. O lead está sem WhatsApp e sem e-mail: copie o link no topo.', 'warning')
     }
     setShareOpen(true)
     setTimeout(() => topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  async function emailContract(id: string) {
+    try {
+      const r = await sendEmail.mutateAsync(id)
+      setCurrent(c => c && c.id === id ? { ...c, email_sent_at: r.sent_at, email_sent_to: r.to } : c)
+      return r.to
+    } catch (err: any) {
+      toast(`O e-mail não saiu: ${err.message ?? 'erro desconhecido'}`, 'error')
+      return null
+    }
   }
 
   const link = current ? contractLink(current.public_token) : ''
@@ -194,6 +213,24 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
                 ? 'O cliente já abriu o contrato, mas ainda não assinou. Precisa mandar de novo?'
                 : 'Contrato enviado, aguardando o cliente abrir.'}
           />
+        )}
+
+        {current && status === 'enviado' && lead?.email && (
+          <div className="flex items-center justify-between gap-2 flex-wrap text-[12px] -mt-1" style={{ color: 'var(--sm-text-3)' }}>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <Mail className="w-3.5 h-3.5 shrink-0" />
+              {current.email_sent_at
+                ? <>E-mail enviado para {current.email_sent_to} em {fmtDateTime(current.email_sent_at)}</>
+                : <>O link ainda não foi por e-mail para {lead.email}</>}
+            </span>
+            <Button size="sm" variant="ghost" disabled={sendEmail.isPending} onClick={async () => {
+              const to = await emailContract(current.id)
+              if (to) toast(`Contrato enviado por e-mail para ${to}`, 'success')
+            }}>
+              {sendEmail.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+              {current.email_sent_at ? 'Reenviar e-mail' : 'Enviar por e-mail'}
+            </Button>
+          </div>
         )}
 
         <fieldset disabled={signed || status === 'cancelado'} className="space-y-4">
@@ -312,11 +349,15 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
                   {save.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Salvar
                 </Button>
-                <Button onClick={handleSend} disabled={save.isPending || sendWa.isPending} variant={lead?.whatsapp ? 'success' : 'default'}>
-                  {sendWa.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : lead?.whatsapp ? <MessageCircle className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                <Button onClick={handleSend} disabled={save.isPending || sendWa.isPending || sendEmail.isPending} variant={lead?.whatsapp ? 'success' : 'default'}>
+                  {sendWa.isPending || sendEmail.isPending
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : lead?.whatsapp ? <MessageCircle className="w-3.5 h-3.5" /> : lead?.email ? <Mail className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
                   {lead?.whatsapp
-                    ? (status === 'enviado' ? 'Reenviar no WhatsApp' : 'Enviar no WhatsApp do cliente')
-                    : (status === 'enviado' ? 'Salvar e compartilhar' : 'Enviar para assinatura')}
+                    ? (status === 'enviado' ? 'Reenviar no WhatsApp' : lead.email ? 'Enviar no WhatsApp e e-mail' : 'Enviar no WhatsApp do cliente')
+                    : lead?.email
+                      ? (status === 'enviado' ? 'Reenviar por e-mail' : 'Enviar por e-mail')
+                      : (status === 'enviado' ? 'Salvar e compartilhar' : 'Enviar para assinatura')}
                 </Button>
               </>
             )}

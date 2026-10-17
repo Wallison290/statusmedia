@@ -107,6 +107,23 @@ export function useSaveCrmContract() {
   })
 }
 
+export function useSendContractEmail() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    // O link sai do token do banco, pela função: a tela só diz qual contrato
+    mutationFn: async (contractId: string) => {
+      const { data, error } = await supabase.functions.invoke('crm-contract-email', { body: { contract_id: contractId } })
+      if (error) {
+        const ctx = await (error as any).context?.json?.().catch(() => null)
+        throw new Error(ctx?.error ?? error.message)
+      }
+      return data as { ok: true; to: string; sent_at: string }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm_contracts'] }),
+  })
+}
+
 export function useDeleteCrmContract() {
   const qc = useQueryClient()
 

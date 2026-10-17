@@ -666,6 +666,8 @@ export interface CrmContract {
   agency_signed_at:   string | null
   sent_at:            string | null
   viewed_at:          string | null
+  email_sent_at?:     string | null   // último e-mail com o link (migration 101)
+  email_sent_to?:     string | null
   signer_name:        string | null
   signer_document:    string | null
   signer_email:       string | null

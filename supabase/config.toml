@@ -15,6 +15,10 @@ verify_jwt = false
 [functions.crm-followup-compose]
 verify_jwt = true
 
+# Link de assinatura do contrato por e-mail; contrato lido com o RLS de quem chamou.
+[functions.crm-contract-email]
+verify_jwt = true
+
 [auth.email.template.invite]
 subject = "Seu acesso ao StatusMedia"
 content_path = "./supabase/email-templates/convite.html"
