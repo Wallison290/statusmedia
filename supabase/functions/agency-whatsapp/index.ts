@@ -282,10 +282,8 @@ Deno.serve(async (req) => {
         return json({ ok: true, duplicate: true })
       }
 
-      // Com link, a prévia vai ligada: só assim a UazAPI marca o link inteiro
-      // (matchedText). Sem ela o WhatsApp do iPhone quebra o link no meio.
-      const linkPreview = /https?:\/\/\S/i.test(text)
-      const r = await uaz('/send/text', inst.instance_token, { method: 'POST', body: { number: normalize(lead.whatsapp), text, linkPreview } })
+      // linkPreview false: sem o cartão grande com imagem do site junto do link
+      const r = await uaz('/send/text', inst.instance_token, { method: 'POST', body: { number: normalize(lead.whatsapp), text, linkPreview: false } })
       if (!r.ok) {
         if (mine) await sb.from('crm_lead_activities').delete().eq('id', mine.id)
         const st = await uaz('/instance/status', inst.instance_token)

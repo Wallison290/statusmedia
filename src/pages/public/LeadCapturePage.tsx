@@ -7,10 +7,12 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { fetchCaptureForm, submitCaptureForm, type PublicCaptureForm } from '@/hooks/useCrmDocuments'
+import { expandToken } from '@/utils/crm'
 import { PublicShell, PublicLoading, PublicNotFound, INK, MUTED, LINE, inputClass } from './PublicShell'
 
 export function LeadCapturePage() {
-  const { token = '' } = useParams()
+  const { token: raw = '' } = useParams()
+  const token = expandToken(raw)
   const [params] = useSearchParams()
   const [form, setForm] = useState<PublicCaptureForm | null | undefined>(undefined)
   const [f, setF] = useState({ name: '', whatsapp: '', email: '', company: '', instagram: '', message: '', website: '' })

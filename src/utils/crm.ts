@@ -78,9 +78,22 @@ export function publicUrl(path: string) {
   return `${window.location.origin}${path}`
 }
 
-export const proposalLink = (p: Pick<CrmProposal, 'public_token'>) => publicUrl(`/proposta/${p.public_token}`)
-export const contractLink = (token: string) => publicUrl(`/contrato/${token}`)
-export const captureLink  = (token: string) => publicUrl(`/captura/${token}`)
+// O token vai no link sem os tracinhos: o WhatsApp corta o link no primeiro
+// tracinho do UUID e deixa o domínio fora, sem clique. As páginas públicas
+// aceitam os dois formatos (links antigos continuam abrindo).
+const compactToken = (token: string) => token.replace(/-/g, '')
+
+/** Token do link de volta ao formato UUID que o banco espera. */
+export function expandToken(token: string) {
+  const t = token.trim().toLowerCase()
+  return /^[0-9a-f]{32}$/.test(t)
+    ? `${t.slice(0, 8)}-${t.slice(8, 12)}-${t.slice(12, 16)}-${t.slice(16, 20)}-${t.slice(20)}`
+    : t
+}
+
+export const proposalLink = (p: Pick<CrmProposal, 'public_token'>) => publicUrl(`/proposta/${compactToken(p.public_token)}`)
+export const contractLink = (token: string) => publicUrl(`/contrato/${compactToken(token)}`)
+export const captureLink  = (token: string) => publicUrl(`/captura/${compactToken(token)}`)
 
 /** Troca as {{variáveis}} do modelo de contrato pelos dados do lead e da proposta. */
 export function fillContract(

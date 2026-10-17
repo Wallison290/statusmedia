@@ -71,7 +71,8 @@ Deno.serve(async req => {
     ])
     const ag: Agency = { name: agency?.name || 'Agência', logo: agency?.logo ?? null, color: agency?.color ?? null }
     const replyTo = validEmail(profile?.email) ? profile!.email : null
-    const link = `${APP_URL}/contrato/${c.public_token}`
+    // Sem tracinhos, igual ao link do app (o WhatsApp corta o UUID no tracinho)
+    const link = `${APP_URL}/contrato/${String(c.public_token).replace(/-/g, '')}`
     const firstName = lead?.name?.trim().split(/\s+/)[0] || null
 
     const res = await fetch('https://api.resend.com/emails', {

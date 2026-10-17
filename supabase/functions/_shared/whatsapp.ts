@@ -32,8 +32,6 @@ export async function agencySender(sb: Supa, userId: string): Promise<Sender | n
   return { base: AGENCY_BASE, token: inst.instance_token, phone: state.phone ?? null }
 }
 
-export const hasLink = (text: string) => /https?:\/\/\S/i.test(text)
-
 export function normalizeNumber(raw: string): string {
   let n = (raw || '').replace(/\D/g, '')
   if (!n) return n
@@ -57,10 +55,8 @@ export async function sendVia(s: Sender, to: string, text: string): Promise<{ ok
     const res = await fetch(`${s.base}/send/text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', token: s.token },
-      // Com link, a prévia vai ligada: só assim a UazAPI marca o link inteiro
-      // (matchedText). Sem ela o WhatsApp do iPhone adivinha e quebra o link
-      // no meio, e o cliente não consegue abrir.
-      body: JSON.stringify({ number, text, linkPreview: hasLink(text) }),
+      // linkPreview false: links (proposta, Pix, portal) sem o cartão grande com imagem
+      body: JSON.stringify({ number, text, linkPreview: false }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${JSON.stringify(data).slice(0, 200)}` }

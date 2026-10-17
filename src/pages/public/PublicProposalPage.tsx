@@ -10,11 +10,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { CheckCircle2, XCircle, Printer, Loader2, ShieldCheck, Clock } from 'lucide-react'
 import { fetchPublicProposal, respondPublicProposal, type PublicProposal } from '@/hooks/useCrmDocuments'
-import { fmtBRL, fmtLongDate, fmtDateTime, itemTotal } from '@/utils/crm'
+import { fmtBRL, fmtLongDate, fmtDateTime, itemTotal, expandToken } from '@/utils/crm'
 import { PublicShell, PublicLoading, PublicNotFound, SectionLabel, INK, MUTED, LINE, inputClass } from './PublicShell'
 
 export function PublicProposalPage() {
-  const { token = '' } = useParams()
+  const { token: raw = '' } = useParams()
+  const token = expandToken(raw)
   const [data, setData]     = useState<PublicProposal | null | undefined>(undefined)
   const [mode, setMode]     = useState<'idle' | 'aceitar' | 'recusar'>('idle')
   const [name, setName]     = useState('')

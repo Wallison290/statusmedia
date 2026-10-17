@@ -9,11 +9,12 @@ import { useParams } from 'react-router-dom'
 import { CheckCircle2, Printer, Loader2, ShieldCheck } from 'lucide-react'
 import { fetchPublicContract, signPublicContract, type PublicContract } from '@/hooks/useCrmDocuments'
 import { SignaturePad } from '@/components/crm/SignaturePad'
-import { fmtDateTime, fmtLongDate, isValidCpfCnpj, fmtCpfCnpj } from '@/utils/crm'
+import { fmtDateTime, fmtLongDate, isValidCpfCnpj, fmtCpfCnpj, expandToken } from '@/utils/crm'
 import { PublicShell, PublicLoading, PublicNotFound, SectionLabel, INK, MUTED, LINE, inputClass } from './PublicShell'
 
 export function PublicContractPage() {
-  const { token = '' } = useParams()
+  const { token: raw = '' } = useParams()
+  const token = expandToken(raw)
   const [data, setData]   = useState<PublicContract | null | undefined>(undefined)
   const [name, setName]   = useState('')
   const [doc, setDoc]     = useState('')
