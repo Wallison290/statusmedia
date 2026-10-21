@@ -6,7 +6,9 @@
 // Regra, lead a lead, nas agências que ligaram o follow-up:
 //   1. A última mensagem REAL da conversa precisa ser da agência. Se o lead
 //      falou por último, quem deve resposta é a agência: nada sai.
-//      Follow-up automático não conta como mensagem real.
+//      Follow-up automático não conta como mensagem real. Lead sem conversa
+//      gravada (prospectado antes do webhook) só entra com a retomada marcada
+//      em followup_resume_at, que vale como última mensagem da agência.
 //   2. Degraus de silêncio escolhidos pela agência (crm_settings.followup_steps,
 //      padrão 1, 3, 7 e 14 dias), cada um usado uma vez só por lead. O próximo
 //      degrau é o primeiro depois do último já usado, e sai quando o silêncio
@@ -113,7 +115,7 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
   const [{ data: columns }, { data: offers }, { data: leads }, { data: prof }, { data: settings, error: settingsError }, { data: signed }] = await Promise.all([
     sb.from('crm_columns').select('id, name, stage_type, position').eq('user_id', userId).order('position'),
     sb.from('crm_offers').select('*').eq('user_id', userId).order('created_at'),
-    sb.from('crm_leads').select('id, name, company, notes, whatsapp, column_id, followup_offer_id, followup_done, followup_last_at')
+    sb.from('crm_leads').select('id, name, company, notes, whatsapp, column_id, followup_offer_id, followup_done, followup_last_at, followup_resume_at')
       .eq('user_id', userId).is('archived_at', null).eq('followup_paused', false).is('opted_out_at', null).not('whatsapp', 'is', null),
     sb.from('profiles').select('agency_name, full_name').eq('id', userId).maybeSingle(),
     sb.from('crm_settings').select('*').eq('user_id', userId).maybeSingle(),
@@ -161,7 +163,11 @@ async function runAgency(sb: any, ai: OpenAI, userId: string) {
     const { data: conv, error: conversationError } = await sb.from('crm_messages').select('direction, text, source, sent_at')
       .eq('user_id', userId).eq('lead_id', lead.id).order('sent_at', { ascending: false }).limit(100)
     if (conversationError) throw conversationError
-    const lastReal = (conv ?? []).find((m: any) => m.source !== 'followup')
+    let lastReal = (conv ?? []).find((m: any) => m.source !== 'followup')
+    // Retomada marcada pela agência e nada real gravado depois: o silêncio conta dali
+    if (lead.followup_resume_at && (!lastReal || new Date(lastReal.sent_at) < new Date(lead.followup_resume_at))) {
+      lastReal = { direction: 'out', source: 'sistema', text: '', sent_at: lead.followup_resume_at }
+    }
 
     if (!next) {
       // Recebeu o último degrau, ficou na etapa dele e seguiu sem responder por
