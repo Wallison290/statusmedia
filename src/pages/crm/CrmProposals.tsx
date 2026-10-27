@@ -235,7 +235,7 @@ export function CrmProposals() {
                            style={{ background: 'var(--sm-bg-card2)', borderColor: 'var(--sm-border)' }}>
                         {[
                           { icon: Eye, label: 'Abrir', on: () => { setMenu(null); setEditing(p); setNewLeadId(null); setEditorOpen(true) } },
-                          ...(p.status !== 'rascunho' ? [{ icon: ExternalLink, label: 'Ver como o cliente', on: () => { setMenu(null); window.open(proposalLink(p), '_blank', 'noopener') } }] : []),
+                          { icon: ExternalLink, label: 'Ver como o cliente', on: () => { setMenu(null); window.open(proposalLink(p), '_blank', 'noopener') } },
                           { icon: CopyPlus, label: 'Duplicar', on: () => duplicate(p) },
                           ...(p.status === 'aceita' ? [{ icon: PenLine, label: 'Gerar contrato', on: () => navigate(`/crm/contratos?proposta=${p.id}`) }] : []),
                           // Aceita é prova do acordo: não sai pela tela

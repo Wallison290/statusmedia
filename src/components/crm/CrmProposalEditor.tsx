@@ -284,6 +284,16 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     setTimeout(() => topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
+  // Salva e abre a página do cliente. A aba abre antes do salvamento para o
+  // navegador não bloquear como pop-up; rascunho abre só para a agência.
+  async function handlePreview() {
+    const win = window.open('about:blank', '_blank')
+    const saved = await persist()
+    if (!saved) { win?.close(); return }
+    if (win) win.location.href = proposalLink(saved)
+    else window.open(proposalLink(saved), '_blank', 'noopener')
+  }
+
   async function handleBackToDraft() {
     if (!current) return
     const saved = await persist('rascunho')
@@ -586,6 +596,9 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
             <Button variant="outline" onClick={onClose}>Fechar</Button>
             {!locked && (
               <>
+                <Button variant="ghost" onClick={handlePreview} disabled={save.isPending || uploadPct !== null}>
+                  <ExternalLink className="w-3.5 h-3.5" /> Ver como o cliente
+                </Button>
                 <Button variant="secondary" onClick={handleSaveDraft} disabled={save.isPending}>
                   {save.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Salvar

@@ -49,7 +49,9 @@ export function PublicProposalPage() {
   const allMonthly = shownItems.length > 0 && shownItems.every(i => i.recurring)
   const hasValue = shownTotal > 0
   const answered = data.status === 'aceita' || data.status === 'recusada'
-  const canAnswer = !answered && !data.expired
+  // Rascunho aberto pela agência (migration 108): mesma página, sem responder
+  const preview = data.status === 'rascunho'
+  const canAnswer = !answered && !data.expired && !preview
   const client = data.lead ? (data.lead.company || data.lead.name) : null
   const agency = data.agency
 
@@ -82,6 +84,12 @@ export function PublicProposalPage() {
 
   return (
     <div className="min-h-screen print:min-h-0" style={{ background: PAPER, color: INK, ...brandVars(agency?.color) }}>
+
+      {preview && (
+        <div className='sticky top-0 z-30 px-5 py-2.5 text-center text-[13px] font-medium print:hidden' style={{ background: INK, color: '#FAF8F4' }}>
+          Pré-visualização: é assim que o cliente vai ver. O link só passa a funcionar para ele depois de enviar.
+        </div>
+      )}
 
       {/* ── Capa: a primeira tela inteira na cor da agência ── */}
       <header className="relative overflow-hidden min-h-[88svh] sm:min-h-[78vh] flex flex-col print:min-h-0 print:py-10"
@@ -160,7 +168,7 @@ export function PublicProposalPage() {
           <section className={n ? 'mt-16' : ''}>
             <SectionLabel n={next()}>A proposta</SectionLabel>
             <div className="mt-6">
-              <PublicPdfPages token={token} name={data.pdf_name} />
+              <PublicPdfPages token={token} name={data.pdf_name} preview={preview} directUrl={data.pdf_url} />
             </div>
           </section>
         )}
@@ -326,7 +334,7 @@ export function PublicProposalPage() {
                   O prazo desta proposta terminou. Fale com a {agency.name} para receber uma atualizada.
                 </p>
               </div>
-            ) : mode === 'idle' ? (
+            ) : mode === 'idle' || preview ? (
               <>
                 <p className="font-display text-[24px] sm:text-[28px] font-bold leading-tight tracking-[-0.02em]">
                   Vamos começar?
@@ -335,12 +343,12 @@ export function PublicProposalPage() {
                   Aceite por aqui e a {agency.name} recebe na hora para dar o próximo passo.
                 </p>
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                  <button onClick={() => setMode('aceitar')}
+                  <button onClick={() => setMode('aceitar')} disabled={preview}
                           className="min-h-[54px] flex-1 rounded-full text-[16px] font-semibold transition-opacity hover:opacity-90"
                           style={{ background: 'var(--brand)', color: 'var(--on-brand)' }}>
                     {chosen ? `Aceitar ${chosen.name}` : 'Aceitar proposta'}
                   </button>
-                  <button onClick={() => setMode('recusar')}
+                  <button onClick={() => setMode('recusar')} disabled={preview}
                           className="min-h-[54px] sm:w-44 rounded-full border text-[15px] transition-colors hover:bg-[#F6F4EF]"
                           style={{ borderColor: LINE, color: MUTED }}>
                     Recusar
@@ -399,7 +407,7 @@ export function PublicProposalPage() {
       </div>
 
       {/* Celular: valor e aceite sempre à mão enquanto lê */}
-      {canAnswer && mode === 'idle' && (
+      {(canAnswer || preview) && mode === 'idle' && (
         <>
           <div className="h-24 sm:hidden" aria-hidden />
           <div className="sm:hidden fixed bottom-0 inset-x-0 z-20 border-t px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-center gap-4 print:hidden"
@@ -416,7 +424,7 @@ export function PublicProposalPage() {
                 <p className="font-display text-[16px] font-bold leading-tight truncate">{data.title}</p>
               )}
             </div>
-            <button onClick={startAccept}
+            <button onClick={startAccept} disabled={preview}
                     className="ml-auto h-12 px-6 rounded-full text-[15px] font-semibold shrink-0"
                     style={{ background: 'var(--brand)', color: 'var(--on-brand)' }}>
               Aceitar

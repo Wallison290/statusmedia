@@ -3,7 +3,8 @@
 // /proposta/<token> desenhar as páginas no navegador.
 //
 // GET ?t=<public_token>   (sem login: deploy com --no-verify-jwt)
-//   • só proposta fora de rascunho, igual ao get_crm_proposal;
+//   • só proposta fora de rascunho, igual ao get_crm_proposal; rascunho só
+//     com o JWT de alguém da agência (pré-visualização);
 //   • o arquivo só é buscado no R2 público ou no Storage do próprio projeto,
 //     nunca numa URL qualquer;
 //   • não conta abertura: isso continua no get_crm_proposal.
@@ -15,6 +16,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const ANON_KEY     = Deno.env.get('SUPABASE_ANON_KEY')!
 const R2_PUBLIC    = (Deno.env.get('R2_PUBLIC_URL') ?? '').replace(/\/$/, '')
 
 const cors = {
@@ -40,11 +42,20 @@ Deno.serve(async req => {
 
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   const { data: p } = await sb.from('crm_proposals')
-    .select('pdf_url, pdf_name, status')
+    .select('pdf_url, pdf_name, status, user_id')
     .eq('public_token', token)
     .maybeSingle()
-  if (!p || p.status === 'rascunho' || !p.pdf_url || !allowed(p.pdf_url)) {
+  if (!p || !p.pdf_url || !allowed(p.pdf_url)) {
     return new Response('Proposta não encontrada.', { status: 404, headers: cors })
+  }
+  // Rascunho: só a pré-visualização da própria agência (migration 108)
+  if (p.status === 'rascunho') {
+    const auth = req.headers.get('Authorization') ?? ''
+    const member = auth.startsWith('Bearer ')
+      ? (await createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } })
+          .rpc('is_agency_member', { p_owner: p.user_id })).data === true
+      : false
+    if (!member) return new Response('Proposta não encontrada.', { status: 404, headers: cors })
   }
 
   const file = await fetch(p.pdf_url)

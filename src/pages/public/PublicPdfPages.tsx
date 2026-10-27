@@ -7,14 +7,16 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Download, Loader2, FileText } from 'lucide-react'
-import { supabaseUrl } from '@/integrations/supabase/client'
+import { supabase, supabaseUrl } from '@/integrations/supabase/client'
 import { MUTED, LINE } from './PublicShell'
 
 export function proposalPdfSrc(token: string) {
   return `${supabaseUrl}/functions/v1/crm-proposal-pdf?t=${token}`
 }
 
-export function PublicPdfPages({ token, name }: { token: string; name?: string | null }) {
+// preview: rascunho aberto pela agência. A função só entrega com o login dela,
+// e o botão de baixar abre o arquivo direto (directUrl).
+export function PublicPdfPages({ token, name, preview, directUrl }: { token: string; name?: string | null; preview?: boolean; directUrl?: string | null }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading')
   const [pages, setPages] = useState(0)
@@ -28,7 +30,8 @@ export function PublicPdfPages({ token, name }: { token: string; name?: string |
         const pdfjs: any = await import('pdfjs-dist')
         const worker: any = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
         pdfjs.GlobalWorkerOptions.workerSrc = worker.default
-        doc = await pdfjs.getDocument({ url: src }).promise
+        const session = preview ? (await supabase.auth.getSession()).data.session : null
+        doc = await pdfjs.getDocument({ url: src, ...(session ? { httpHeaders: { Authorization: `Bearer ${session.access_token}` } } : {}) }).promise
         if (cancelled) return
         setPages(doc.numPages)
         const box = boxRef.current
@@ -58,7 +61,7 @@ export function PublicPdfPages({ token, name }: { token: string; name?: string |
       }
     })()
     return () => { cancelled = true; doc?.destroy?.() }
-  }, [src])
+  }, [src, preview])
 
   return (
     <div>
@@ -84,7 +87,7 @@ export function PublicPdfPages({ token, name }: { token: string; name?: string |
         <p className="text-[12.5px]" style={{ color: MUTED }}>
           {pages > 0 ? `${pages} ${pages === 1 ? 'página' : 'páginas'}` : ''}
         </p>
-        <a href={src} target="_blank" rel="noopener noreferrer"
+        <a href={preview && directUrl ? directUrl : src} target="_blank" rel="noopener noreferrer"
            className="inline-flex items-center gap-2 h-11 px-5 rounded-full border bg-white text-[14px] font-medium hover:opacity-80"
            style={{ borderColor: LINE }}>
           <Download className="w-4 h-4" /> {state === 'error' ? 'Abrir PDF' : 'Baixar PDF'}
