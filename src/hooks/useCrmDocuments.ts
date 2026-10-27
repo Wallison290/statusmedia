@@ -128,6 +128,40 @@ export function useSaveCrmContract() {
   })
 }
 
+// ── Assinatura salva de quem assina pela agência (migration 110) ─────────────
+// Cada pessoa só enxerga a própria: o sócio não usa a assinatura do dono.
+
+export interface MySignature { name: string; image: string; updated_at: string }
+
+export function useMySignature() {
+  const { user } = useAuth()
+
+  return useQuery<MySignature | null>({
+    queryKey: ['my_signature', user?.id],
+    enabled:  !!user,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('user_signatures')
+        .select('name, image, updated_at').eq('user_id', user!.id).maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useSaveMySignature() {
+  const qc = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: async ({ name, image }: { name: string; image: string }) => {
+      const { error } = await (supabase as any).from('user_signatures')
+        .upsert({ user_id: user!.id, name, image, updated_at: new Date().toISOString() })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my_signature'] }),
+  })
+}
+
 // ── Aberturas pelo cliente (migration 102) ───────────────────────────────────
 
 export interface CrmDocView { id: number; viewed_at: string; ip: string | null; user_agent: string | null }

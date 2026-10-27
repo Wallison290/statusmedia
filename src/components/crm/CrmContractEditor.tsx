@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
-import { useSaveCrmContract, useSendContractEmail } from '@/hooks/useCrmDocuments'
+import { useSaveCrmContract, useSendContractEmail, useMySignature, useSaveMySignature } from '@/hooks/useCrmDocuments'
 import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { CRM_DEFAULT_CONTRACT } from '@/data/crmTemplates'
 import { CONTRACT_STATUS } from './crmStatus'
@@ -66,6 +66,14 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
   const [signerName, setSignerName] = useState('')
   const [signature, setSignature]   = useState<string | null>(null)
   const [resign, setResign]         = useState(false)
+  // Assinatura guardada da pessoa logada: usa com um clique; a desenhada agora
+  // fica guardada para os próximos contratos (se a caixinha seguir marcada)
+  const { data: mySig } = useMySignature()
+  const saveMySig = useSaveMySignature()
+  const [drawn, setDrawn]           = useState(false)
+  // Sem assinatura salva: guarda por padrão. Já tem uma: só troca se marcar.
+  const [keepChoice, setKeepChoice] = useState<boolean | null>(null)
+  const keepSig = keepChoice ?? !mySig
   const [shareOpen, setShareOpen]   = useState(false)
 
   function build(lid: string, pid: string) {
@@ -79,6 +87,8 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
     setCurrent(contract)
     setShareOpen(false)
     setResign(false)
+    setDrawn(false)
+    setKeepChoice(null)
     const prop = proposals.find(p => p.id === (contract?.proposal_id ?? defaultProposalId))
     const lid  = contract?.lead_id ?? defaultLeadId ?? prop?.lead_id ?? ''
     const pid  = contract?.proposal_id ?? prop?.id ?? ''
@@ -114,6 +124,10 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
         ...(next ? { status: next } : {}),
       })
       setCurrent(saved)
+      if (drawn && keepSig && signature && signerName.trim()) {
+        saveMySig.mutate({ name: signerName.trim(), image: signature })
+        setDrawn(false)
+      }
       return saved
     } catch (err: any) {
       toast(err.message ?? 'Erro ao salvar o contrato', 'error')
@@ -317,13 +331,33 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
                   {current?.agency_signed_at && <><br />{fmtDateTime(current.agency_signed_at)}</>}
                 </div>
                 {!signed && (
-                  <Button size="sm" variant="ghost" onClick={() => { setSignature(null); setResign(true) }}>Refazer</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setSignature(null); setDrawn(false); setResign(true) }}>Refazer</Button>
                 )}
               </div>
             ) : (
               <>
+                {mySig && !signed && (
+                  <div className="flex items-center gap-3 flex-wrap rounded-lg border p-2.5" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-card)' }}>
+                    <img src={mySig.image} alt="Sua assinatura salva" className="h-12 rounded-md bg-white px-2" />
+                    <div className="flex-1 min-w-[140px] text-[12px]" style={{ color: 'var(--sm-text-3)' }}>
+                      Sua assinatura salva<br /><span style={{ color: 'var(--sm-text-1)' }}>{mySig.name}</span>
+                    </div>
+                    <Button size="sm" onClick={() => {
+                      setSignature(mySig.image); setSignerName(mySig.name); setDrawn(false); setResign(false)
+                    }}>
+                      <PenLine className="w-3.5 h-3.5" /> Usar minha assinatura
+                    </Button>
+                  </div>
+                )}
+                {mySig && !signed && (
+                  <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>Ou assine de novo abaixo:</p>
+                )}
                 <Input value={signerName} onChange={e => setSignerName(e.target.value)} placeholder="Nome de quem assina pela agência" className="h-8 text-[12.5px]" />
-                <SignaturePad onChange={setSignature} height={120} />
+                <SignaturePad onChange={v => { setSignature(v); setDrawn(!!v) }} height={120} />
+                <label className="flex items-center gap-2 text-[11.5px] cursor-pointer" style={{ color: 'var(--sm-text-3)' }}>
+                  <input type="checkbox" checked={keepSig} onChange={e => setKeepChoice(e.target.checked)} />
+                  {mySig ? 'Trocar minha assinatura salva por esta' : 'Guardar esta assinatura para os próximos contratos'}
+                </label>
               </>
             )}
           </div>
