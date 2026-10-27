@@ -242,7 +242,7 @@ export function CrmAutomations() {
                   <>
                     <Input value={p.title ?? ''} onChange={e => setParam('title', e.target.value)} placeholder="Título: Ligar para {nome}" />
                     <Textarea rows={2} value={p.description ?? ''} onChange={e => setParam('description', e.target.value)} placeholder="Descrição (opcional)" />
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <Label>Prazo (dias)</Label>
                         <Input type="number" min={0} value={p.due_in_days ?? 0} onChange={e => setParam('due_in_days', Number(e.target.value))} />

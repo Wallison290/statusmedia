@@ -547,7 +547,7 @@ export function CrmReports() {
                 {report.sources.length === 0 ? (
                   <p className="text-[12px] py-4 text-center" style={{ color: 'var(--sm-text-4)' }}>Sem dados no período.</p>
                 ) : (
-                  <table className="w-full text-[12.5px]">
+                  <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
                     <thead>
                       <tr style={{ color: 'var(--sm-text-4)' }}>
                         <th className="text-left font-medium pb-1.5">Origem</th>
@@ -566,13 +566,13 @@ export function CrmReports() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 )}
               </Card>
 
               {report.members.length > 0 && (
                 <Card title="Por responsável" hint="Negócios fechados (ganhos e perdidos) no período.">
-                  <table className="w-full text-[12.5px]">
+                  <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
                     <thead>
                       <tr style={{ color: 'var(--sm-text-4)' }}>
                         <th className="text-left font-medium pb-1.5">Responsável</th>
@@ -591,7 +591,7 @@ export function CrmReports() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </Card>
               )}
             </div>

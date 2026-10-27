@@ -309,6 +309,32 @@
     }
   }
 
+  /* Campo de data/hora do iPhone tem largura mínima própria e não encolhe com
+     a coluna: passava da tela e o modal inteiro rolava para o lado (editor de
+     proposta). Sem a aparência nativa ele segue o w-full; o seletor continua. */
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  input[type='month'] {
+    min-width: 0;
+    max-width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input::-webkit-date-and-time-value { text-align: left; }
+
+  /* Faixas com rolagem lateral (abas, filtros, colunas): rolar só para os
+     lados. Com overflow-x:auto o navegador também deixa rolar na vertical, e a
+     aba sublinhada (-mb-px) sobrava 1px: no celular a faixa "saía do lugar"
+     e o texto ficava cortado (abas do Financeiro). */
+  @media (max-width: 1023px) {
+    .overflow-x-auto:not(.overflow-y-auto):not(.overflow-auto) {
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+    }
+    .overflow-x-auto > .\-mb-px { margin-bottom: 0; }
+  }
+
   /* Toque sem a espera do "toque duplo para zoom": o clique sai na hora e não
      sobra um toque atrasado caindo no que abriu embaixo do dedo. */
   button, a, label, select, input, textarea, [role='button'], [role='tab'] {

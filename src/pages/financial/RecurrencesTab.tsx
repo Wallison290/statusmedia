@@ -208,7 +208,7 @@ function RecurrenceModal({ open, onClose, rec, defaultType }: {
             </SelectInput>
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Dia do vencimento">
             <TextInput type="number" min={1} max={31} value={f.day_of_month} onChange={e => set('day_of_month', Math.min(31, Math.max(1, Number(e.target.value) || 1)))} />
           </Field>
@@ -321,7 +321,7 @@ function ContractBillingModal({ contract, onClose }: { contract: SignedContract 
         </Field>
         <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)' }}>
           <p className="text-[12.5px] font-semibold" style={{ color: 'var(--sm-text-2)' }}>Mensalidade (itens recorrentes)</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Valor/mês"><TextInput inputMode="decimal" value={recText} onChange={e => setRec(e.target.value)} placeholder="0,00" /></Field>
             <Field label="Dia do vencimento"><TextInput type="number" min={1} max={31} value={recDay} onChange={e => setRecDay(Math.min(31, Math.max(1, Number(e.target.value) || 1)))} /></Field>
             <Field label="1ª mensalidade em"><TextInput type="date" value={recStart} onChange={e => setRecStart(e.target.value)} /></Field>
@@ -329,7 +329,7 @@ function ContractBillingModal({ contract, onClose }: { contract: SignedContract 
         </div>
         <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)' }}>
           <p className="text-[12.5px] font-semibold" style={{ color: 'var(--sm-text-2)' }}>Valor avulso (setup, projeto)</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Total"><TextInput inputMode="decimal" value={oneText} onChange={e => setOne(e.target.value)} placeholder="0,00" /></Field>
             <Field label="Parcelas">
               <SelectInput value={oneN} onChange={e => setOneN(Number(e.target.value))}>
