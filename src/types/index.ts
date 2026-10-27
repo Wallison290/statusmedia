@@ -636,6 +636,8 @@ export interface CrmProposal {
   valid_until:    string | null
   payment_terms:  string | null
   internal_notes: string | null
+  pdf_url?:       string | null   // migration 107: proposta em PDF anexado
+  pdf_name?:      string | null
   status:         CrmProposalStatus
   public_token:   string
   sent_at:        string | null

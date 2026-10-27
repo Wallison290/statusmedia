@@ -93,7 +93,7 @@ export function CrmProposals() {
       const copy = await save.mutateAsync({
         lead_id: p.lead_id, title: `${p.title} (cópia)`, intro: p.intro, items: p.items,
         discount: p.discount, options: p.options ?? [], accepted_option: null, valid_until: todayISO(7), payment_terms: p.payment_terms,
-        internal_notes: p.internal_notes, status: 'rascunho',
+        internal_notes: p.internal_notes, pdf_url: p.pdf_url ?? null, pdf_name: p.pdf_name ?? null, status: 'rascunho',
       })
       setEditing(copy); setNewLeadId(null); setEditorOpen(true)
     } catch (err: any) {
@@ -190,6 +190,7 @@ export function CrmProposals() {
                     <p className="text-[13.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{p.title}</p>
                     <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-3)' }}>
                       {leadName(p.lead_id) ?? 'Sem lead'}
+                      {p.pdf_url && ' · PDF anexado'}
                       {p.sent_at && ` · enviada ${fmtShortDate(p.sent_at)}`}
                       {p.view_count > 0 && ` · aberta ${p.view_count}x`}
                       {p.responded_at && ` · respondida ${fmtShortDate(p.responded_at)}`}

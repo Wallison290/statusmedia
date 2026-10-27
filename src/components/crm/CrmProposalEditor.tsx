@@ -3,9 +3,11 @@
 // Enviada, o cliente abre em /proposta/<token>, aceita ou recusa, e o card do
 // lead anda sozinho. Respondida, vira somente leitura: é a prova do que foi
 // aceito (o banco também bloqueia a edição).
+// Dois jeitos de montar: no sistema (itens, opções) ou anexando um PDF pronto.
+// No PDF, o valor opcional vira um item único para o total seguir valendo.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle, Star, Layers } from 'lucide-react'
+import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle, Star, Layers, Paperclip, LayoutList, ExternalLink } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
 import { useSaveCrmProposal } from '@/hooks/useCrmDocuments'
 import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
+import { uploadArquivo } from '@/lib/uploadArquivo'
 import { PROPOSAL_STATUS } from './crmStatus'
 import { CrmShareBox, proposalMessage } from './CrmShareBox'
 import { CrmDocViews } from './CrmDocViews'
@@ -46,7 +49,7 @@ const selectClass =
 
 export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadId }: Props) {
   const { toast } = useToast()
-  const { agencyProfile: profile } = useAuth()
+  const { agencyProfile: profile, agencyId } = useAuth()
   const { data: settings } = useCrmSettings()
   const save = useSaveCrmProposal()
   const { data: wa } = useAgencyWhatsapp()
@@ -66,6 +69,14 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   // Várias opções no mesmo envio: [] = proposta de uma opção só (items/discount)
   const [options, setOptions] = useState<CrmProposalOption[]>([])
   const [active, setActive]   = useState(0)
+  // Proposta em PDF anexado
+  const [mode, setMode]       = useState<'sistema' | 'pdf'>('sistema')
+  const [pdfUrl, setPdfUrl]   = useState<string | null>(null)
+  const [pdfName, setPdfName] = useState<string | null>(null)
+  const [pdfValue, setPdfValue] = useState(0)
+  const [pdfMonthly, setPdfMonthly] = useState(true)
+  const [uploadPct, setUploadPct] = useState<number | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -83,6 +94,12 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     setNotes(proposal?.internal_notes ?? '')
     setOptions(proposal?.options ?? [])
     setActive(0)
+    setMode(proposal?.pdf_url ? 'pdf' : 'sistema')
+    setPdfUrl(proposal?.pdf_url ?? null)
+    setPdfName(proposal?.pdf_name ?? null)
+    setPdfValue(proposal?.pdf_url ? Number(proposal.items?.[0]?.unit_price ?? 0) : 0)
+    setPdfMonthly(proposal?.pdf_url ? !!proposal.items?.[0]?.recurring : true)
+    setUploadPct(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, proposal?.id, defaultLeadId])
 
@@ -147,8 +164,52 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
       recurring:   !!i.recurring,
     }))
 
+  async function handlePdf(file: File | undefined) {
+    if (!file) return
+    if (file.type !== 'application/pdf') { toast('Escolha um arquivo PDF', 'warning'); return }
+    if (file.size > 30 * 1024 * 1024) { toast('O PDF passa de 30 MB. Comprima e tente de novo.', 'warning'); return }
+    setUploadPct(0)
+    try {
+      const safe = file.name.replace(/[^\w.-]+/g, '-')
+      const { url } = await uploadArquivo('client-documents', `${agencyId}/propostas/${Date.now()}-${safe}`, file, setUploadPct)
+      setPdfUrl(url)
+      setPdfName(file.name)
+    } catch (err: any) {
+      toast(err.message ?? 'Não consegui enviar o PDF', 'error')
+    } finally {
+      setUploadPct(null)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
   async function persist(status?: CrmProposal['status']) {
     if (!title.trim()) { toast('Dê um título à proposta', 'warning'); return null }
+    if (mode === 'pdf') {
+      if (!pdfUrl) { toast('Anexe o PDF da proposta', 'warning'); return null }
+      const value = Math.max(Number(pdfValue) || 0, 0)
+      try {
+        const saved = await save.mutateAsync({
+          id:             current?.id,
+          lead_id:        leadId || null,
+          title:          title.trim(),
+          intro:          null,
+          items:          value > 0 ? [{ description: title.trim(), quantity: 1, unit_price: value, recurring: pdfMonthly }] : [],
+          options:        [],
+          discount:       0,
+          pdf_url:        pdfUrl,
+          pdf_name:       pdfName,
+          valid_until:    validUntil || null,
+          payment_terms:  terms.trim() || null,
+          internal_notes: notes.trim() || null,
+          ...(status ? { status } : {}),
+        })
+        setCurrent(saved)
+        return saved
+      } catch (err: any) {
+        toast(err.message ?? 'Erro ao salvar a proposta', 'error')
+        return null
+      }
+    }
     let clean = multi ? [] : cleanItems(items)
     let cleanOptions: CrmProposalOption[] = []
     if (multi) {
@@ -174,6 +235,8 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
         items:          clean,
         options:        cleanOptions,
         discount:       multi ? 0 : Number(discount) || 0,
+        pdf_url:        null,
+        pdf_name:       null,
         valid_until:    validUntil || null,
         payment_terms:  terms.trim() || null,
         internal_notes: notes.trim() || null,
@@ -312,6 +375,78 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
             </div>
           </div>
 
+          {/* Jeito de montar: no sistema ou PDF pronto */}
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl border" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+            {([
+              { id: 'sistema', icon: LayoutList, label: 'Montar no sistema' },
+              { id: 'pdf',     icon: Paperclip,  label: 'Anexar PDF pronto' },
+            ] as const).map(m => (
+              <button key={m.id} type="button" onClick={() => setMode(m.id)}
+                className="h-9 rounded-lg text-[12.5px] inline-flex items-center justify-center gap-1.5 transition-colors"
+                style={mode === m.id
+                  ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: '0 0 0 1px var(--sm-border)' }
+                  : { color: 'var(--sm-text-3)' }}>
+                <m.icon className="w-3.5 h-3.5" /> {m.label}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'pdf' ? (
+            <>
+              <div>
+                <Label>Arquivo da proposta</Label>
+                <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => handlePdf(e.target.files?.[0])} />
+                {pdfUrl ? (
+                  <div className="rounded-xl border p-3 flex items-center gap-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                      <FileText className="w-4 h-4" style={{ color: '#EF4444' }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium truncate" style={{ color: 'var(--sm-text-1)' }}>{pdfName ?? 'proposta.pdf'}</p>
+                      <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-[11.5px] inline-flex items-center gap-1 hover:underline" style={{ color: 'var(--sm-text-3)' }}>
+                        <ExternalLink className="w-3 h-3" /> Abrir PDF
+                      </a>
+                    </div>
+                    {!locked && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploadPct !== null}>
+                        {uploadPct !== null ? <><Loader2 className="w-3 h-3 animate-spin" /> {uploadPct}%</> : 'Trocar'}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadPct !== null}
+                    className="w-full rounded-xl border border-dashed py-7 flex flex-col items-center gap-1.5 transition-colors hover:bg-[var(--sm-bg-alt)]"
+                    style={{ borderColor: 'var(--sm-border)' }}>
+                    {uploadPct !== null
+                      ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--sm-text-3)' }} />
+                      : <Paperclip className="w-5 h-5" style={{ color: 'var(--sm-text-3)' }} />}
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--sm-text-1)' }}>
+                      {uploadPct !== null ? `Enviando... ${uploadPct}%` : 'Escolher o PDF da proposta'}
+                    </span>
+                    <span className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>O cliente vê o PDF no link e aceita ali mesmo (até 30 MB)</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Valor da proposta (R$)</Label>
+                  <Input type="number" min={0} step="0.01" value={pdfValue || ''} placeholder="0,00" onChange={e => setPdfValue(Number(e.target.value))} />
+                </div>
+                <div>
+                  <Label>Válida até</Label>
+                  <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} />
+                </div>
+                <label className="flex items-center gap-1.5 text-[12.5px] cursor-pointer sm:pt-5" style={{ color: 'var(--sm-text-2)' }}>
+                  <input type="checkbox" checked={pdfMonthly} onChange={e => setPdfMonthly(e.target.checked)} />
+                  Valor mensal
+                </label>
+              </div>
+              <p className="text-[11.5px] -mt-2" style={{ color: 'var(--sm-text-4)' }}>
+                O valor aparece para o cliente e vai para o card quando ele aceitar. Pode deixar em branco.
+              </p>
+            </>
+          ) : (<>
           <div>
             <Label>Apresentação (o cliente lê primeiro)</Label>
             <Textarea rows={3} value={intro} onChange={e => setIntro(e.target.value)}
@@ -426,6 +561,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
               <span className="text-[18px] font-bold" style={{ color: '#22C55E' }}>{fmtBRL(totals.total, true)}</span>
             </div>
           </div>
+          </>)}
 
           <div>
             <Label>Condições de pagamento</Label>
