@@ -7,7 +7,8 @@
 // No PDF, o valor opcional vira um item único para o total seguir valendo.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle, Star, Layers, Paperclip, LayoutList, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, Loader2, Send, FileText, ShieldCheck, Undo2, MessageCircle, Star, Layers, Paperclip, LayoutList, ExternalLink, CheckCircle2, PenLine } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useCrmSettings } from '@/hooks/useCrmSettings'
-import { useSaveCrmProposal } from '@/hooks/useCrmDocuments'
+import { useSaveCrmProposal, useAcceptCrmProposalManual } from '@/hooks/useCrmDocuments'
 import { useAgencyWhatsapp, useSendAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { uploadArquivo } from '@/lib/uploadArquivo'
 import { PROPOSAL_STATUS } from './crmStatus'
@@ -52,6 +53,8 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const { agencyProfile: profile, agencyId } = useAuth()
   const { data: settings } = useCrmSettings()
   const save = useSaveCrmProposal()
+  const acceptManual = useAcceptCrmProposalManual()
+  const navigate = useNavigate()
   const { data: wa } = useAgencyWhatsapp()
   const sendWa = useSendAgencyWhatsapp()
   const topRef = useRef<HTMLDivElement>(null)
@@ -76,6 +79,10 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const [pdfValue, setPdfValue] = useState(0)
   const [pdfMonthly, setPdfMonthly] = useState(true)
   const [uploadPct, setUploadPct] = useState<number | null>(null)
+  // Aceite marcado pela agência (fechou por fora do sistema)
+  const [acceptOpen, setAcceptOpen] = useState(false)
+  const [acceptName, setAcceptName] = useState('')
+  const [acceptOpt, setAcceptOpt]   = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -100,6 +107,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     setPdfValue(proposal?.pdf_url ? Number(proposal.items?.[0]?.unit_price ?? 0) : 0)
     setPdfMonthly(proposal?.pdf_url ? !!proposal.items?.[0]?.recurring : true)
     setUploadPct(null)
+    setAcceptOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, proposal?.id, defaultLeadId])
 
@@ -300,6 +308,29 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     if (saved) toast('Proposta voltou para rascunho. O link fica fora do ar até enviar de novo.', 'success')
   }
 
+  function openAccept() {
+    setAcceptName(lead?.name ?? '')
+    setAcceptOpt(options.find(o => o.recommended)?.id ?? options[0]?.id ?? '')
+    setAcceptOpen(true)
+  }
+
+  // Salva o que está na tela e marca como aceita; daí vai direto gerar o contrato
+  async function handleAcceptManual() {
+    if (acceptName.trim().length < 2) { toast('Informe quem aceitou a proposta', 'warning'); return }
+    const saved = await persist()
+    if (!saved) return
+    try {
+      const accepted = await acceptManual.mutateAsync({ id: saved.id, name: acceptName.trim(), optionId: multi ? acceptOpt : null })
+      setCurrent(accepted)
+      setAcceptOpen(false)
+      toast('Proposta marcada como aceita. Agora é só gerar o contrato.', 'success')
+      onClose()
+      navigate(`/crm/contratos?proposta=${accepted.id}`)
+    } catch (err: any) {
+      toast(err.message ?? 'Não foi possível marcar como aceita', 'error')
+    }
+  }
+
   const link = current ? proposalLink(current) : ''
 
   return (
@@ -325,6 +356,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                style={{ borderColor: `${PROPOSAL_STATUS[current.status].color}55`, background: `${PROPOSAL_STATUS[current.status].color}10` }}>
             <p style={{ color: 'var(--sm-text-1)' }}>
               <strong>{current.status === 'aceita' ? 'Aceita' : 'Recusada'}</strong> por {current.responder_name ?? 'cliente'}
+              {current.response_meta?.manual && ' (marcada pela agência)'}
               {current.accepted_option && ` · opção escolhida: ${current.options?.find(o => o.id === current.accepted_option)?.name ?? '—'} (${fmtBRL(Number(current.total), true)})`}
               {current.responded_at && ` em ${fmtDateTime(current.responded_at)}`}
             </p>
@@ -584,16 +616,60 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           </div>
         </fieldset>
 
+        {/* Fechou por fora: marcar o aceite aqui */}
+        {acceptOpen && !locked && (
+          <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: '#22C55E55', background: '#22C55E10' }}>
+            <div>
+              <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Marcar como aceita</p>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-2)' }}>
+                Para quando o cliente aprovou por fora do sistema. A proposta fica como aceita, o card do lead vai para a etapa de ganho e você segue para o contrato.
+              </p>
+            </div>
+            <div className={`grid grid-cols-1 gap-3 ${multi ? 'sm:grid-cols-2' : ''}`}>
+              <div>
+                <Label>Quem aceitou</Label>
+                <Input value={acceptName} onChange={e => setAcceptName(e.target.value)} placeholder="Nome do cliente" autoFocus />
+              </div>
+              {multi && (
+                <div>
+                  <Label>Opção aceita</Label>
+                  <select value={acceptOpt} onChange={e => setAcceptOpt(e.target.value)} className={selectClass}
+                          style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>
+                    {options.map((o, i) => <option key={o.id} value={o.id}>{o.name || `Opção ${i + 1}`}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setAcceptOpen(false)}>Cancelar</Button>
+              <Button size="sm" variant="success" onClick={handleAcceptManual} disabled={save.isPending || acceptManual.isPending}>
+                {acceptManual.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                Confirmar aceite e gerar contrato
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-          <div>
+          <div className="flex items-center gap-1 flex-wrap">
             {current && (current.status === 'enviada' || current.status === 'visualizada') && (
               <Button size="sm" variant="ghost" onClick={handleBackToDraft} disabled={save.isPending}>
                 <Undo2 className="w-3.5 h-3.5" /> Voltar para rascunho
               </Button>
             )}
+            {!locked && !acceptOpen && (
+              <Button size="sm" variant="ghost" onClick={openAccept} disabled={save.isPending || uploadPct !== null}>
+                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#22C55E' }} /> Marcar como aceita
+              </Button>
+            )}
           </div>
           <div className="flex items-center justify-end gap-2 flex-wrap w-full sm:w-auto">
             <Button variant="outline" onClick={onClose}>Fechar</Button>
+            {current?.status === 'aceita' && (
+              <Button onClick={() => { onClose(); navigate(`/crm/contratos?proposta=${current.id}`) }}>
+                <PenLine className="w-3.5 h-3.5" /> Gerar contrato
+              </Button>
+            )}
             {!locked && (
               <>
                 <Button variant="ghost" onClick={handlePreview} disabled={save.isPending || uploadPct !== null}>

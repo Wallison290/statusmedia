@@ -52,6 +52,27 @@ export function useSaveCrmProposal() {
   })
 }
 
+// Fechou por fora (conversa, reunião, PDF): a agência marca o aceite e a
+// proposta segue o mesmo caminho do aceite pelo link (migration 109)
+export function useAcceptCrmProposalManual() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, name, optionId }: { id: string; name: string; optionId?: string | null }) => {
+      const { data, error } = await (supabase as any).rpc('accept_crm_proposal_manual', {
+        p_id: id, p_name: name, p_option: optionId ?? null,
+      })
+      if (error) throw error
+      return data as CrmProposal
+    },
+    onSuccess: (p) => {
+      qc.invalidateQueries({ queryKey: ['crm_proposals'] })
+      qc.invalidateQueries({ queryKey: ['crm_leads'] })
+      if (p.lead_id) qc.invalidateQueries({ queryKey: ['crm_activities', p.lead_id] })
+    },
+  })
+}
+
 export function useDeleteCrmProposal() {
   const qc = useQueryClient()
 
