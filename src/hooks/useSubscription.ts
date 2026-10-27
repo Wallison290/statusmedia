@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { getPlan, type Plan, type PlanId } from '@/config/plans'
 // PlanId agora é 'starter' | 'pro' | 'agency'
 import { useAuth } from '@/hooks/useAuth'
+import { localCacheOptions, writeLocalCache } from '@/lib/localQueryCache'
 
 export interface Subscription {
   plan: PlanId
@@ -35,6 +36,8 @@ export function useSubscription() {
     queryKey: ['subscription', agencyId],
     enabled: !!user,
     staleTime: 60_000,
+    // Abre com a última assinatura conhecida e confirma por trás
+    ...localCacheOptions<SubscriptionData>(agencyId ? `subscription:${agencyId}` : null),
     queryFn: async () => {
       if (!user) return null
 
@@ -74,7 +77,7 @@ export function useSubscription() {
         ? Math.max(0, Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / 86_400_000))
         : null
 
-      return {
+      const result: SubscriptionData = {
         subscription: sub,
         plan,
         isActive,
@@ -84,6 +87,8 @@ export function useSubscription() {
         isAgency:          planId === 'agency',
         cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       }
+      writeLocalCache(`subscription:${agencyId}`, result)
+      return result
     },
   })
 }

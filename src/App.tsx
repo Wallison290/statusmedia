@@ -120,15 +120,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   const { data: subData, isLoading, isFetched } = useSubscription()
 
-  // Aguarda até ter uma resposta real do servidor antes de decidir qualquer coisa
+  // Assinatura ativa na cópia local (lib/localQueryCache): abre na hora e a
+  // confirmação do servidor chega por trás. Se ela disser inativa, redireciona.
+  if (subData?.isActive) return <>{children}</>
+
+  // Sem cópia ou inativa: aguarda a resposta real antes de decidir
   if (isLoading || !isFetched) return null
-
-  // Só redireciona depois de ter certeza que a assinatura está inativa
-  if (!subData || !subData.isActive) {
-    return <Navigate to="/planos" replace />
-  }
-
-  return <>{children}</>
+  return <Navigate to="/planos" replace />
 }
 
 /** Se já tem assinatura PAGA ativa, vai direto para o app em vez de mostrar /planos.

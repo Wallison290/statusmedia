@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from './useAuth'
+import { localCacheOptions, writeLocalCache } from '@/lib/localQueryCache'
 import type { CrmColumn, CrmLead, CrmStageType } from '@/types'
 import type { CrmTemplate } from '@/data/crmTemplates'
 
@@ -16,6 +17,7 @@ export function useCrmColumns() {
   return useQuery<CrmColumn[]>({
     queryKey: ['crm_columns', agencyId],
     enabled:  !!user,
+    ...localCacheOptions<CrmColumn[]>(agencyId ? `crm_columns:${agencyId}` : null),
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_columns')
@@ -23,6 +25,7 @@ export function useCrmColumns() {
         .eq('user_id', agencyId!)
         .order('position')
       if (error) throw error
+      writeLocalCache(`crm_columns:${agencyId}`, data ?? [])
       return data ?? []
     },
   })
@@ -34,6 +37,7 @@ export function useCrmLeads() {
   return useQuery<CrmLead[]>({
     queryKey: ['crm_leads', agencyId],
     enabled:  !!user,
+    ...localCacheOptions<CrmLead[]>(agencyId ? `crm_leads:${agencyId}` : null),
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('crm_leads')
@@ -41,6 +45,7 @@ export function useCrmLeads() {
         .eq('user_id', agencyId!)
         .order('position')
       if (error) throw error
+      writeLocalCache(`crm_leads:${agencyId}`, data ?? [])
       return data ?? []
     },
   })

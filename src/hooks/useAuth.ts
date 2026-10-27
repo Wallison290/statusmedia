@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import type { Profile } from '@/types'
+import { clearLocalCache } from '@/lib/localQueryCache'
 
 // ── Agência de quem está logado ──────────────────────────────────────────────
 // Todo dado da agência pertence ao user_id do dono. Um sócio (aba Equipe →
@@ -111,6 +112,7 @@ export function useAuth() {
   }
 
   async function signOut() {
+    clearLocalCache()
     await supabase.auth.signOut()
   }
 
