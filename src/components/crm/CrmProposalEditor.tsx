@@ -33,6 +33,7 @@ interface Props {
   proposal:  CrmProposal | null     // null = nova
   leads:     CrmLead[]
   defaultLeadId?: string | null
+  startAccept?: boolean             // abre já no "Marcar como aceita" (menu da lista)
 }
 
 const EMPTY_ITEM: CrmProposalItem = { description: '', details: '', quantity: 1, unit_price: 0, recurring: true }
@@ -48,7 +49,7 @@ function Label({ children }: { children: React.ReactNode }) {
 const selectClass =
   'flex h-9 w-full min-w-0 max-w-full rounded-md border px-3 text-[13px] [color-scheme:dark] focus:outline-none focus:border-[#2563EB]/50'
 
-export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadId }: Props) {
+export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadId, startAccept }: Props) {
   const { toast } = useToast()
   const { agencyProfile: profile, agencyId } = useAuth()
   const { data: settings } = useCrmSettings()
@@ -58,6 +59,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const { data: wa } = useAgencyWhatsapp()
   const sendWa = useSendAgencyWhatsapp()
   const topRef = useRef<HTMLDivElement>(null)
+  const acceptRef = useRef<HTMLDivElement>(null)
 
   const [current, setCurrent] = useState<CrmProposal | null>(proposal)
   const [leadId, setLeadId]   = useState<string>('')
@@ -107,9 +109,18 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     setPdfValue(proposal?.pdf_url ? Number(proposal.items?.[0]?.unit_price ?? 0) : 0)
     setPdfMonthly(proposal?.pdf_url ? !!proposal.items?.[0]?.recurring : true)
     setUploadPct(null)
-    setAcceptOpen(false)
+    const answered = proposal?.status === 'aceita' || proposal?.status === 'recusada'
+    if (startAccept && proposal && !answered) {
+      const opts = proposal.options ?? []
+      setAcceptName(lead?.name ?? '')
+      setAcceptOpt(opts.find(o => o.recommended)?.id ?? opts[0]?.id ?? '')
+      setAcceptOpen(true)
+      setTimeout(() => acceptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+    } else {
+      setAcceptOpen(false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, proposal?.id, defaultLeadId])
+  }, [open, proposal?.id, defaultLeadId, startAccept])
 
   const locked = current?.status === 'aceita' || current?.status === 'recusada'
   const lead   = leads.find(l => l.id === leadId) ?? null
@@ -618,7 +629,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
 
         {/* Fechou por fora: marcar o aceite aqui */}
         {acceptOpen && !locked && (
-          <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: '#22C55E55', background: '#22C55E10' }}>
+          <div ref={acceptRef} className="rounded-xl border p-4 space-y-3" style={{ borderColor: '#22C55E55', background: '#22C55E10' }}>
             <div>
               <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Marcar como aceita</p>
               <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-2)' }}>

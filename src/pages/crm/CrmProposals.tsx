@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Plus, FileText, Copy, Loader2, MoreVertical, CopyPlus, PenLine, Trash2, Eye, ExternalLink, MessageCircle,
+  Plus, FileText, Copy, Loader2, MoreVertical, CopyPlus, PenLine, Trash2, Eye, ExternalLink, MessageCircle, CheckCircle2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -40,6 +40,8 @@ export function CrmProposals() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [newLeadId, setNewLeadId]   = useState<string | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
+  // Abre o editor já no quadro de "Marcar como aceita"
+  const [startAccept, setStartAccept] = useState(false)
 
   const leadName = useMemo(() => {
     const m = new Map(leads.map(l => [l.id, l.company ? `${l.name} · ${l.company}` : l.name]))
@@ -57,7 +59,7 @@ export function CrmProposals() {
     const novo  = params.get('novo')
     if (abrir && proposals.length) {
       const p = proposals.find(x => x.id === abrir)
-      if (p) { setEditing(p); setNewLeadId(null); setEditorOpen(true) }
+      if (p) { setEditing(p); setNewLeadId(null); setStartAccept(false); setEditorOpen(true) }
       params.delete('abrir'); setParams(params, { replace: true })
     } else if (novo) {
       setEditing(null); setNewLeadId(novo); setEditorOpen(true)
@@ -186,7 +188,7 @@ export function CrmProposals() {
               return (
                 <li key={p.id} className="relative rounded-xl border px-4 py-3 flex items-center gap-3 flex-wrap"
                     style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
-                  <button className="flex-1 min-w-[200px] text-left" onClick={() => { setEditing(p); setNewLeadId(null); setEditorOpen(true) }}>
+                  <button className="flex-1 min-w-[200px] text-left" onClick={() => { setEditing(p); setNewLeadId(null); setStartAccept(false); setEditorOpen(true) }}>
                     <p className="text-[13.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{p.title}</p>
                     <p className="text-[11.5px] truncate" style={{ color: 'var(--sm-text-3)' }}>
                       {leadName(p.lead_id) ?? 'Sem lead'}
@@ -234,9 +236,13 @@ export function CrmProposals() {
                       <div className="absolute right-3 top-12 z-40 w-52 rounded-xl border py-1 shadow-2xl"
                            style={{ background: 'var(--sm-bg-card2)', borderColor: 'var(--sm-border)' }}>
                         {[
-                          { icon: Eye, label: 'Abrir', on: () => { setMenu(null); setEditing(p); setNewLeadId(null); setEditorOpen(true) } },
+                          { icon: Eye, label: 'Abrir', on: () => { setMenu(null); setEditing(p); setNewLeadId(null); setStartAccept(false); setEditorOpen(true) } },
                           { icon: ExternalLink, label: 'Ver como o cliente', on: () => { setMenu(null); window.open(proposalLink(p), '_blank', 'noopener') } },
                           { icon: CopyPlus, label: 'Duplicar', on: () => duplicate(p) },
+                          // Fechou por fora do sistema: marca o aceite e segue para o contrato
+                          ...(p.status !== 'aceita' && p.status !== 'recusada'
+                            ? [{ icon: CheckCircle2, label: 'Marcar como aceita', on: () => { setMenu(null); setEditing(p); setNewLeadId(null); setStartAccept(true); setEditorOpen(true) } }]
+                            : []),
                           ...(p.status === 'aceita' ? [{ icon: PenLine, label: 'Gerar contrato', on: () => navigate(`/crm/contratos?proposta=${p.id}`) }] : []),
                           // Aceita é prova do acordo: não sai pela tela
                           ...(p.status !== 'aceita' ? [{ icon: Trash2, label: 'Excluir', on: () => remove(p), danger: true }] : []),
@@ -259,10 +265,11 @@ export function CrmProposals() {
 
       <CrmProposalEditor
         open={editorOpen}
-        onClose={() => setEditorOpen(false)}
+        onClose={() => { setEditorOpen(false); setStartAccept(false) }}
         proposal={editingFresh}
         leads={editorLeads}
         defaultLeadId={newLeadId}
+        startAccept={startAccept}
       />
     </div>
   )
