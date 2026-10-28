@@ -33,10 +33,41 @@ function json(body: unknown, status = 200) {
   })
 }
 
+// Mês no horário de Brasília (UTC-3), o mesmo dia que o app do Instagram usa
+// para contas brasileiras. O mês corrente termina em "agora".
+const BRT_OFFSET_H = 3
 function monthRange(year: number, month: number) {
-  const since = Math.floor(Date.UTC(year, month - 1, 1, 0, 0, 0) / 1000)
-  const until = Math.floor(Date.UTC(year, month, 1, 0, 0, 0) / 1000)
-  return { since, until }
+  const now   = Math.floor(Date.now() / 1000)
+  const since = Math.floor(Date.UTC(year, month - 1, 1, BRT_OFFSET_H) / 1000)
+  const until = Math.min(Math.floor(Date.UTC(year, month, 1, BRT_OFFSET_H) / 1000), now)
+  return { since, until, now }
+}
+
+// ── Quem começou e quem deixou de seguir num período ─────────────────────────
+// follows_and_unfollows aceita no máximo 30 dias por chamada: períodos maiores
+// são somados em janelas. null se a métrica não vier (ex.: conta < 100 seguidores).
+async function fetchFollows(
+  igUserId: string, token: string, since: number, until: number, warnings: string[],
+): Promise<{ follows: number; unfollows: number } | null> {
+  const WINDOW = 30 * 86400
+  let follows = 0, unfollows = 0
+  for (let start = since; start < until; start += WINDOW) {
+    const end = Math.min(start + WINDOW, until)
+    try {
+      const url = `${IG_API}/${igUserId}/insights?metric=follows_and_unfollows&period=day&metric_type=total_value` +
+        `&breakdown=follow_type&since=${start}&until=${end}&access_token=${token}`
+      const data = await (await fetch(url)).json()
+      if (data.error) { warnings.push(`follows_and_unfollows: ${data.error.message ?? 'erro'}`); return null }
+      const results = data?.data?.[0]?.total_value?.breakdowns?.[0]?.results
+      if (!Array.isArray(results)) continue
+      for (const r of results) {
+        const kind = Array.isArray(r.dimension_values) ? r.dimension_values[0] : r.dimension_values
+        if (kind === 'FOLLOWER') follows += Number(r.value) || 0
+        else if (kind === 'NON_FOLLOWER') unfollows += Number(r.value) || 0
+      }
+    } catch (e) { warnings.push(`follows_and_unfollows: ${String(e)}`); return null }
+  }
+  return { follows, unfollows }
 }
 
 // ── Métrica de conta: total no período (lida com total_value e values[]) ──────
@@ -170,29 +201,46 @@ Deno.serve(async (req) => {
 
     const token    = acc.access_token
     const igUserId = String(acc.ig_user_id)
-    const { since, until } = monthRange(Number(year), Number(month))
+    const { since, until, now } = monthRange(Number(year), Number(month))
     const warnings: string[] = []
 
-    // ── Seguidores ATUAIS (live) → followers_end ──────────────────────────────
-    let followersEnd: number | null = acc.followers_count ?? null
+    // ── Seguidores ATUAIS (live) ──────────────────────────────────────────────
+    let followersNow: number | null = acc.followers_count ?? null
     try {
       const meRes  = await fetch(`${IG_API}/${igUserId}?fields=followers_count&access_token=${token}`)
       const meData = await meRes.json()
       if (!meData.error && typeof meData.followers_count === 'number') {
-        followersEnd = meData.followers_count
+        followersNow = meData.followers_count
         await admin.from('instagram_accounts')
-          .update({ followers_count: followersEnd, updated_at: new Date().toISOString() })
+          .update({ followers_count: followersNow, updated_at: new Date().toISOString() })
           .eq('client_id', client_id).eq('ig_user_id', igUserId)
       }
     } catch { /* usa cache */ }
 
-    // followers_start = followers_end do mês anterior (se houver)
-    const prevMonth = Number(month) === 1 ? 12 : Number(month) - 1
-    const prevYear  = Number(month) === 1 ? Number(year) - 1 : Number(year)
-    const { data: prevReport } = await admin
-      .from('client_reports').select('followers_end')
-      .eq('client_id', client_id).eq('month', prevMonth).eq('year', prevYear).maybeSingle()
-    const followersStart = (prevReport as any)?.followers_end ?? null
+    // ── Seguidores no início e no fim do mês ──────────────────────────────────
+    // Com follows_and_unfollows: fim = hoje − saldo depois do mês; início =
+    // fim − saldo do mês. Assim mês passado não usa a contagem de hoje e o
+    // crescimento é o do mês exato (antes era a diferença entre duas
+    // sincronizações, em datas quaisquer).
+    const monthFollows = await fetchFollows(igUserId, token, since, until, warnings)
+    const afterFollows = monthFollows && until < now
+      ? await fetchFollows(igUserId, token, until, now, warnings)
+      : { follows: 0, unfollows: 0 }
+
+    let followersEnd: number | null = followersNow
+    let followersStart: number | null = null
+    if (monthFollows && afterFollows && followersNow != null) {
+      followersEnd   = followersNow - (afterFollows.follows - afterFollows.unfollows)
+      followersStart = followersEnd - (monthFollows.follows - monthFollows.unfollows)
+    } else {
+      // Sem a métrica: início = fim do relatório do mês anterior (se houver)
+      const prevMonth = Number(month) === 1 ? 12 : Number(month) - 1
+      const prevYear  = Number(month) === 1 ? Number(year) - 1 : Number(year)
+      const { data: prevReport } = await admin
+        .from('client_reports').select('followers_end')
+        .eq('client_id', client_id).eq('month', prevMonth).eq('year', prevYear).maybeSingle()
+      followersStart = (prevReport as any)?.followers_end ?? null
+    }
 
     // ── Métricas de conta do mês ──────────────────────────────────────────────
     const reach        = await fetchAccountMetric(igUserId, token, 'reach', since, until, warnings)
@@ -255,6 +303,9 @@ Deno.serve(async (req) => {
     }
 
     const igData = {
+      follows:         monthFollows?.follows ?? null,
+      unfollows:       monthFollows?.unfollows ?? null,
+      period:          { since: new Date(since * 1000).toISOString(), until: new Date(until * 1000).toISOString() },
       profile_views:   profileViews,
       accounts_engaged: accountsEng,
       interactions:    { likes, comments, saves, shares },

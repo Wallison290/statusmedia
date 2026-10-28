@@ -39,14 +39,20 @@ function monthLabel(month: number, year: number) {
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
+  return n.toLocaleString('pt-BR')
 }
 
 function fmtBRL(n: number | null | undefined): string {
   if (n == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 }).format(n)
+}
+
+// Data no horário de Brasília. `fim` = limite exclusivo da API: meia-noite do
+// dia 1º vira o último dia do mês; no mês corrente, é o dia da sincronização.
+function periodo(iso: string, fim = false): string {
+  const d = new Date(iso)
+  if (fim) d.setTime(d.getTime() - 1000)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
 }
 
 function followerDiff(r: ClientReport): string {
@@ -511,6 +517,11 @@ function ReportDetail({
               ? <>Sincronizado com o Instagram em {new Date(report.ig_synced_at).toLocaleDateString('pt-BR')}</>
               : <>Ainda não sincronizado com o Instagram</>}
           </p>
+          {ig?.period && (
+            <p className="text-[12px] mt-0.5 tabular-nums" style={{ color: 'var(--sm-text-4)' }}>
+              Período: {periodo(ig.period.since)} – {periodo(ig.period.until, true)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {editMode ? (
@@ -556,8 +567,15 @@ function ReportDetail({
       {/* ── 01 Visão geral: faixa de números com divisórias de 1px ── */}
       <Secao n={nVisao} title="Visão geral">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px" style={{ background: 'var(--sm-border)' }}>
-          <KpiCell label={growth ? 'Novos seguidores' : 'Seguidores'} value={followerDiff(report)}
-            sub={growth ? <>{fmt(report.followers_end)} no total</> : undefined} />
+          <KpiCell label="Seguidores" value={fmt(report.followers_end)}
+            sub={growth ? (
+              <>
+                <span className="block">{followerDiff(report)} no mês</span>
+                {ig?.follows != null && ig?.unfollows != null && (
+                  <span className="block">+{fmt(ig.follows)} novos · −{fmt(ig.unfollows)} deixaram</span>
+                )}
+              </>
+            ) : undefined} />
           <KpiCell label="Alcance" value={fmt(report.reach)} />
           <KpiCell label="Engajamento" value={report.engagement != null ? `${report.engagement}%` : '—'} />
           <KpiCell label="Posts publicados" value={fmt(report.posts_published)} />
@@ -565,7 +583,7 @@ function ReportDetail({
             <>
               <KpiCell label="Visitas ao perfil" value={fmt(ig.profile_views)} />
               <KpiCell label="Contas engajadas" value={fmt(ig.accounts_engaged)} />
-              <KpiCell label="Impressões" value={fmt(report.impressions)} />
+              <KpiCell label="Visualizações" value={fmt(report.impressions)} />
               <KpiCell label="Interações totais" value={fmt(interactionsTotal(report))} />
             </>
           )}
@@ -586,7 +604,7 @@ function ReportDetail({
             <Input label="Seguidores (fim)" type="number" value={form.followers_end} onChange={f('followers_end')} placeholder="0" />
             <Input label="Alcance" type="number" value={form.reach} onChange={f('reach')} placeholder="0" />
             <Input label="Engajamento (%)" type="number" value={form.engagement} onChange={f('engagement')} placeholder="0.00" />
-            <Input label="Impressões" type="number" value={form.impressions} onChange={f('impressions')} placeholder="0" />
+            <Input label="Visualizações" type="number" value={form.impressions} onChange={f('impressions')} placeholder="0" />
             <Input label="Posts publicados" type="number" value={form.posts_published} onChange={f('posts_published')} placeholder="0" />
           </div>
         </Secao>

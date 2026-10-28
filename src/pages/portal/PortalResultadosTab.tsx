@@ -25,9 +25,7 @@ function monthLabel(month: number, year: number) {
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
+  return n.toLocaleString('pt-BR')
 }
 
 function fmtBRL(n: number | null | undefined): string {
@@ -216,7 +214,7 @@ function ReportView({ report }: { report: ClientReport }) {
             ['Seguidores (fim)', fmt(report.followers_end)],
             ['Alcance', fmt(report.reach)],
             ['Engajamento', report.engagement != null ? `${report.engagement}%` : '—'],
-            ['Impressões', fmt(report.impressions)],
+            ['Visualizações', fmt(report.impressions)],
             ['Posts publicados', fmt(report.posts_published)],
           ] as [string, string][]).map(([label, value]) => (
             <div key={label}>

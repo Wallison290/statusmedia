@@ -21,9 +21,7 @@ const GENDER_LABEL: Record<string, string> = { M: 'Masculino', F: 'Feminino', U:
 
 export function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
+  return n.toLocaleString('pt-BR')
 }
 
 export function interactionsTotal(report: ClientReport): number | null {
@@ -127,7 +125,7 @@ export function IgInsights({ report, isDark = false, numbers, showKpis = true }:
           {([
             ['Visitas ao perfil', ig.profile_views],
             ['Contas engajadas', ig.accounts_engaged],
-            ['Impressões', report.impressions],
+            ['Visualizações', report.impressions],
             ['Interações totais', interTotal],
           ] as [string, number | null][]).map(([label, value]) => (
             <div key={label} className="px-4 py-3.5 min-w-0" style={{ background: p.card }}>

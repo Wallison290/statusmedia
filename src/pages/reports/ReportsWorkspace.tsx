@@ -41,9 +41,7 @@ function monthLabel(month: number, year: number) {
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
+  return n.toLocaleString('pt-BR')
 }
 
 function fmtBRL(n: number | null | undefined): string {
@@ -718,7 +716,7 @@ export function ReportsWorkspace() {
                         <Input label="Seguidores (fim)" type="number" value={form.followers_end} onChange={f('followers_end')} placeholder="0" />
                         <Input label="Alcance" type="number" value={form.reach} onChange={f('reach')} placeholder="0" />
                         <Input label="Engajamento (%)" type="number" value={form.engagement} onChange={f('engagement')} placeholder="0.00" />
-                        <Input label="Impressões" type="number" value={form.impressions} onChange={f('impressions')} placeholder="0" />
+                        <Input label="Visualizações" type="number" value={form.impressions} onChange={f('impressions')} placeholder="0" />
                         <Input label="Posts publicados" type="number" value={form.posts_published} onChange={f('posts_published')} placeholder="0" />
                       </>
                     ) : (
@@ -727,7 +725,7 @@ export function ReportsWorkspace() {
                         ['Seguidores (fim)', fmt(selected.followers_end)],
                         ['Alcance', fmt(selected.reach)],
                         ['Engajamento', selected.engagement != null ? `${selected.engagement}%` : '—'],
-                        ['Impressões', fmt(selected.impressions)],
+                        ['Visualizações', fmt(selected.impressions)],
                         ['Posts publicados', fmt(selected.posts_published)],
                       ] as [string, string][]).map(([label, value]) => <Fato key={label} label={label} value={value} />)
                     )}

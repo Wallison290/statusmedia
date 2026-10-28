@@ -401,6 +401,11 @@ export interface IgTopPost {
 }
 
 export interface IgReportData {
+  /** Começaram / deixaram de seguir no mês (follows_and_unfollows). */
+  follows?: number | null
+  unfollows?: number | null
+  /** Janela exata consultada na API (mês em horário de Brasília; mês corrente vai até a sincronização). */
+  period?: { since: string; until: string }
   profile_views: number | null
   accounts_engaged: number | null
   interactions: {

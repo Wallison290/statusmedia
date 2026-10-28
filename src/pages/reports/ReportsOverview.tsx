@@ -15,9 +15,7 @@ const YEARS = Array.from({ length: 5 }, (_, i) => CURRENT.getFullYear() - i)
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
+  return n.toLocaleString('pt-BR')
 }
 
 type OverviewReport = Pick<ClientReport, 'ig_synced_at' | 'analysis_text' | 'reach' | 'followers_end' | 'posts_published'>
