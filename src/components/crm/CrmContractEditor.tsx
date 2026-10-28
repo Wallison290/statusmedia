@@ -135,6 +135,17 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
     }
   }
 
+  // Salva e abre a página do cliente. A aba abre antes do salvamento para o
+  // navegador não bloquear como pop-up; rascunho abre só para a agência.
+  async function handlePreview() {
+    const win = window.open('about:blank', '_blank')
+    const saved = await persist()
+    if (!saved) { win?.close(); return }
+    const url = contractLink(saved.public_token)
+    if (win) win.location.href = url
+    else window.open(url, '_blank', 'noopener')
+  }
+
   // Mesmo comportamento da proposta: o botão de baixo envia de verdade.
   async function handleSend() {
     if (!signature && !window.confirm('Enviar sem a assinatura da agência? O cliente vai assinar sozinho.')) return
@@ -385,6 +396,9 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
             <Button variant="outline" onClick={onClose}>Fechar</Button>
             {!signed && status !== 'cancelado' && (
               <>
+                <Button variant="ghost" onClick={handlePreview} disabled={save.isPending}>
+                  <ExternalLink className="w-3.5 h-3.5" /> Ver como o cliente
+                </Button>
                 <Button variant="secondary" disabled={save.isPending} onClick={async () => { if (await persist()) toast('Contrato salvo', 'success') }}>
                   {save.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Salvar

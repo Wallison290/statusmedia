@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, PenLine, Copy, Loader2, Trash2, MessageCircle } from 'lucide-react'
+import { Plus, PenLine, Copy, Loader2, Trash2, MessageCircle, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { useCrmLeads } from '@/hooks/useCrm'
@@ -114,6 +114,13 @@ export function CrmContracts() {
                       </Button>
                     ) : null
                   })()}
+                  {c.status !== 'cancelado' && (
+                    <Button size="icon-sm" variant="ghost" title="Ver como o cliente" asChild>
+                      <a href={contractLink(c.public_token)} target="_blank" rel="noopener">
+                        <Eye className="w-3.5 h-3.5" />
+                      </a>
+                    </Button>
+                  )}
                   {(c.status === 'enviado' || c.status === 'assinado') && (
                     <Button size="icon-sm" variant="ghost" title="Copiar link"
                             onClick={async () => toast((await copyText(contractLink(c.public_token))) ? 'Link copiado' : 'Não consegui copiar', 'success')}>

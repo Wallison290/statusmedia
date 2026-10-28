@@ -33,6 +33,8 @@ export function PublicContractPage() {
   if (data === null)      return <PublicNotFound what="Contrato" />
 
   const signed = data.status === 'assinado'
+  // Rascunho aberto pela agência (migration 111): mesma página, sem assinar
+  const preview = data.status === 'rascunho'
 
   async function sign() {
     setError('')
@@ -66,6 +68,11 @@ export function PublicContractPage() {
 
   return (
     <PublicShell agency={data.agency} wide>
+      {preview && (
+        <div className="mb-10 rounded-2xl px-5 py-3 text-center text-[13px] font-medium print:hidden" style={{ background: INK, color: '#FAF8F4' }}>
+          Pré-visualização: é assim que o cliente vai ver. O link só passa a funcionar para ele depois de enviar.
+        </div>
+      )}
       <p className="text-[11.5px] font-semibold uppercase tracking-[0.22em]" style={{ color: 'var(--brand)' }}>
         {signed ? 'Contrato assinado' : 'Contrato para assinatura'}
       </p>
@@ -129,11 +136,11 @@ export function PublicContractPage() {
               Li o contrato inteiro e concordo com os termos. Entendo que esta assinatura eletrônica tem validade jurídica e que serão registrados meu nome, documento, e-mail, data, hora e endereço de acesso.
             </label>
             {error && <p className="text-[14px]" style={{ color: '#B91C1C' }}>{error}</p>}
-            <button onClick={sign} disabled={busy}
+            <button onClick={sign} disabled={busy || preview}
                     className="w-full min-h-[52px] rounded-full text-[16px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity hover:opacity-90"
                     style={{ background: 'var(--brand)', color: 'var(--on-brand)' }}>
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-              Assinar contrato
+              {preview ? 'Assinar contrato (o cliente assina aqui)' : 'Assinar contrato'}
             </button>
           </div>
         </section>
