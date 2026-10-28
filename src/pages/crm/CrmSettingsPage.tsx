@@ -1,17 +1,17 @@
 // ── CRM › Configurações ──────────────────────────────────────────────────────
 // Tudo que é "do jeito desta agência": formulário de captura, lembrete diário,
 // mensagens prontas de WhatsApp, padrões da proposta e modelo de contrato.
+// Desde out/2026 cada área é uma seção da página Configurações
+// (/configuracoes/crm-*); a conexão do WhatsApp fica na seção WhatsApp de lá.
 
 import { useEffect, useId, useState } from 'react'
-import { Loader2, Copy, ExternalLink, Plus, Trash2, Magnet, Bell, MessageCircle, FileText, PenLine, Smartphone, Repeat, ArrowRight } from 'lucide-react'
+import { Loader2, Copy, ExternalLink, Plus, Trash2, Magnet, Bell, MessageCircle, FileText, PenLine, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { useCrmColumns } from '@/hooks/useCrm'
 import { useCrmSettings, useUpdateCrmSettings, type CrmSettingsInput } from '@/hooks/useCrmSettings'
-import { CrmHeader } from '@/components/crm/CrmHeader'
-import { CrmWhatsappConnect } from '@/components/crm/CrmWhatsappConnect'
 import { CrmBrandSettings } from '@/components/crm/CrmBrandSettings'
 import { CrmFollowupSettings } from '@/components/crm/CrmFollowupSettings'
 import { CrmWhatsappLabelSetting } from '@/components/crm/CrmWhatsappLabelSetting'
@@ -29,7 +29,7 @@ function Section({ icon: Icon, title, hint, children }: { icon: React.ElementTyp
     <section className="crm-setup-section space-y-4">
       <div>
         <h3 className="flex items-center gap-2 font-display text-[18px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
-          <Icon className="w-4 h-4" style={{ color: 'var(--crm-accent)' }} /> {title}
+          <Icon className="w-4 h-4" style={{ color: 'var(--crm-accent-text, var(--crm-accent))' }} /> {title}
         </h3>
         <p className="text-[13px] leading-relaxed mt-1" style={{ color: 'var(--sm-text-2)' }}>{hint}</p>
       </div>
@@ -42,16 +42,10 @@ function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor: stri
   return <label htmlFor={htmlFor} className="crm-field-label">{children}</label>
 }
 
-const SETTINGS_AREAS = [
-  { key: 'followup', title: 'Follow-up', hint: 'Serviços e conversas automáticas', icon: Repeat },
-  { key: 'whatsapp', title: 'WhatsApp e avisos', hint: 'Conexão e mensagens manuais', icon: Smartphone },
-  { key: 'capture', title: 'Entrada de leads', hint: 'Formulário e dados do cliente', icon: Magnet },
-  { key: 'documents', title: 'Propostas e contratos', hint: 'Sua marca e modelos', icon: FileText },
-] as const
+export type CrmSettingsAreaKey = 'followup' | 'mensagens' | 'capture' | 'documents'
 
-export function CrmSettingsPage() {
+export function CrmSettingsArea({ area }: { area: CrmSettingsAreaKey }) {
   const id = useId()
-  const [area, setArea] = useState<string>('followup')
   const { toast } = useToast()
   const { data: settings, isLoading, isError, refetch } = useCrmSettings()
   const { data: columns = [] } = useCrmColumns()
@@ -87,14 +81,9 @@ export function CrmSettingsPage() {
     }
   }
 
-  if (isError) return <div className="h-full flex flex-col" style={{ background: 'var(--sm-bg-page)' }}><CrmHeader subtitle="Configurações do CRM" /><div role="alert" className="p-6 space-y-3" style={{ color: 'var(--sm-text-1)' }}><p>Não foi possível carregar as configurações.</p><Button onClick={() => refetch()}>Tentar novamente</Button></div></div>
+  if (isError) return <div role="alert" className="py-6 space-y-3" style={{ color: 'var(--sm-text-1)' }}><p>Não foi possível carregar as configurações.</p><Button onClick={() => refetch()}>Tentar novamente</Button></div>
   if (isLoading || !settings) {
-    return (
-      <div className="h-full flex flex-col" style={{ background: 'var(--sm-bg-page)' }}>
-        <CrmHeader />
-        <div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--sm-text-3)' }} /></div>
-      </div>
-    )
+    return <div className="py-16 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--sm-text-3)' }} /></div>
   }
 
   const link = captureLink(settings.capture_token)
@@ -102,36 +91,12 @@ export function CrmSettingsPage() {
   const embed = `<iframe src="${link}?origem=site" style="width:100%;max-width:560px;height:720px;border:0" title="Fale com a gente"></iframe>`
 
   return (
-    <div className="h-full flex flex-col crm-settings-ui" style={{ background: 'var(--sm-bg-page)' }}>
-      <CrmHeader subtitle="Configurações do CRM" />
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-          <header className="flex items-start justify-between flex-wrap gap-4">
-            <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-2" style={{ color: 'var(--crm-accent)' }}>Configurações do CRM</p><h2 className="font-display text-[28px] sm:text-[32px] font-semibold tracking-tight">Seu CRM, do seu jeito</h2><p className="text-[13px] mt-2 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Escolha um assunto para configurar. Cada área explica o que faz e quando salvar.</p></div>
-          </header>
-          <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 items-start">
-            <aside className="space-y-4 lg:sticky lg:top-6 min-w-0">
-              <nav role="tablist" aria-label="Áreas das configurações do CRM" className="grid grid-cols-2 lg:grid-cols-1 gap-1">
-                {SETTINGS_AREAS.map(({ key, title, hint, icon: Icon }, index) => <button key={key} id={id + '-tab-' + key} type="button" role="tab" aria-selected={area === key} aria-controls={id + '-panel-' + key} tabIndex={area === key ? 0 : -1} className="crm-settings-nav-button" onClick={() => setArea(key)} onKeyDown={event => {
-                  let next = index
-                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % SETTINGS_AREAS.length
-                  else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + SETTINGS_AREAS.length - 1) % SETTINGS_AREAS.length
-                  else if (event.key === 'Home') next = 0
-                  else if (event.key === 'End') next = SETTINGS_AREAS.length - 1
-                  else return
-                  event.preventDefault()
-                  setArea(SETTINGS_AREAS[next].key)
-                  document.getElementById(id + '-tab-' + SETTINGS_AREAS[next].key)?.focus()
-                }}><Icon className="w-4 h-4 shrink-0" aria-hidden="true" /><span className="min-w-0"><span className="block text-[13px] font-semibold">{title}</span><span className="hidden sm:block text-[11.5px] leading-relaxed mt-0.5" style={{ color: 'var(--sm-text-2)' }}>{hint}</span></span></button>)}
-              </nav>
-              <div className="hidden lg:block crm-panel p-4 space-y-3"><p className="text-[12px] font-semibold">Primeira configuração?</p><p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Conecte o WhatsApp, cadastre seu serviço e ajuste as mensagens. Depois, ative os envios.</p><button type="button" className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--crm-accent)' }} onClick={() => setArea('whatsapp')}>Conectar meu WhatsApp <ArrowRight className="w-3.5 h-3.5" /></button></div>
-            </aside>
-            <div className="min-w-0">
-              <div id={id + '-panel-followup'} role="tabpanel" aria-labelledby={id + '-tab-followup'} hidden={area !== 'followup'} tabIndex={0} className="crm-settings-panel space-y-5 min-w-0"><CrmFollowupSettings /></div>
-              <div id={id + '-panel-whatsapp'} role="tabpanel" aria-labelledby={id + '-tab-whatsapp'} hidden={area !== 'whatsapp'} tabIndex={0} className="crm-settings-panel space-y-5 min-w-0">
-                <div><h2 className="font-display text-[24px] font-semibold">WhatsApp e avisos</h2><p className="text-[13px] mt-2" style={{ color: 'var(--sm-text-2)' }}>Conecte o número da sua empresa e escolha como acompanhar os clientes.</p></div>
-                <CrmWhatsappConnect />
-                <CrmWhatsappLabelSetting />
+    // .sm-config troca o verde antigo do CRM pelo azul da marca (index.css)
+    <div className="crm-settings-ui sm-config space-y-5 min-w-0">
+      {area === 'followup' && <CrmFollowupSettings />}
+      {area === 'mensagens' && (
+        <>
+          <CrmWhatsappLabelSetting />
         {/* Lembrete */}
         <Section icon={Bell} title="Lembrete diário para você"
                  hint="Todo dia às 8h, você recebe a lista de clientes com retorno marcado para hoje ou atrasado. Esse aviso é para você, não para o cliente.">
@@ -141,7 +106,7 @@ export function CrmSettingsPage() {
             Receber o lembrete dos retornos do dia
           </label>
           <p className="text-[12px]" style={{ color: 'var(--sm-text-2)' }}>
-            Essa preferência é salva automaticamente. Para chegar no WhatsApp, o seu número precisa estar verificado em Meu Perfil, com a categoria "CRM" ligada.
+            Essa preferência é salva automaticamente. Para chegar no WhatsApp, o seu número precisa estar verificado na seção WhatsApp, com a categoria "CRM" ligada.
           </p>
         </Section>
         {/* Mensagens prontas */}
@@ -176,7 +141,7 @@ export function CrmSettingsPage() {
         </Section>
         {/* Assistente no WhatsApp */}
         <Section icon={Smartphone} title="Perguntar pelo WhatsApp"
-                 hint="Do seu número pessoal (o verificado na página WhatsApp), mande para o WhatsApp da agência uma mensagem começando com CRM, e a IA responde com os dados do seu funil.">
+                 hint="Do seu número pessoal (o verificado na seção WhatsApp), mande para o WhatsApp da agência uma mensagem começando com CRM, e a IA responde com os dados do seu funil.">
           <ul className="text-[12.5px] space-y-1" style={{ color: 'var(--sm-text-2)' }}>
             <li>• <em>CRM quem eu preciso chamar hoje?</em></li>
             <li>• <em>CRM quanto tenho em proposta aberta?</em></li>
@@ -186,9 +151,10 @@ export function CrmSettingsPage() {
             Só responde ao seu número pessoal verificado; clientes e leads que escreverem "CRM" não recebem nada. Precisa do WhatsApp da agência conectado. Recurso do plano Agency: cada pergunta usa a cota mensal do assistente.
           </p>
         </Section>
-              </div>
-              <div id={id + '-panel-capture'} role="tabpanel" aria-labelledby={id + '-tab-capture'} hidden={area !== 'capture'} tabIndex={0} className="crm-settings-panel space-y-5 min-w-0">
-                <div><h2 className="font-display text-[24px] font-semibold">Entrada de leads</h2><p className="text-[13px] mt-2" style={{ color: 'var(--sm-text-2)' }}>Um lead é um possível cliente. Defina como ele chega ao funil e quais informações você precisa guardar.</p></div>
+        </>
+      )}
+      {area === 'capture' && (
+        <>
         {/* Captura */}
         <Section icon={Magnet} title="Formulário de captura"
                  hint="Um link para a bio do Instagram, o site ou um anúncio. Quem preenche entra direto no funil, sem duplicar quem já é lead, e você é avisado na hora.">
@@ -281,9 +247,10 @@ export function CrmSettingsPage() {
           )}
         </Section>
                 <CrmCustomFieldsSetting />
-              </div>
-              <div id={id + '-panel-documents'} role="tabpanel" aria-labelledby={id + '-tab-documents'} hidden={area !== 'documents'} tabIndex={0} className="crm-settings-panel space-y-5 min-w-0">
-                <div><h2 className="font-display text-[24px] font-semibold">Propostas e contratos</h2><p className="text-[13px] mt-2" style={{ color: 'var(--sm-text-2)' }}>Personalize sua marca e prepare os textos usados nos documentos de cada cliente.</p></div>
+        </>
+      )}
+      {area === 'documents' && (
+        <>
                 <CrmBrandSettings />
         {/* Padrões da proposta */}
         <Section icon={FileText} title="Padrões da proposta" hint="Defina os textos e condições que já aparecem em cada proposta nova. Você pode ajustar cada proposta antes de enviar ao cliente.">
@@ -336,11 +303,8 @@ export function CrmSettingsPage() {
             </Button>
           </div>
         </Section>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }

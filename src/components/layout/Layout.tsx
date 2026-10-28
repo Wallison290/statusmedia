@@ -80,7 +80,7 @@ function AgencyWhatsappPopup() {
           <Button variant="ghost" onClick={never}>Não mostrar mais</Button>
           <Button variant="outline" onClick={close}>Fechar</Button>
           <Button asChild onClick={close}>
-            <Link to="/whatsapp">Conectar agora</Link>
+            <Link to="/configuracoes/whatsapp">Conectar agora</Link>
           </Button>
         </DialogFooter>
       </DialogContent>

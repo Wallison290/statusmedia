@@ -1,4 +1,5 @@
-// ── Página: WhatsApp ───────────────────────────────────────────────────────────
+// ── Configurações › WhatsApp ───────────────────────────────────────────────────
+// Era a página /whatsapp do menu; desde out/2026 é uma seção de /configuracoes.
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -106,7 +107,7 @@ function Section({ n, title, description, aside, children }: {
       <div className="flex items-end justify-between gap-3 mb-3">
         <div className="min-w-0">
           <h2 className="flex items-baseline gap-2">
-            <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+            <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>
             <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
           </h2>
           <p className="text-[12.5px] mt-0.5 max-w-[62ch]" style={{ color: 'var(--sm-text-3)' }}>{description}</p>
@@ -308,9 +309,9 @@ function GroupCard({ group, first }: { group: WhatsappGroup; first: boolean }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// ── Seção principal ───────────────────────────────────────────────────────────
 
-export function WhatsAppPage() {
+export function WhatsAppSettings() {
   const { toast } = useToast()
   const {
     whatsapp, optIn, verified, prefs, busy,
@@ -357,19 +358,8 @@ export function WhatsAppPage() {
   const comWhats = clients.filter(c => c.whatsapp).length
 
   return (
-    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
-      <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-9">
-
-        {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
-        <header className="max-md:pl-12 max-md:-mt-[3.25rem]">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Comunicação</p>
-          <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
-            WhatsApp
-          </h1>
-          <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
-            Notificações automáticas via WhatsApp para a agência e clientes
-          </p>
-        </header>
+    <>
+      <div className="space-y-9">
 
         {/* ── 01: WhatsApp da agência (o número que ENVIA) ── */}
         <CrmWhatsappConnect n="01" />
@@ -542,6 +532,6 @@ export function WhatsAppPage() {
       </div>
 
       {showAddModal && <AddGroupModal onClose={() => setShowAddModal(false)} />}
-    </div>
+    </>
   )
 }

@@ -16,7 +16,8 @@ const TABS = [
   { to: '/crm/contratos',     label: 'Contratos',     icon: PenLine,   full: true },
   { to: '/crm/automacoes',    label: 'Automações',    icon: Zap,       full: true },
   { to: '/crm/relatorios',    label: 'Relatórios',    icon: BarChart3, full: true },
-  { to: '/crm/configuracoes', label: 'Configurações', icon: Settings2, full: true },
+  // Atalho: as configurações do CRM moraram aqui até out/2026; hoje ficam em /configuracoes
+  { to: '/configuracoes/crm-followup', label: 'Configurações', icon: Settings2, full: true },
 ]
 
 /** Abas do CRM completo: no Starter mostra o cabeçalho e o convite de upgrade. */

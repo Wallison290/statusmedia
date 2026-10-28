@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { AlertTriangle, FileSignature, Wallet } from 'lucide-react'
 import {
@@ -151,7 +152,7 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
       <div className="grid lg:grid-cols-2 gap-6">
         <section>
           <SectionTitle n="02" title="Saldo por conta" right={
-            <button onClick={() => goTo('configuracoes')} className="text-[12px] font-semibold" style={{ color: '#60A5FA' }}>Gerenciar</button>
+            <Link to="/configuracoes/financeiro" className="text-[12px] font-semibold" style={{ color: '#60A5FA' }}>Gerenciar</Link>
           } />
           <Card>
             {accounts.filter(a => a.is_active).map((a, i) => (

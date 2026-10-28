@@ -4,8 +4,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, Calendar, CheckSquare,
-  LogOut, ChevronLeft, ChevronRight, Wallet, NotebookPen, LayoutGrid, Zap, UserCheck, Instagram, HardDrive, Info, MessageCircle, BarChart3,
-  ShieldCheck, Target,
+  LogOut, ChevronLeft, ChevronRight, Wallet, NotebookPen, LayoutGrid, Zap, UserCheck, Instagram, HardDrive, Info, BarChart3,
+  ShieldCheck, Target, Settings,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/utils/formatters'
@@ -69,8 +69,9 @@ const navGroups: NavGroup[] = [
       // Review. Um selo "em breve" na tela que o revisor foi testar contradiz a
       // submissão. A infraestrutura do selo continua aqui para o próximo recurso
       // que precisar dela.
+      // WhatsApp saiu do menu (out/2026): era só configuração e foi para
+      // Configurações › WhatsApp. /whatsapp redireciona para lá.
       { href: '/instagram', icon: Instagram,     label: 'Instagram', hint: 'Instagram — connect client accounts and follow scheduled and published posts.' },
-      { href: '/whatsapp',  icon: MessageCircle, label: 'WhatsApp'   },
     ],
   },
   {
@@ -79,6 +80,13 @@ const navGroups: NavGroup[] = [
       { href: '/financial', icon: Wallet,      label: 'Financeiro' },
       { href: '/equipe',    icon: UserCheck,   label: 'Equipe'     },
       { href: '/admin',     icon: ShieldCheck, label: 'Admin', adminOnly: true },
+    ],
+  },
+  // Configurações fica solta no fim: vale para a conta, a agência e o CRM
+  {
+    title: null,
+    items: [
+      { href: '/configuracoes', icon: Settings, label: 'Configurações', hint: 'Settings — account, agency WhatsApp, finance and CRM preferences in one place.' },
     ],
   },
   // StatusIA fora do menu (set/2026): a StatusMedia deixou de vender IA por

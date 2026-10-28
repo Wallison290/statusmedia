@@ -28,7 +28,6 @@ const CrmProposals      = lazy(() => import('@/pages/crm/CrmProposals').then(m =
 const CrmContracts      = lazy(() => import('@/pages/crm/CrmContracts').then(m => ({ default: m.CrmContracts })))
 const CrmAutomations    = lazy(() => import('@/pages/crm/CrmAutomations').then(m => ({ default: m.CrmAutomations })))
 const CrmReports        = lazy(() => import('@/pages/crm/CrmReports').then(m => ({ default: m.CrmReports })))
-const CrmSettingsPage   = lazy(() => import('@/pages/crm/CrmSettingsPage').then(m => ({ default: m.CrmSettingsPage })))
 const PublicProposalPage = lazy(() => import('@/pages/public/PublicProposalPage').then(m => ({ default: m.PublicProposalPage })))
 const PublicContractPage = lazy(() => import('@/pages/public/PublicContractPage').then(m => ({ default: m.PublicContractPage })))
 const LeadCapturePage    = lazy(() => import('@/pages/public/LeadCapturePage').then(m => ({ default: m.LeadCapturePage })))
@@ -43,7 +42,7 @@ const PortalDashboard    = lazy(() => import('@/pages/portal/PortalDashboard').t
 const CollaboratorPortal = lazy(() => import('@/pages/portal/CollaboratorPortal').then(m => ({ default: m.CollaboratorPortal })))
 const TeamPage           = lazy(() => import('@/pages/team/TeamPage').then(m => ({ default: m.TeamPage })))
 const InstagramPage      = lazy(() => import('@/pages/instagram/InstagramPage').then(m => ({ default: m.InstagramPage })))
-const WhatsAppPage       = lazy(() => import('@/pages/whatsapp/WhatsAppPage').then(m => ({ default: m.WhatsAppPage })))
+const SettingsPage       = lazy(() => import('@/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ReportsOverview    = lazy(() => import('@/pages/reports/ReportsOverview').then(m => ({ default: m.ReportsOverview })))
 const ReportsWorkspace   = lazy(() => import('@/pages/reports/ReportsWorkspace').then(m => ({ default: m.ReportsWorkspace })))
 const PrivacyPage        = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
@@ -217,7 +216,7 @@ function AppRoutes() {
         <Route path="/crm/contratos"     element={<CrmPlanGate><CrmContracts /></CrmPlanGate>} />
         <Route path="/crm/automacoes"    element={<CrmPlanGate><CrmAutomations /></CrmPlanGate>} />
         <Route path="/crm/relatorios"    element={<CrmPlanGate><CrmReports /></CrmPlanGate>} />
-        <Route path="/crm/configuracoes" element={<CrmPlanGate><CrmSettingsPage /></CrmPlanGate>} />
+        <Route path="/crm/configuracoes" element={<Navigate to="/configuracoes/crm-followup" replace />} />
         <Route path="/clients"       element={<ClientList />} />
         <Route path="/clients/new"   element={<ClientForm />} />
         <Route path="/clients/:id"   element={<ClientProfile />} />
@@ -235,7 +234,9 @@ function AppRoutes() {
         <Route path="/ai/*"          element={<Navigate to="/dashboard" replace />} />
         <Route path="/equipe"        element={<TeamPage />} />
         <Route path="/instagram"     element={<InstagramPage />} />
-        <Route path="/whatsapp"      element={<WhatsAppPage />} />
+        <Route path="/whatsapp"      element={<Navigate to="/configuracoes/whatsapp" replace />} />
+        <Route path="/configuracoes"        element={<Navigate to="/configuracoes/conta" replace />} />
+        <Route path="/configuracoes/:secao" element={<SettingsPage />} />
         <Route path="/reports"            element={<ReportsOverview />} />
         <Route path="/reports/:clientId"  element={<ReportsWorkspaceRoute />} />
         <Route path="/assinatura"    element={<Subscription />} />

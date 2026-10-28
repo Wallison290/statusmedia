@@ -101,7 +101,7 @@ export function BillingTab() {
             {missing.map(m => (
               <p key={m} className="text-[12.5px] flex items-start gap-1.5" style={{ color: '#F59E0B' }}>
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> {m}
-                {m.includes('WhatsApp da agência') && <Link to="/whatsapp" className="underline ml-1">Conectar</Link>}
+                {m.includes('WhatsApp da agência') && <Link to="/configuracoes/whatsapp" className="underline ml-1">Conectar</Link>}
               </p>
             ))}
           </div>

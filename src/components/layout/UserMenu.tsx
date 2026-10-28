@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   User, CreditCard, LogOut, Key, ChevronRight,
-  Camera, Check, X, Loader2, Building2, Zap, Crown,
+  Camera, Building2, Zap, Crown,
   HelpCircle, Sun, Moon,
 } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
@@ -57,162 +57,7 @@ const PLAN_CONFIG = {
   agency:  { label: 'Agency',  icon: Building2, color: 'bg-amber-100 text-amber-700' },
 }
 
-// ── Modal de Perfil ───────────────────────────────────────────────────────────
-
-function ProfileModal({ onClose }: { onClose: () => void }) {
-  const { user, profile, refreshProfile } = useAuth()
-  const { toast } = useToast()
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [name, setName]           = useState(profile?.full_name || '')
-  const [agencyName, setAgency]   = useState((profile as any)?.agency_name || '')
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
-  const [uploading, setUploading] = useState(false)
-  const [saving, setSaving]       = useState(false)
-
-  // Sincroniza os campos quando o profile carrega (useState não reinicia após mount)
-  useEffect(() => {
-    if (profile) {
-      setName(profile.full_name || '')
-      setAgency((profile as any).agency_name || '')
-      setAvatarUrl(profile.avatar_url || '')
-    }
-  }, [profile?.full_name, (profile as any)?.agency_name, profile?.avatar_url])
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !user) return
-    setUploading(true)
-    try {
-      const ext  = file.name.split('.').pop() || 'jpg'
-      const path = `${user.id}/avatar.${ext}`
-      const { error } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true })
-      if (error) throw error
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      // Força reload sem cache
-      const fresh = `${publicUrl}?t=${Date.now()}`
-      setAvatarUrl(fresh)
-    } catch (err: any) {
-      toast(err.message, 'error')
-    } finally {
-      setUploading(false)
-      e.target.value = ''
-    }
-  }
-
-  const handleSave = async () => {
-    if (!user) return
-    setSaving(true)
-    try {
-      const { error } = await (supabase as any)
-        .from('profiles')
-        .update({ full_name: name, agency_name: agencyName, avatar_url: avatarUrl, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-      if (error) throw error
-      await refreshProfile?.()
-      toast('Perfil atualizado!', 'success')
-      onClose()
-    } catch (err: any) {
-      toast(err.message, 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const initial = (name || profile?.email || 'U')[0].toUpperCase()
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5 max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[#0f172a]">Meu Perfil</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-[#f1f5f9] flex items-center justify-center transition-colors">
-            <X className="w-4 h-4 text-[#94a3b8]" />
-          </button>
-        </div>
-
-        {/* Avatar upload */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative">
-            <div
-              className="w-20 h-20 rounded-full overflow-hidden cursor-pointer group border-2 border-[#e8e8e8] hover:border-violet-400 transition-colors"
-              onClick={() => fileRef.current?.click()}
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">{initial}</span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
-              </div>
-            </div>
-          </div>
-          <p className="text-[11px] text-[#94a3b8]">Clique para alterar a foto</p>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-        </div>
-
-        {/* Campos */}
-        <div className="space-y-3">
-          <div>
-            <label className="text-[11px] font-medium text-[#64748b] block mb-1">Nome completo</label>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-[#e2e8f0] text-[13px] text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
-              placeholder="Seu nome"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-medium text-[#64748b] block mb-1">Nome da agência</label>
-            <input
-              value={agencyName}
-              onChange={e => setAgency(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-[#e2e8f0] text-[13px] text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
-              placeholder="Nome da sua agência"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-medium text-[#64748b] block mb-1">E-mail</label>
-            <input
-              value={user?.email || ''}
-              disabled
-              className="w-full h-9 px-3 rounded-lg border border-[#e2e8f0] text-[13px] bg-[#f8fafc] text-[#94a3b8] cursor-not-allowed"
-            />
-          </div>
-        </div>
-
-        {/* Botões */}
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={handleSave}
-            disabled={saving || uploading}
-            className="flex-1 h-9 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 text-white text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Salvar
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 h-9 rounded-lg border border-[#e2e8f0] text-[13px] text-[#475569] hover:bg-[#f8fafc] transition-colors"
-          >
-            Cancelar
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
+// O antigo modal "Meu Perfil" virou a seção Configurações › Perfil e acesso.
 
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 
@@ -227,7 +72,6 @@ export function UserMenu({ dark = true }: UserMenuProps) {
   const { toast }             = useToast()
   const { isDark, toggleTheme } = useTheme()
   const [open, setOpen]       = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
   const menuRef               = useRef<HTMLDivElement>(null)
   const buttonRef             = useRef<HTMLButtonElement>(null)
   const dropdownRef           = useRef<HTMLDivElement>(null)
@@ -380,7 +224,7 @@ export function UserMenu({ dark = true }: UserMenuProps) {
                     icon={User}
                     label="Meu Perfil"
                     description="Foto, nome e agência"
-                    onClick={() => { setOpen(false); setShowProfile(true) }}
+                    onClick={() => { setOpen(false); navigate('/configuracoes/conta') }}
                   />
                   <MenuItem
                     icon={CreditCard}
@@ -451,10 +295,6 @@ export function UserMenu({ dark = true }: UserMenuProps) {
         document.body
       )}
 
-      {/* Modal de perfil */}
-      <AnimatePresence>
-        {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
-      </AnimatePresence>
     </>
   )
 }

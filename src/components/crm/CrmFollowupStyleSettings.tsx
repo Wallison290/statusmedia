@@ -34,8 +34,9 @@ function ChoiceGroup<T extends string>({ label, options, value, onChange, column
       <p id={`${id}-label`} className="crm-field-label">{label}</p>
       <div role="radiogroup" aria-labelledby={`${id}-label`} className={`grid gap-2 ${columns}`}>
         {keys.map((key, index) => <button key={key} id={`${id}-${key}`} type="button" role="radio" aria-checked={value === key}
-          tabIndex={value === key ? 0 : -1} className="crm-choice !justify-start text-left" onClick={() => onChange(key)} onKeyDown={event => onKeyDown(event, index)}>
-          {value === key && <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}{options[key]}
+          tabIndex={value === key ? 0 : -1} className="crm-choice crm-choice-option" onClick={() => onChange(key)} onKeyDown={event => onKeyDown(event, index)}>
+          <span className="flex-1 min-w-0">{options[key]}</span>
+          {value === key && <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />}
         </button>)}
       </div>
     </div>
@@ -138,12 +139,12 @@ export function CrmFollowupStyleSettings({ value, days, onDirtyChange }: { value
           <div className="crm-panel p-4 sm:p-5 space-y-5">
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="text-[15px] font-semibold">Seu jeito de escrever</h4>
-              <span className="text-[11px] rounded-full px-2.5 py-0.5 font-medium" style={{ background: 'var(--crm-accent-soft)', color: 'var(--crm-accent)' }}>Vale para todos os serviços</span>
+              <span className="text-[11px] rounded-full px-2.5 py-0.5 font-medium" style={{ background: 'var(--crm-accent-soft)', color: 'var(--crm-accent-text, var(--crm-accent))' }}>Vale para todos os serviços</span>
             </div>
             <ChoiceGroup label="Tom de voz" options={FOLLOWUP_TONES} value={draft.tone} onChange={next => change('tone', next)} columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" />
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-5">
               <ChoiceGroup label="Tamanho da mensagem" options={FOLLOWUP_LENGTHS} value={draft.length} onChange={next => change('length', next)} columns="grid-cols-1 sm:grid-cols-2" />
-              <ChoiceGroup label="Como terminar a mensagem" options={FOLLOWUP_CLOSINGS} value={draft.closing} onChange={next => change('closing', next)} columns="grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3" />
+              <ChoiceGroup label="Como terminar a mensagem" options={FOLLOWUP_CLOSINGS} value={draft.closing} onChange={next => change('closing', next)} columns="grid-cols-1 sm:grid-cols-3" />
             </div>
             <details className="crm-disclosure" style={{ background: 'var(--sm-bg-card)' }}>
               <summary>Orientações e palavras a evitar (opcional)</summary>
@@ -223,13 +224,13 @@ export function CrmFollowupStyleSettings({ value, days, onDirtyChange }: { value
                 <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>Defina primeiro o objetivo. O exemplo mostra como você escreveria esse contato.</p>
               </div>
               <div>
-                <label htmlFor={`${id}-goal`} className="crm-field-label"><span className="tabular-nums" style={{ color: 'var(--crm-accent)' }}>1.</span> Objetivo deste contato</label>
+                <label htmlFor={`${id}-goal`} className="crm-field-label"><span className="tabular-nums" style={{ color: 'var(--crm-accent-text, var(--crm-accent))' }}>1.</span> Objetivo deste contato</label>
                 <Textarea id={`${id}-goal`} rows={2} maxLength={700} disabled={!selectedOffer} value={current.goal}
                   placeholder={followupDefaultGoal(activeContact, days)} className="text-[13px]" onChange={event => changeStep(activeContact, 'goal', event.target.value)} />
                 <p className="crm-field-hint">Em branco, vale o objetivo padrão que aparece no campo.</p>
               </div>
               <div>
-                <label htmlFor={`${id}-example`} className="crm-field-label"><span className="tabular-nums" style={{ color: 'var(--crm-accent)' }}>2.</span> Mensagem de referência</label>
+                <label htmlFor={`${id}-example`} className="crm-field-label"><span className="tabular-nums" style={{ color: 'var(--crm-accent-text, var(--crm-accent))' }}>2.</span> Mensagem de referência</label>
                 <Textarea id={`${id}-example`} rows={4} maxLength={1000} disabled={!selectedOffer} value={current.example}
                   placeholder="Ex: Posso te explicar como o serviço funciona no seu negócio?" className="text-[13px]" onChange={event => changeStep(activeContact, 'example', event.target.value)} />
                 <p className="crm-field-hint">A IA pode mudar a abertura, os argumentos e a pergunta, mantendo sua intenção.</p>
@@ -283,7 +284,7 @@ export function CrmFollowupStyleSettings({ value, days, onDirtyChange }: { value
           </Button>
           {preview && <div aria-live="polite" className="space-y-3">
             <div className="rounded-2xl rounded-tl-sm p-4 max-w-xl" style={{ background: 'var(--crm-accent-soft)', border: '1px solid var(--crm-accent-border)' }}>
-              <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--crm-accent)' }}>Prévia da mensagem</p>
+              <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--crm-accent-text, var(--crm-accent))' }}>Prévia da mensagem</p>
               <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--sm-text-1)' }}>{preview.message}</p>
             </div>
             {preview.warning && <p className="text-[12px]" style={{ color: 'var(--sm-text-2)' }}>{preview.warning}</p>}

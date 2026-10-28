@@ -33,6 +33,25 @@
   --crm-panel: #f4f7fa;
   --crm-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px -18px rgba(15, 23, 42, 0.25);
 }
+/* Dentro de Configurações (/configuracoes) o acento do CRM segue o kit da
+   marca: azul #2563EB, texto branco sobre ele. */
+/* Vale também para os blocos do CRM que têm o próprio .crm-settings-ui dentro
+   (follow-up), senão eles voltam ao verde. Texto em acento usa o azul de link
+   do kit (#60A5FA no escuro), que tem contraste; o preenchimento fica #2563EB. */
+.crm-settings-ui.sm-config,
+.sm-config .crm-settings-ui,
+[data-theme='light'] .crm-settings-ui.sm-config,
+[data-theme='light'] .sm-config .crm-settings-ui {
+  --crm-accent: #2563EB;
+  --crm-accent-ink: #ffffff;
+  --crm-accent-soft: rgba(37, 99, 235, 0.12);
+  --crm-accent-border: rgba(37, 99, 235, 0.38);
+  --crm-accent-text: #60A5FA;
+}
+[data-theme='light'] .crm-settings-ui.sm-config,
+[data-theme='light'] .sm-config .crm-settings-ui {
+  --crm-accent-text: #2563EB;
+}
 
 /* Campos: valem para todas as abas das configurações, inclusive selects com estilo inline */
 .crm-settings-ui :is(select, textarea, input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file'])) {
@@ -124,6 +143,15 @@
   font-weight: 600;
 }
 .crm-choice-sub { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; }
+/* Opção com texto (tom, tamanho, final): texto à esquerda ocupando a largura e
+   o ✓ fixo à direita, para o texto não pular de lugar quando é escolhido. */
+.crm-choice.crm-choice-option {
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  text-align: left;
+}
 
 /* Blocos que abrem e fecham: parecem um botão, com seta que gira */
 .crm-disclosure { border: 1px solid var(--sm-border); border-radius: 12px; background: var(--crm-panel); }
@@ -223,7 +251,7 @@
   box-shadow: inset 3px 0 0 var(--crm-accent);
   color: var(--sm-text-1);
 }
-.crm-settings-nav-button[aria-selected='true'] svg { color: var(--crm-accent); }
+.crm-settings-nav-button[aria-selected='true'] svg { color: var(--crm-accent-text, var(--crm-accent)); }
 .crm-settings-ui :is(button, a, select, input, textarea, summary):focus-visible {
   outline: 2px solid var(--crm-accent);
   outline-offset: 3px;

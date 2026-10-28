@@ -33,7 +33,7 @@ export function CrmWhatsappConnect({ n }: { n?: string } = {}) {
     <section className="rounded-2xl border p-4 sm:p-5 space-y-3" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
       <div>
         <h2 className="flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
-          {n && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>}
+          {n && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>}
           <span className="font-display text-[17px] font-bold">Meu WhatsApp</span>
           <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium self-center ml-1" style={{ color: 'var(--sm-text-3)' }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: data.status === 'connected' ? '#22C55E' : '#F59E0B' }} />

@@ -99,7 +99,7 @@ export function CrmFollowupSettings() {
     <section className="crm-settings-ui space-y-5 min-w-0" aria-label="Configuração do follow-up automático">
       <header className="flex items-start justify-between gap-4 flex-wrap pb-2">
         <div className="max-w-xl">
-          <p className="text-[11px] uppercase tracking-[0.14em] font-semibold mb-2" style={{ color: 'var(--crm-accent)' }}>Conversas que continuam</p>
+          <p className="text-[11px] uppercase tracking-[0.14em] font-semibold mb-2" style={{ color: 'var(--crm-accent-text, var(--crm-accent))' }}>Conversas que continuam</p>
           <h2 className="font-display text-[26px] sm:text-[30px] font-bold tracking-tight leading-tight">Follow-up automático</h2>
           <p className="text-[13px] leading-relaxed mt-2" style={{ color: 'var(--sm-text-2)' }}>Quando um cliente deixa de responder, o CRM retoma a conversa pelo seu WhatsApp. Configure o serviço e o jeito de falar antes de ativar.</p>
         </div>
@@ -111,7 +111,7 @@ export function CrmFollowupSettings() {
 
       <nav aria-label="Etapas da configuração do follow-up" className="flex flex-wrap gap-x-5 gap-y-2 px-4 py-3 rounded-xl border" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-card)' }}>
         {[['01', 'Serviço', 'followup-service'], ['02', 'Dias', 'followup-days'], ['03', 'Mensagens', 'followup-messages'], ['04', 'Prévia', 'followup-preview'], ['05', 'Ativação', 'followup-activation']].map(([number, title, target]) => (
-          <button key={target} type="button" className="text-[13px] font-medium flex items-center gap-2 py-1 hover:underline underline-offset-4" onClick={() => goTo(target)}><span className="tabular-nums font-semibold" style={{ color: 'var(--crm-accent)' }}>{number}</span>{title}</button>
+          <button key={target} type="button" className="text-[13px] font-medium flex items-center gap-2 py-1 hover:underline underline-offset-4" onClick={() => goTo(target)}><span className="tabular-nums font-semibold" style={{ color: 'var(--crm-accent-text, var(--crm-accent))' }}>{number}</span>{title}</button>
         ))}
       </nav>
 

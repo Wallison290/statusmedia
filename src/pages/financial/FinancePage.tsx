@@ -10,7 +10,6 @@ import { OverviewTab } from './OverviewTab'
 import { EntriesTab } from './EntriesTab'
 import { OverdueTab } from './OverdueTab'
 import { RecurrencesTab } from './RecurrencesTab'
-import { SettingsTab } from './SettingsTab'
 import { HistoryTab } from './HistoryTab'
 import { BillingTab } from './BillingTab'
 import { InvoicesTab } from './InvoicesTab'
@@ -25,7 +24,6 @@ const TABS = [
   { id: 'notas',          label: 'Notas fiscais' },
   { id: 'clientes',       label: 'Clientes' },
   { id: 'recorrencias',   label: 'Recorrências' },
-  { id: 'configuracoes',  label: 'Contas e categorias' },
   { id: 'historico',      label: 'Histórico' },
 ] as const
 type TabId = typeof TABS[number]['id']
@@ -69,7 +67,6 @@ export function FinancePage() {
             {tab === 'notas' && (autoBilling ? <InvoicesTab /> : <PlanLocked feature="autoBilling" title="Notas fiscais" description="Prepare os dados da nota de cada mensalidade, registre o número e o PDF, e o cliente recebe a nota no portal e junto com a cobrança." />)}
             {tab === 'clientes' && <ClientBillingTab />}
             {tab === 'recorrencias' && <RecurrencesTab />}
-            {tab === 'configuracoes' && <SettingsTab />}
             {tab === 'historico' && <HistoryTab />}
           </>
         )}
