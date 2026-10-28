@@ -5,142 +5,198 @@
 //
 // Componente compartilhado entre a aba Resultados da agência (ReportsTab), o
 // workspace global de Relatórios e o portal do cliente (PortalResultadosTab).
-// Read-only. O prop `isDark` é opcional e default `false` (tema claro) — quem
-// quiser dark mode passa `isDark` explicitamente (ex: workspace de Relatórios).
-// Portal e ReportsTab continuam sem passar o prop, então continuam sempre claros.
+// Read-only. `isDark` é opcional (default claro). Visual do kit da marca:
+// superfícies neutras, fios de 1px, azul #2563EB só em barras e números de
+// seção. `numbers` traz o número (01, 02…) de cada seção, calculado por quem
+// chama com `igSectionKeys` (o filho renderiza depois do pai, então não dá
+// para numerar com um contador compartilhado);
+// `showKpis={false}` omite a faixa de KPIs quando a página já os mostra.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Eye, Users, TrendingUp, Zap, Heart, Instagram, ImageIcon, BarChart3 } from 'lucide-react'
+import { Heart, MessageCircle, Eye, ImageIcon, ArrowUpRight } from 'lucide-react'
 import type { ClientReport } from '@/types'
 
+const ACCENT = '#2563EB'
 const GENDER_LABEL: Record<string, string> = { M: 'Masculino', F: 'Feminino', U: 'Outro' }
 
-type Tone = 'amber' | 'teal' | 'sky' | 'violet'
-
-const TONE: Record<Tone, { icon: string; iconDark: string; light: string; dark: string }> = {
-  amber:  { icon: 'text-amber-600',  iconDark: 'text-amber-400',  light: 'border-amber-300 bg-amber-100',   dark: 'border-amber-700/50 bg-amber-950/60'  },
-  teal:   { icon: 'text-teal-600',   iconDark: 'text-teal-400',   light: 'border-teal-300 bg-teal-100',     dark: 'border-teal-700/50 bg-teal-950/60'    },
-  sky:    { icon: 'text-sky-600',    iconDark: 'text-sky-400',    light: 'border-sky-300 bg-sky-100',       dark: 'border-sky-700/50 bg-sky-950/60'      },
-  violet: { icon: 'text-violet-600', iconDark: 'text-violet-400', light: 'border-violet-300 bg-violet-100', dark: 'border-violet-700/50 bg-violet-950/60' },
-}
-
-function fmt(n: number | null | undefined): string {
+export function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
   return String(n)
 }
 
-// Cartão neutro: a cor do tom fica só no ícone (mesmo visual dos KPIs do sistema).
-function MetricCard({ icon: Icon, tone, label, value, isDark }: {
-  icon: React.ElementType; tone: Tone; label: string; value: string; isDark: boolean
+export function interactionsTotal(report: ClientReport): number | null {
+  const inter = report.ig_data?.interactions
+  if (!inter) return null
+  const vals = [inter.likes, inter.comments, inter.saves, inter.shares]
+  if (vals.every(v => v == null)) return null
+  return vals.reduce<number>((s, v) => s + (v ?? 0), 0)
+}
+
+export type IgSection = 'inter' | 'top' | 'audience'
+
+/** Seções que o relatório vai mostrar, na ordem em que aparecem. */
+export function igSectionKeys(report: ClientReport): IgSection[] {
+  const ig = report.ig_data
+  if (!ig) return []
+  const d = ig.demographics
+  const hasDemo = !!(d?.gender && Object.keys(d.gender).length) || !!(d?.age && Object.keys(d.age).length) || !!d?.cities?.length
+  return [
+    interactionsTotal(report) != null && 'inter',
+    !!ig.top_posts?.length && 'top',
+    hasDemo && 'audience',
+  ].filter(Boolean) as IgSection[]
+}
+
+function palette(isDark: boolean) {
+  return isDark
+    ? { card: '#182233', alt: '#101A2B', border: '#1E293B', track: '#1E293B', text: '#F8FAFC', text2: '#CBD5E1', text3: '#94A3B8' }
+    : { card: '#FFFFFF', alt: '#F8FAFC', border: '#E2E8F0', track: '#EEF2F6', text: '#0F172A', text2: '#475569', text3: '#94A3B8' }
+}
+type Pal = ReturnType<typeof palette>
+
+/** Cabeçalho de seção: número azul + título em Bricolage + fio embaixo. */
+function Head({ n, title, aside, p }: { n?: string; title: string; aside?: React.ReactNode; p: Pal }) {
+  return (
+    <div className="px-5 py-3.5 flex items-center justify-between gap-3 border-b" style={{ borderColor: p.border }}>
+      <h3 className="flex items-baseline gap-2 min-w-0">
+        {n && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: ACCENT }}>{n}</span>}
+        <span className="font-display text-[15px] font-bold truncate" style={{ color: p.text }}>{title}</span>
+      </h3>
+      {aside}
+    </div>
+  )
+}
+
+function Eyebrow({ children, p }: { children: React.ReactNode; p: Pal }) {
+  return <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: p.text3 }}>{children}</p>
+}
+
+function Bar({ label, value, total, max, p }: { label: string; value: number; total: number; max: number; p: Pal }) {
+  const width = max > 0 ? Math.round((value / max) * 100) : 0
+  const share = total > 0 ? Math.round((value / total) * 100) : 0
+  return (
+    <div className="grid grid-cols-[minmax(0,7rem)_1fr_auto] items-center gap-3">
+      <span className="text-[12px] truncate" style={{ color: p.text2 }}>{label}</span>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: p.track }}>
+        <div className="h-full rounded-full" style={{ width: `${width}%`, background: ACCENT }} />
+      </div>
+      <span className="text-[12px] tabular-nums text-right w-[4.5rem]" style={{ color: p.text }}>
+        <span className="font-semibold">{fmt(value)}</span>
+        <span style={{ color: p.text3 }}> · {share}%</span>
+      </span>
+    </div>
+  )
+}
+
+export function IgInsights({ report, isDark = false, numbers, showKpis = true }: {
+  report: ClientReport; isDark?: boolean; numbers?: Partial<Record<IgSection, string>>; showKpis?: boolean
 }) {
-  const t = TONE[tone]
-  return (
-    <div className="rounded-2xl border p-4 flex flex-col gap-2"
-      style={{ background: isDark ? '#182233' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0' }}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>{label}</p>
-        <Icon className={`w-4 h-4 flex-shrink-0 ${isDark ? t.iconDark : t.icon}`} />
-      </div>
-      <p className="font-display text-[24px] font-bold leading-tight tabular-nums" style={{ color: isDark ? '#F8FAFC' : '#0f0f0f' }}>{value}</p>
-    </div>
-  )
-}
-
-function Bar({ label, value, max, isDark }: { label: string; value: number; max: number; isDark: boolean }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] w-24 flex-shrink-0 truncate" style={{ color: isDark ? '#CBD5E1' : '#475569' }}>{label}</span>
-      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: isDark ? '#1e293b' : '#e2e8f0' }}>
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#2563EB' }} />
-      </div>
-      <span className="text-[11px] font-semibold w-14 text-right flex-shrink-0" style={{ color: isDark ? '#F8FAFC' : '#0f0f0f' }}>{fmt(value)}</span>
-    </div>
-  )
-}
-
-export function IgInsights({ report, isDark = false }: { report: ClientReport; isDark?: boolean }) {
   const ig = report.ig_data
   if (!ig) return null
+  const p = palette(isDark)
 
   const inter = ig.interactions
   const demo  = ig.demographics
   const genderEntries = demo?.gender ? Object.entries(demo.gender).sort((a, b) => b[1] - a[1]) : []
   const genderTotal   = genderEntries.reduce((s, [, v]) => s + v, 0)
+  const genderMax     = genderEntries.reduce((m, [, v]) => Math.max(m, v), 0)
   const ageEntries    = demo?.age ? Object.entries(demo.age).sort((a, b) => a[0].localeCompare(b[0])) : []
+  const ageTotal      = ageEntries.reduce((s, [, v]) => s + v, 0)
   const ageMax        = ageEntries.reduce((m, [, v]) => Math.max(m, v), 0)
   const cities        = demo?.cities ?? []
+  // Cidades vêm só as 5 maiores: a fatia é sobre o total de seguidores, não sobre as 5.
+  const cityTotal     = genderTotal || ageTotal || cities.reduce((s, c) => s + c.value, 0)
   const cityMax       = cities.reduce((m, c) => Math.max(m, c.value), 0)
-  const hasInter      = !!inter && [inter.likes, inter.comments, inter.saves, inter.shares].some(v => v != null)
-  const interTotal    = inter ? [inter.likes, inter.comments, inter.saves, inter.shares].reduce<number>((s, v) => s + (v ?? 0), 0) : null
+  const interTotal    = interactionsTotal(report)
+  const hasInter      = interTotal != null
   const hasDemo       = genderEntries.length > 0 || ageEntries.length > 0 || cities.length > 0
   const hasExtraKpis  = ig.profile_views != null || ig.accounts_engaged != null || report.impressions != null || interTotal != null
+  const topPosts      = ig.top_posts ?? []
+  const demoCols      = [genderEntries.length, ageEntries.length, cities.length].filter(Boolean).length
 
-  const cardBg     = isDark ? '#182233' : '#ffffff'
-  const cardBorder = isDark ? '#1e293b' : '#e2e8f0'
-  const headText   = isDark ? '#F8FAFC' : '#0f0f0f'
-  const mutedText  = isDark ? '#CBD5E1' : '#475569'
-  const iconColor  = isDark ? '#94a3b8' : '#64748b'
+  const section = { background: p.card, borderColor: p.border }
 
   return (
     <>
-      {/* Visão extra — 4 KPIs preenchem a linha por completo */}
-      {hasExtraKpis && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <MetricCard icon={Eye} tone="amber" label="Visitas ao perfil" value={fmt(ig.profile_views)} isDark={isDark} />
-          <MetricCard icon={Users} tone="teal" label="Contas engajadas" value={fmt(ig.accounts_engaged)} isDark={isDark} />
-          <MetricCard icon={TrendingUp} tone="sky" label="Impressões" value={fmt(report.impressions)} isDark={isDark} />
-          <MetricCard icon={Zap} tone="violet" label="Interações totais" value={fmt(interTotal)} isDark={isDark} />
+      {/* Faixa de KPIs com divisórias de 1px */}
+      {showKpis && hasExtraKpis && (
+        <div className="rounded-2xl border grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden"
+          style={{ background: p.border, borderColor: p.border }}>
+          {([
+            ['Visitas ao perfil', ig.profile_views],
+            ['Contas engajadas', ig.accounts_engaged],
+            ['Impressões', report.impressions],
+            ['Interações totais', interTotal],
+          ] as [string, number | null][]).map(([label, value]) => (
+            <div key={label} className="px-4 py-3.5 min-w-0" style={{ background: p.card }}>
+              <Eyebrow p={p}>{label}</Eyebrow>
+              <p className="font-display text-[22px] font-bold leading-none tabular-nums mt-1.5" style={{ color: p.text }}>{fmt(value)}</p>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Interações */}
+      {/* Interações: quanto cada tipo pesa no total */}
       {hasInter && (
-        <section className="rounded-2xl border overflow-hidden" style={{ background: cardBg, borderColor: cardBorder }}>
-          <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: cardBorder }}>
-            <Heart className="w-3.5 h-3.5" style={{ color: iconColor }} />
-            <p className="text-[13px] font-semibold" style={{ color: headText }}>Interações do mês</p>
-          </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <section className="rounded-2xl border overflow-hidden" style={section}>
+          <Head n={numbers?.inter} title="Interações do mês" p={p}
+            aside={<span className="text-[12px] tabular-nums" style={{ color: p.text3 }}>{fmt(interTotal)} no total</span>} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px" style={{ background: p.border }}>
             {([
               ['Curtidas', inter!.likes],
               ['Comentários', inter!.comments],
               ['Salvamentos', inter!.saves],
               ['Compartilhamentos', inter!.shares],
-            ] as [string, number | null][]).map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: mutedText }}>{label}</p>
-                <p className="text-[16px] font-bold" style={{ color: headText }}>{fmt(value)}</p>
-              </div>
-            ))}
+            ] as [string, number | null][]).map(([label, value]) => {
+              const share = interTotal && value != null ? Math.round((value / interTotal) * 100) : 0
+              return (
+                <div key={label} className="px-5 py-4 min-w-0" style={{ background: p.card }}>
+                  <Eyebrow p={p}>{label}</Eyebrow>
+                  <p className="font-display text-[22px] font-bold leading-none tabular-nums mt-1.5" style={{ color: p.text }}>{fmt(value)}</p>
+                  <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: p.track }}>
+                    <div className="h-full rounded-full" style={{ width: `${share}%`, background: ACCENT }} />
+                  </div>
+                  <p className="text-[11px] mt-1.5 tabular-nums" style={{ color: p.text3 }}>{share}%</p>
+                </div>
+              )
+            })}
           </div>
         </section>
       )}
 
       {/* Top publicações */}
-      {ig.top_posts && ig.top_posts.length > 0 && (
-        <section className="rounded-2xl border overflow-hidden" style={{ background: cardBg, borderColor: cardBorder }}>
-          <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: cardBorder }}>
-            <Instagram className="w-3.5 h-3.5" style={{ color: iconColor }} />
-            <p className="text-[13px] font-semibold" style={{ color: headText }}>Top publicações do mês</p>
-          </div>
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {ig.top_posts.map(post => (
+      {topPosts.length > 0 && (
+        <section className="rounded-2xl border overflow-hidden" style={section}>
+          <Head n={numbers?.top} title="Top publicações do mês" p={p} />
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {topPosts.map((post, i) => (
               <a key={post.id} href={post.permalink ?? undefined} target="_blank" rel="noopener noreferrer"
-                className="group rounded-xl border overflow-hidden transition-colors"
-                style={{ background: isDark ? '#101A2B' : '#fafafa', borderColor: cardBorder }}>
-                <div className="aspect-square overflow-hidden" style={{ background: isDark ? '#0B1020' : '#eee' }}>
+                className="group rounded-xl border overflow-hidden flex flex-col transition-colors"
+                style={{ background: p.alt, borderColor: p.border }}>
+                <div className="relative aspect-square overflow-hidden" style={{ background: p.track }}>
                   {post.thumbnail
-                    ? <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    : <div className="w-full h-full flex items-center justify-center" style={{ color: isDark ? '#334155' : '#c0c0c0' }}><ImageIcon className="w-6 h-6" /></div>}
+                    ? <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
+                    : <div className="w-full h-full flex items-center justify-center" style={{ color: p.text3 }}><ImageIcon className="w-6 h-6" /></div>}
+                  <span className="absolute top-2.5 left-2.5 h-6 px-2 rounded-md text-[11px] font-semibold tabular-nums inline-flex items-center bg-black/70 text-white">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  {post.permalink && (
+                    <span className="absolute top-2.5 right-2.5 w-6 h-6 rounded-md inline-flex items-center justify-center bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                 </div>
-                <div className="p-2.5">
-                  {post.media_type && <p className="text-[9px] uppercase tracking-wide mb-1" style={{ color: mutedText }}>{post.media_type}</p>}
-                  <div className="flex items-center gap-3 text-[11px] font-medium" style={{ color: headText }}>
-                    <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-pink-500" /> {fmt(post.likes)}</span>
-                    <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3 text-blue-500" /> {fmt(post.reach)}</span>
+                <div className="p-3 flex-1 flex flex-col gap-2">
+                  {post.media_type && <Eyebrow p={p}>{post.media_type.replace('_', ' ')}</Eyebrow>}
+                  {post.caption && (
+                    <p className="text-[12px] leading-snug line-clamp-2" style={{ color: p.text2 }}>{post.caption}</p>
+                  )}
+                  <div className="mt-auto pt-2 border-t grid grid-cols-3 gap-2 text-[11.5px] tabular-nums" style={{ borderColor: p.border, color: p.text }}>
+                    <span className="flex items-center gap-1" title="Curtidas"><Heart className="w-3 h-3" style={{ color: p.text3 }} /> {fmt(post.likes)}</span>
+                    <span className="flex items-center gap-1" title="Comentários"><MessageCircle className="w-3 h-3" style={{ color: p.text3 }} /> {fmt(post.comments)}</span>
+                    <span className="flex items-center gap-1" title="Alcance"><Eye className="w-3 h-3" style={{ color: p.text3 }} /> {fmt(post.reach)}</span>
                   </div>
                 </div>
               </a>
@@ -151,33 +207,31 @@ export function IgInsights({ report, isDark = false }: { report: ClientReport; i
 
       {/* Audiência */}
       {hasDemo && (
-        <section className="rounded-2xl border overflow-hidden" style={{ background: cardBg, borderColor: cardBorder }}>
-          <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: cardBorder }}>
-            <Users className="w-3.5 h-3.5" style={{ color: iconColor }} />
-            <p className="text-[13px] font-semibold" style={{ color: headText }}>Audiência</p>
-          </div>
-          <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="rounded-2xl border overflow-hidden" style={section}>
+          <Head n={numbers?.audience} title="Audiência" p={p}
+            aside={<span className="text-[12px]" style={{ color: p.text3 }}>Seguidores da conta</span>} />
+          <div className={`grid grid-cols-1 gap-px ${demoCols === 3 ? 'lg:grid-cols-3' : demoCols === 2 ? 'lg:grid-cols-2' : ''}`} style={{ background: p.border }}>
             {genderEntries.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: mutedText }}>Gênero</p>
+              <div className="p-5 space-y-3" style={{ background: p.card }}>
+                <Eyebrow p={p}>Gênero</Eyebrow>
                 {genderEntries.map(([g, v]) => (
-                  <Bar key={g} label={GENDER_LABEL[g] ?? g} value={v} max={genderTotal} isDark={isDark} />
+                  <Bar key={g} label={GENDER_LABEL[g] ?? g} value={v} total={genderTotal} max={genderMax} p={p} />
                 ))}
               </div>
             )}
             {ageEntries.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: mutedText }}>Faixa etária</p>
+              <div className="p-5 space-y-3" style={{ background: p.card }}>
+                <Eyebrow p={p}>Faixa etária</Eyebrow>
                 {ageEntries.map(([a, v]) => (
-                  <Bar key={a} label={a} value={v} max={ageMax} isDark={isDark} />
+                  <Bar key={a} label={a} value={v} total={ageTotal} max={ageMax} p={p} />
                 ))}
               </div>
             )}
             {cities.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: mutedText }}>Principais cidades</p>
+              <div className="p-5 space-y-3" style={{ background: p.card }}>
+                <Eyebrow p={p}>Principais cidades</Eyebrow>
                 {cities.map(c => (
-                  <Bar key={c.name} label={c.name} value={c.value} max={cityMax} isDark={isDark} />
+                  <Bar key={c.name} label={c.name} value={c.value} total={cityTotal} max={cityMax} p={p} />
                 ))}
               </div>
             )}

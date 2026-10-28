@@ -21,7 +21,7 @@ import {
   useAddReportAttachment, useDeleteReportAttachment,
 } from '@/hooks/useReports'
 import { usePlanningReport } from '@/hooks/usePlanningReport'
-import { IgInsights } from '@/components/reports/IgInsights'
+import { IgInsights, igSectionKeys } from '@/components/reports/IgInsights'
 import { supabase } from '@/integrations/supabase/client'
 import { callProxy } from '@/lib/aiProxy'
 import { checkStorageLimit } from '@/utils/storageGate'
@@ -376,7 +376,7 @@ function Secao({ n, title, aside, accent, children }: {
       {accent && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: accent }} />}
       <div className="px-5 py-3.5 flex items-center justify-between gap-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
         <h2 className="flex items-baseline gap-2 min-w-0">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>
           <span className="font-display text-[15px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
         </h2>
         {aside}
@@ -734,7 +734,8 @@ export function ReportsWorkspace() {
                   </div>
                 </Secao>
 
-                <IgInsights report={selected} isDark={isDark} />
+                <IgInsights report={selected} isDark={isDark}
+                  numbers={Object.fromEntries(igSectionKeys(selected).map(k => [k, proxima()]))} />
 
                 {/* ── Planejamento ── */}
                 <Secao n={proxima()} title="Planejamento"

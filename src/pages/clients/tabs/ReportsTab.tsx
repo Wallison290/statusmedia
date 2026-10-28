@@ -3,9 +3,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Trash2, Upload, X, File, FileText, Link2,
-  ExternalLink, TrendingUp, Users, Eye, Heart, DollarSign,
-  Target, Zap, BookOpen, ChevronDown, Save, Pencil,
-  BarChart3, ImageIcon, RefreshCw, Instagram, Sparkles,
+  ExternalLink, Save, Pencil, BarChart3, RefreshCw, Instagram, Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +20,8 @@ import {
 import { supabase } from '@/integrations/supabase/client'
 import { callProxy } from '@/lib/aiProxy'
 import { checkStorageLimit } from '@/utils/storageGate'
-import { TabHeader, PrimaryButton, EmptyState } from './tabUi'
+import { TabHeader, PrimaryButton, GhostButton, EmptyState, Eyebrow, cardStyle } from './tabUi'
+import { IgInsights, interactionsTotal, igSectionKeys } from '@/components/reports/IgInsights'
 import type { ClientReport, ReportAttachment, ReportAttachmentType } from '@/types'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -102,169 +101,6 @@ function hasPaid(r: ClientReport) {
     || r.paid_conversions != null || r.paid_roas != null
 }
 
-// ─── Metric card ─────────────────────────────────────────────────────────────
-
-function MetricCard({
-  icon, label, value, sub,
-}: { icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }) {
-  return (
-    <div className="rounded-2xl border p-4 flex flex-col gap-2" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-4)' }}>{label}</p>
-        {icon}
-      </div>
-      <div>
-        <p className="font-display text-[24px] font-bold leading-tight tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-        {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{sub}</p>}
-      </div>
-    </div>
-  )
-}
-
-// ─── Instagram insights (dados ricos vindos da API) ───────────────────────────
-
-const GENDER_LABEL: Record<string, string> = { M: 'Masculino', F: 'Feminino', U: 'Outro' }
-
-function Bar({ label, value, max, suffix }: { label: string; value: number; max: number; suffix?: string }) {
-  const { isDark } = useTheme()
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] w-24 flex-shrink-0 truncate" style={{ color: 'var(--sm-text-3)' }}>{label}</span>
-      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0' }}>
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: isDark ? '#6b9ed8' : '#29457a' }} />
-      </div>
-      <span className="text-[11px] font-semibold w-14 text-right flex-shrink-0" style={{ color: 'var(--sm-text-1)' }}>{fmt(value)}{suffix ?? ''}</span>
-    </div>
-  )
-}
-
-function IgInsights({ report }: { report: ClientReport }) {
-  const { isDark } = useTheme()
-  const ig = report.ig_data
-  if (!ig) return null
-
-  const inter = ig.interactions
-  const demo  = ig.demographics
-  const genderEntries = demo?.gender ? Object.entries(demo.gender).sort((a, b) => b[1] - a[1]) : []
-  const genderTotal   = genderEntries.reduce((s, [, v]) => s + v, 0)
-  const ageEntries    = demo?.age ? Object.entries(demo.age).sort((a, b) => a[0].localeCompare(b[0])) : []
-  const ageMax        = ageEntries.reduce((m, [, v]) => Math.max(m, v), 0)
-  const cities        = demo?.cities ?? []
-  const cityMax       = cities.reduce((m, c) => Math.max(m, c.value), 0)
-  const hasInter      = !!inter && [inter.likes, inter.comments, inter.saves, inter.shares].some(v => v != null)
-  const interTotal    = inter ? [inter.likes, inter.comments, inter.saves, inter.shares].reduce<number>((s, v) => s + (v ?? 0), 0) : null
-  const hasDemo       = genderEntries.length > 0 || ageEntries.length > 0 || cities.length > 0
-  const hasExtraKpis  = ig.profile_views != null || ig.accounts_engaged != null || report.impressions != null || interTotal != null
-
-  return (
-    <>
-      {/* Visão extra — 4 KPIs preenchem a linha por completo */}
-      {hasExtraKpis && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <MetricCard icon={<Eye className="w-4 h-4 text-amber-600" />} label="Visitas ao perfil"
-            value={fmt(ig.profile_views)} color="amber" />
-          <MetricCard icon={<Users className="w-4 h-4 text-teal-600" />} label="Contas engajadas"
-            value={fmt(ig.accounts_engaged)} color="teal" />
-          <MetricCard icon={<TrendingUp className="w-4 h-4 text-sky-600" />} label="Impressões"
-            value={fmt(report.impressions)} color="sky" />
-          <MetricCard icon={<Zap className="w-4 h-4 text-violet-600" />} label="Interações totais"
-            value={fmt(interTotal)} color="violet" />
-        </div>
-      )}
-
-      {/* Interações */}
-      {hasInter && (
-        <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-          <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-            <Heart className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Interações do mês</p>
-          </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {([
-              ['Curtidas', inter!.likes],
-              ['Comentários', inter!.comments],
-              ['Salvamentos', inter!.saves],
-              ['Compartilhamentos', inter!.shares],
-            ] as [string, number | null][]).map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--sm-text-3)' }}>{label}</p>
-                <p className="text-[16px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{fmt(value)}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Top publicações */}
-      {ig.top_posts && ig.top_posts.length > 0 && (
-        <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-          <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-            <Instagram className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Top publicações do mês</p>
-          </div>
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {ig.top_posts.map(post => (
-              <a key={post.id} href={post.permalink ?? undefined} target="_blank" rel="noopener noreferrer"
-                className="group rounded-xl overflow-hidden transition-colors"
-                style={{ background: 'var(--sm-bg-alt)', border: '1px solid var(--sm-border)' }}>
-                <div className="aspect-square overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.06)' : '#eee' }}>
-                  {post.thumbnail
-                    ? <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    : <div className="w-full h-full flex items-center justify-center" style={{ color: 'var(--sm-text-3)' }}><ImageIcon className="w-6 h-6" /></div>}
-                </div>
-                <div className="p-2.5">
-                  {post.media_type && <p className="text-[9px] uppercase tracking-wide mb-1" style={{ color: 'var(--sm-text-3)' }}>{post.media_type}</p>}
-                  <div className="flex items-center gap-3 text-[11px] font-medium" style={{ color: 'var(--sm-text-1)' }}>
-                    <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-pink-500" /> {fmt(post.likes)}</span>
-                    <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3 text-blue-500" /> {fmt(post.reach)}</span>
-                  </div>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Audiência */}
-      {hasDemo && (
-        <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-          <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-            <Users className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Audiência</p>
-          </div>
-          <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {genderEntries.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-3)' }}>Gênero</p>
-                {genderEntries.map(([g, v]) => (
-                  <Bar key={g} label={GENDER_LABEL[g] ?? g} value={v} max={genderTotal} />
-                ))}
-              </div>
-            )}
-            {ageEntries.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-3)' }}>Faixa etária</p>
-                {ageEntries.map(([a, v]) => (
-                  <Bar key={a} label={a} value={v} max={ageMax} />
-                ))}
-              </div>
-            )}
-            {cities.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--sm-text-3)' }}>Principais cidades</p>
-                {cities.map(c => (
-                  <Bar key={c.name} label={c.name} value={c.value} max={cityMax} />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-    </>
-  )
-}
-
 // ─── Attachment item ──────────────────────────────────────────────────────────
 
 function AttachmentItem({
@@ -284,8 +120,8 @@ function AttachmentItem({
           style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
           {isImg && att.file_url
             ? <img src={att.file_url} alt={att.title} className="w-full h-full object-cover" />
-            : att.type === 'pdf' ? <FileText className="w-4 h-4 text-red-500" />
-            : att.type === 'link' ? <Link2 className="w-4 h-4 text-blue-500" />
+            : att.type === 'pdf' ? <FileText className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
+            : att.type === 'link' ? <Link2 className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
             : <File className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
           }
         </div>
@@ -504,6 +340,46 @@ function CreateReportModal({
   )
 }
 
+// ─── Peças editoriais do relatório ────────────────────────────────────────────
+
+/** Seção numerada (01, 02…): número em azul, título em Bricolage, fio de 1px. */
+function Secao({ n, title, aside, accent, children }: {
+  n: string; title: string; aside?: React.ReactNode; accent?: boolean; children: React.ReactNode
+}) {
+  return (
+    <section className="relative rounded-2xl border overflow-hidden" style={cardStyle}>
+      {accent && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: '#2563EB' }} />}
+      <div className="px-5 py-3.5 flex items-center justify-between gap-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+        <h3 className="flex items-baseline gap-2 min-w-0">
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>
+          <span className="font-display text-[15px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
+        </h3>
+        {aside}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function KpiCell({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
+  return (
+    <div className="px-5 py-4 min-w-0" style={{ background: 'var(--sm-bg-card)' }}>
+      <Eyebrow>{label}</Eyebrow>
+      <p className="font-display text-[26px] font-bold leading-none tabular-nums mt-2" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+      {sub && <p className="text-[11.5px] mt-1.5 tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{sub}</p>}
+    </div>
+  )
+}
+
+function Fato({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <Eyebrow>{label}</Eyebrow>
+      <p className="text-[15px] font-semibold tabular-nums mt-1" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
+    </div>
+  )
+}
+
 // ─── Report View / Edit ───────────────────────────────────────────────────────
 
 function ReportDetail({
@@ -606,140 +482,123 @@ function ReportDetail({
 
   const showPaid = hasPaid(report) || editMode
   const atts = report.attachments ?? []
+  const ig = report.ig_data
+  const empty = !report.ig_synced_at && [report.followers_end, report.reach, report.engagement, report.posts_published].every(v => v == null)
+  const growth = report.followers_start != null && report.followers_end != null
+  let secao = 0
+  const proxima = () => String(++secao).padStart(2, '0')
+  // Números na ordem em que as seções aparecem na tela.
+  const nVisao    = proxima()
+  const nManual   = editMode ? proxima() : ''
+  const igNumbers = Object.fromEntries(igSectionKeys(report).map(k => [k, proxima()]))
+  const nPago     = showPaid ? proxima() : ''
+  const nAnalise  = proxima()
+  const nAnexos   = proxima()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 min-w-0">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h3 className="font-display text-[20px] font-bold capitalize" style={{ color: 'var(--sm-text-1)' }}>{monthLabel(report.month, report.year)}</h3>
-          {report.ig_synced_at ? (
-            <p className="text-[11px] text-[#16a34a] mt-0.5 flex items-center gap-1">
-              <Instagram className="w-3 h-3" /> Sincronizado com o Instagram em {new Date(report.ig_synced_at).toLocaleDateString('pt-BR')}
-            </p>
-          ) : (
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>Relatório de performance</p>
-          )}
+      {/* ── Título do mês + ações ── */}
+      <div className="flex flex-wrap items-end justify-between gap-4 pb-5 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+        <div className="min-w-0">
+          <Eyebrow>Relatório de performance</Eyebrow>
+          <h3 className="font-display text-[28px] font-bold leading-[1.05] tracking-[-0.02em] mt-1.5" style={{ color: 'var(--sm-text-1)' }}>
+            {monthLabel(report.month, report.year)}
+          </h3>
+          <p className="text-[12px] mt-1.5 flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: report.ig_synced_at ? '#22C55E' : '#94A3B8' }} />
+            {report.ig_synced_at
+              ? <>Sincronizado com o Instagram em {new Date(report.ig_synced_at).toLocaleDateString('pt-BR')}</>
+              : <>Ainda não sincronizado com o Instagram</>}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {editMode ? (
             <>
-              <Button variant="outline" size="sm" onClick={() => { setEditMode(false); setForm(toForm(report)) }}>
-                <X className="w-3 h-3" /> Cancelar
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={updateReport.isPending}>
-                <Save className="w-3 h-3" /> Salvar
-              </Button>
+              <GhostButton onClick={() => { setEditMode(false); setForm(toForm(report)) }}>
+                <X className="w-3.5 h-3.5" /> Cancelar
+              </GhostButton>
+              <PrimaryButton onClick={handleSave} disabled={updateReport.isPending}>
+                <Save className="w-3.5 h-3.5" /> Salvar
+              </PrimaryButton>
+            </>
+          ) : confirmDel ? (
+            <>
+              <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>Excluir relatório?</span>
+              <GhostButton onClick={() => setConfirmDel(false)}>Não</GhostButton>
+              <button onClick={handleDelete} disabled={deleteReport.isPending}
+                className="h-9 px-3.5 rounded-xl border text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderColor: isDark ? 'rgba(239,68,68,0.35)' : '#FECACA', color: isDark ? '#F87171' : '#B91C1C' }}>
+                Sim, excluir
+              </button>
             </>
           ) : (
             <>
-              <Button variant="outline" size="sm" onClick={handleAutoGenerate} disabled={syncing}
+              <button onClick={() => setConfirmDel(true)} title="Excluir relatório deste mês" aria-label="Excluir relatório deste mês"
+                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                style={{ color: 'var(--sm-text-3)' }}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <GhostButton onClick={() => { setForm(toForm(report)); setEditMode(true) }}>
+                <Pencil className="w-3.5 h-3.5" /> Editar
+              </GhostButton>
+              <PrimaryButton onClick={handleAutoGenerate} disabled={syncing}
                 title="Generate from Instagram — fills reach, followers, engagement, top posts and audience demographics for this month using Instagram Insights (Preencher os dados do mes com a conta de Instagram conectada)">
                 {syncing
-                  ? <><RefreshCw className="w-3 h-3 animate-spin" /> Gerando...</>
-                  : <><Instagram className="w-3 h-3" /> Gerar do Instagram</>}
-              </Button>
-              {confirmDel ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-[color:var(--sm-text-3)]">Excluir relatório?</span>
-                  <Button variant="outline" size="sm" onClick={() => setConfirmDel(false)}>Não</Button>
-                  <Button size="sm" onClick={handleDelete}
-                    className="bg-red-50 text-red-800 border-red-200 hover:bg-red-100">
-                    Sim
-                  </Button>
-                </div>
-              ) : (
-                <button onClick={() => setConfirmDel(true)}
-                  className="flex items-center gap-1.5 text-[11px] text-[color:var(--sm-text-3)] hover:text-red-400 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <Button variant="outline" size="sm" onClick={() => { setForm(toForm(report)); setEditMode(true) }}>
-                <Pencil className="w-3 h-3" /> Editar
-              </Button>
+                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Gerando...</>
+                  : <><Instagram className="w-3.5 h-3.5" /> Gerar do Instagram</>}
+              </PrimaryButton>
             </>
           )}
         </div>
       </div>
 
-      {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MetricCard
-          icon={<Users className="w-4 h-4 text-green-600" />}
-          label="Crescimento de seguidores"
-          value={followerDiff(report)}
-          sub={report.followers_end != null ? `${fmt(report.followers_end)} total` : undefined}
-          color="green"
-        />
-        <MetricCard
-          icon={<Eye className="w-4 h-4 text-blue-600" />}
-          label="Alcance"
-          value={fmt(report.reach)}
-          color="blue"
-        />
-        <MetricCard
-          icon={<Heart className="w-4 h-4 text-pink-600" />}
-          label="Engajamento"
-          value={report.engagement != null ? `${report.engagement}%` : '—'}
-          color="pink"
-        />
-        <MetricCard
-          icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
-          label="Publicados"
-          value={report.posts_published != null ? String(report.posts_published) : '—'}
-          sub="conteúdos no mês"
-          color="purple"
-        />
-      </div>
-
-      {/* ── Redes Sociais ── */}
-      <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-        <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-          <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Redes sociais</p>
-        </div>
-        <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {editMode ? (
+      {/* ── 01 Visão geral: faixa de números com divisórias de 1px ── */}
+      <Secao n={nVisao} title="Visão geral">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px" style={{ background: 'var(--sm-border)' }}>
+          <KpiCell label={growth ? 'Novos seguidores' : 'Seguidores'} value={followerDiff(report)}
+            sub={growth ? <>{fmt(report.followers_end)} no total</> : undefined} />
+          <KpiCell label="Alcance" value={fmt(report.reach)} />
+          <KpiCell label="Engajamento" value={report.engagement != null ? `${report.engagement}%` : '—'} />
+          <KpiCell label="Posts publicados" value={fmt(report.posts_published)} />
+          {ig && (
             <>
-              <Input label="Seguidores (início)" type="number" value={form.followers_start} onChange={f('followers_start')} placeholder="0" />
-              <Input label="Seguidores (fim)" type="number" value={form.followers_end} onChange={f('followers_end')} placeholder="0" />
-              <Input label="Alcance" type="number" value={form.reach} onChange={f('reach')} placeholder="0" />
-              <Input label="Engajamento (%)" type="number" value={form.engagement} onChange={f('engagement')} placeholder="0.00" />
-              <Input label="Impressões" type="number" value={form.impressions} onChange={f('impressions')} placeholder="0" />
-              <Input label="Posts publicados" type="number" value={form.posts_published} onChange={f('posts_published')} placeholder="0" />
-            </>
-          ) : (
-            <>
-              {([
-                ['Seguidores (início)', fmt(report.followers_start)],
-                ['Seguidores (fim)', fmt(report.followers_end)],
-                ['Alcance', fmt(report.reach)],
-                ['Engajamento', report.engagement != null ? `${report.engagement}%` : '—'],
-                ['Impressões', fmt(report.impressions)],
-                ['Posts publicados', fmt(report.posts_published)],
-              ] as [string, string][]).map(([label, value]) => (
-                <div key={label}>
-                  <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--sm-text-3)' }}>{label}</p>
-                  <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-                </div>
-              ))}
+              <KpiCell label="Visitas ao perfil" value={fmt(ig.profile_views)} />
+              <KpiCell label="Contas engajadas" value={fmt(ig.accounts_engaged)} />
+              <KpiCell label="Impressões" value={fmt(report.impressions)} />
+              <KpiCell label="Interações totais" value={fmt(interactionsTotal(report))} />
             </>
           )}
         </div>
-      </section>
+        {empty && !editMode && (
+          <div className="px-5 py-3.5 border-t flex items-center gap-2.5 text-[12.5px]" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}>
+            <Instagram className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Clique em <strong style={{ color: 'var(--sm-text-1)' }}>Gerar do Instagram</strong> para preencher este mês com os dados da conta conectada.</span>
+          </div>
+        )}
+      </Secao>
 
-      {/* ── Insights ricos do Instagram ── */}
-      <IgInsights report={report} />
+      {/* ── Edição manual dos números do mês ── */}
+      {editMode && (
+        <Secao n={nManual} title="Redes sociais">
+          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <Input label="Seguidores (início)" type="number" value={form.followers_start} onChange={f('followers_start')} placeholder="0" />
+            <Input label="Seguidores (fim)" type="number" value={form.followers_end} onChange={f('followers_end')} placeholder="0" />
+            <Input label="Alcance" type="number" value={form.reach} onChange={f('reach')} placeholder="0" />
+            <Input label="Engajamento (%)" type="number" value={form.engagement} onChange={f('engagement')} placeholder="0.00" />
+            <Input label="Impressões" type="number" value={form.impressions} onChange={f('impressions')} placeholder="0" />
+            <Input label="Posts publicados" type="number" value={form.posts_published} onChange={f('posts_published')} placeholder="0" />
+          </div>
+        </Secao>
+      )}
+
+      {/* ── Insights ricos do Instagram (interações, top posts, audiência) ── */}
+      <IgInsights report={report} isDark={isDark} numbers={igNumbers} showKpis={false} />
 
       {/* ── Tráfego Pago ── */}
       {showPaid && (
-        <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-          <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-            <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Tráfego pago</p>
-          </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <Secao n={nPago} title="Tráfego pago">
+          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-5">
             {editMode ? (
               <>
                 <Input label="Investimento (R$)" type="number" value={form.paid_investment} onChange={f('paid_investment')} placeholder="0,00" />
@@ -749,42 +608,28 @@ function ReportDetail({
                 <Input label="ROAS" type="number" value={form.paid_roas} onChange={f('paid_roas')} placeholder="0.00" />
               </>
             ) : (
-              <>
-                {([
-                  ['Investimento', fmtBRL(report.paid_investment)],
-                  ['Leads', fmt(report.paid_leads)],
-                  ['CPL', fmtBRL(report.paid_cpl)],
-                  ['Conversões', fmt(report.paid_conversions)],
-                  ['ROAS', report.paid_roas != null ? `${report.paid_roas}x` : '—'],
-                ] as [string, string][]).map(([label, value]) => (
-                  <div key={label}>
-                    <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: 'var(--sm-text-3)' }}>{label}</p>
-                    <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{value}</p>
-                  </div>
-                ))}
-              </>
+              ([
+                ['Investimento', fmtBRL(report.paid_investment)],
+                ['Leads', fmt(report.paid_leads)],
+                ['CPL', fmtBRL(report.paid_cpl)],
+                ['Conversões', fmt(report.paid_conversions)],
+                ['ROAS', report.paid_roas != null ? `${report.paid_roas}x` : '—'],
+              ] as [string, string][]).map(([label, value]) => <Fato key={label} label={label} value={value} />)
             )}
           </div>
-        </section>
+        </Secao>
       )}
 
       {/* ── Análise do mês ── */}
-      <section className="relative rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-        <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: '#2563EB' }} />
-        <div className="px-5 py-4 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-3.5 h-3.5" style={{ color: '#2563EB' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Análise do mês</p>
-          </div>
-          {!editMode && (
-            <Button size="sm" onClick={handleAiAnalysis} disabled={aiLoading}
-              title="Gerar um resumo dos resultados com IA para apresentar ao cliente">
-              {aiLoading
-                ? <><RefreshCw className="w-3 h-3 animate-spin" /> Gerando...</>
-                : <><Sparkles className="w-3 h-3" /> {report.analysis_text ? 'Refazer com IA' : 'Gerar com IA'}</>}
-            </Button>
-          )}
-        </div>
+      <Secao n={nAnalise} title="Análise do mês" accent
+        aside={!editMode && (
+          <PrimaryButton onClick={handleAiAnalysis} disabled={aiLoading}
+            title="Gerar um resumo dos resultados com IA para apresentar ao cliente">
+            {aiLoading
+              ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Gerando...</>
+              : <><Sparkles className="w-3.5 h-3.5" /> {report.analysis_text ? 'Refazer com IA' : 'Gerar com IA'}</>}
+          </PrimaryButton>
+        )}>
         <div className="p-5">
           {editMode ? (
             <Textarea
@@ -794,43 +639,32 @@ function ReportDetail({
               rows={6}
             />
           ) : report.analysis_text ? (
-            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-1)' }}>{report.analysis_text}</p>
+            <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap max-w-[75ch]" style={{ color: 'var(--sm-text-1)' }}>{report.analysis_text}</p>
           ) : (
-            <p className="text-[12px] italic" style={{ color: 'var(--sm-text-2)' }}>
-              Nenhuma análise ainda. Clique em <strong>Gerar com IA</strong> para um resumo automático, ou em Editar para escrever.
+            <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>
+              Nenhuma análise ainda. Clique em <strong style={{ color: 'var(--sm-text-1)' }}>Gerar com IA</strong> para um resumo automático, ou em Editar para escrever.
             </p>
           )}
         </div>
-      </section>
+      </Secao>
 
       {/* ── Anexos ── */}
-      <section className="rounded-2xl overflow-hidden" style={{ background: 'var(--sm-bg-card)', border: '1px solid var(--sm-border)' }}>
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--sm-border)' }}>
-          <div className="flex items-center gap-2">
-            <ImageIcon className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Anexos</p>
-            {atts.length > 0 && (
-              <span className="text-[11px]" style={{ color: 'var(--sm-text-3)' }}>{atts.length}</span>
-            )}
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setAttOpen(true)}>
-            <Plus className="w-3 h-3" /> Adicionar
-          </Button>
-        </div>
+      <Secao n={nAnexos} title={atts.length > 0 ? `Anexos · ${atts.length}` : 'Anexos'}
+        aside={<GhostButton onClick={() => setAttOpen(true)}><Plus className="w-3.5 h-3.5" /> Adicionar</GhostButton>}>
         <div className="p-5">
           {atts.length === 0 ? (
-            <p className="text-[12px] text-center py-4" style={{ color: 'var(--sm-text-2)' }}>
+            <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>
               Nenhum anexo ainda. Adicione prints, PDFs ou links de relatórios.
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {atts.map(att => (
                 <AttachmentItem key={att.id} att={att} onDelete={() => handleDeleteAtt(att)} />
               ))}
             </div>
           )}
         </div>
-      </section>
+      </Secao>
 
       <AddAttachmentModal reportId={report.id} open={attOpen} onClose={() => setAttOpen(false)} />
     </div>

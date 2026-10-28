@@ -629,6 +629,15 @@ const DICT: Record<string, string> = {
   'Investimento (R$)': 'Ad spend (R$)',
   'Gerar um resumo dos resultados com IA para apresentar ao cliente': 'Generate an AI summary of the results to present to the client',
   'O que funcionou, o que não funcionou, próximos passos...': "What worked, what didn't, next steps...",
+  'Visão geral': 'Overview',
+  'Seguidores': 'Followers',
+  'Novos seguidores': 'New followers',
+  'no total': 'in total',
+  'Ainda não sincronizado com o Instagram': 'Not synced with Instagram yet',
+  'Seguidores da conta': 'Account followers',
+  'Excluir relatório deste mês': "Delete this month's report",
+  'Clique em': 'Click',
+  'para preencher este mês com os dados da conta conectada.': "to fill this month with the connected account's data.",
 }
 
 // Meses/dias que o date-fns (locale ptBR) escreve nas datas.
