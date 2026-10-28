@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { CheckCircle2, XCircle, Printer, Loader2, ShieldCheck, Clock, Check, ArrowDown, CalendarClock } from 'lucide-react'
 import { fetchPublicProposal, respondPublicProposal, type PublicProposal } from '@/hooks/useCrmDocuments'
-import { fmtBRL, fmtLongDate, fmtDateTime, itemTotal, expandToken } from '@/utils/crm'
+import { fmtBRL, fmtLongDate, fmtDateTime, itemTotal, expandToken, paymentPlanText } from '@/utils/crm'
 import { PublicLoading, PublicNotFound, SectionLabel, brandVars, INK, MUTED, LINE, PAPER, inputClass } from './PublicShell'
 import { PublicPdfPages } from './PublicPdfPages'
 
@@ -48,6 +48,8 @@ export function PublicProposalPage() {
   const subtotal = data.items.reduce((s, i) => s + itemTotal(i), 0)
   const allMonthly = shownItems.length > 0 && shownItems.every(i => i.recurring)
   const hasValue = shownTotal > 0
+  // Forma de pagamento (entrada + parcelas) antes da observação livre
+  const payText = [paymentPlanText(Number(data.total), data.payment_plan), data.payment_terms].filter(Boolean).join('. ') || null
   const answered = data.status === 'aceita' || data.status === 'recusada'
   // Rascunho aberto pela agência (migration 108): mesma página, sem responder
   const preview = data.status === 'rascunho'
@@ -228,10 +230,10 @@ export function PublicProposalPage() {
               })}
             </div>
             {canAnswer && <p className="text-[13px] mt-4" style={{ color: MUTED }}>Toque numa opção para escolher e aceite no fim da página.</p>}
-            {data.payment_terms && (
+            {payText && (
               <div className="mt-8 rounded-2xl bg-white px-5 py-4 text-[14.5px]">
                 <p className="text-[11px] uppercase tracking-[0.18em] font-semibold" style={{ color: MUTED }}>Pagamento</p>
-                <p className="mt-1.5 leading-relaxed">{data.payment_terms}</p>
+                <p className="mt-1.5 leading-relaxed">{payText}</p>
               </div>
             )}
           </section>
@@ -264,7 +266,7 @@ export function PublicProposalPage() {
         )}
 
         {/* Investimento: bloco escuro, o número em destaque */}
-        {!multi && (hasValue || data.payment_terms || data.valid_until) && (
+        {!multi && (hasValue || payText || data.valid_until) && (
           <section className={n ? 'mt-16' : ''}>
             <SectionLabel n={next()}>Investimento</SectionLabel>
             <div className="mt-7 rounded-3xl p-6 sm:p-9 relative overflow-hidden print:border" style={{ background: INK, color: '#FAF8F4' }}>
@@ -286,12 +288,12 @@ export function PublicProposalPage() {
                   </p>
                 </div>
               )}
-              {(data.payment_terms || data.valid_until) && (
+              {(payText || data.valid_until) && (
                 <dl className={`relative grid sm:grid-cols-2 gap-5 text-[14.5px] ${hasValue ? 'mt-8 pt-6 border-t' : ''}`} style={{ borderColor: 'rgba(250,248,244,0.14)' }}>
-                  {data.payment_terms && (
+                  {payText && (
                     <div>
                       <dt className="text-[11px] uppercase tracking-[0.18em] font-semibold" style={{ color: 'rgba(250,248,244,0.55)' }}>Pagamento</dt>
-                      <dd className="mt-1.5 leading-relaxed">{data.payment_terms}</dd>
+                      <dd className="mt-1.5 leading-relaxed">{payText}</dd>
                     </div>
                   )}
                   {data.valid_until && (

@@ -224,6 +224,7 @@ export interface PublicProposal {
   accepted_option: string | null
   valid_until:    string | null
   payment_terms:  string | null
+  payment_plan?:  CrmProposal['payment_plan']
   pdf_url?:       string | null
   pdf_name?:      string | null
   status:         CrmProposal['status']

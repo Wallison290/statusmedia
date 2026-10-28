@@ -2,7 +2,7 @@
 // Funções puras compartilhadas pelo board, ficha do lead, propostas, contratos
 // e páginas públicas.
 
-import type { CrmLead, CrmProposal, CrmProposalItem } from '@/types'
+import type { CrmLead, CrmPaymentPlan, CrmProposal, CrmProposalItem } from '@/types'
 
 /** Valor líquido do lead: valor estimado (bruto) menos custos/taxas. */
 export function netValue(l: { estimated_value: number | null; estimated_cost?: number | null }) {
@@ -95,12 +95,33 @@ export const proposalLink = (p: Pick<CrmProposal, 'public_token'>) => publicUrl(
 export const contractLink = (token: string) => publicUrl(`/contrato/${compactToken(token)}`)
 export const captureLink  = (token: string) => publicUrl(`/captura/${compactToken(token)}`)
 
+/** Valor de cada parcela do plano "entrada + parcelas" (null = valor total). */
+export function planInstallment(total: number, plan?: CrmPaymentPlan | null) {
+  if (!plan || plan.mode !== 'parcelado' || !plan.parcelas) return null
+  return Math.round(Math.max(Number(total) - Number(plan.entrada || 0), 0) / plan.parcelas * 100) / 100
+}
+
+/** "Entrada de R$ 3.000,00 + 8 parcelas mensais de R$ 862,50, a 1ª em 10/12/2026".
+ *  Os centavos do arredondamento ficam na entrada, igual ao Financeiro. */
+export function paymentPlanText(total: number, plan?: CrmPaymentPlan | null) {
+  const parcela = planInstallment(total, plan)
+  if (parcela === null || !plan) return null
+  const n = plan.parcelas!
+  const entrada = Math.round((Number(total) - parcela * n) * 100) / 100
+  const parts = [
+    entrada > 0 ? `Entrada de ${fmtBRL(entrada, true)}` : null,
+    `${n} parcela${n > 1 ? 's' : ''} mensa${n > 1 ? 'is' : 'l'} de ${fmtBRL(parcela, true)}`,
+  ].filter(Boolean).join(' + ')
+  const first = plan.primeiro_vencimento?.slice(0, 10).split('-').reverse().join('/')
+  return parts + (first ? `, a 1ª em ${first}` : '')
+}
+
 /** Troca as {{variáveis}} do modelo de contrato pelos dados do lead e da proposta. */
 export function fillContract(
   template: string,
   ctx: {
     lead?: Pick<CrmLead, 'name' | 'company' | 'email' | 'whatsapp'> | null
-    proposal?: Pick<CrmProposal, 'items' | 'total' | 'payment_terms'> | null
+    proposal?: Pick<CrmProposal, 'items' | 'total' | 'payment_terms' | 'payment_plan'> | null
     agency: string
   },
 ) {
@@ -121,7 +142,8 @@ export function fillContract(
     '{{agencia_nome}}':        agency,
     '{{servicos}}':            services,
     '{{valor_total}}':         proposal ? fmtBRL(Number(proposal.total), true) : '[valor]',
-    '{{condicoes_pagamento}}': proposal?.payment_terms || '[condições de pagamento]',
+    '{{condicoes_pagamento}}': [proposal ? paymentPlanText(Number(proposal.total), proposal.payment_plan) : null, proposal?.payment_terms]
+                                 .filter(Boolean).join('. ') || '[condições de pagamento]',
     '{{data_hoje}}':           fmtLongDate(todayISO()),
   }
   return Object.entries(map).reduce((t, [k, v]) => replaceAll(t, k, v), template)

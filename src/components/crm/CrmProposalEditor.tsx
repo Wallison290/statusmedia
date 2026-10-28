@@ -22,8 +22,8 @@ import { uploadArquivo } from '@/lib/uploadArquivo'
 import { PROPOSAL_STATUS } from './crmStatus'
 import { CrmShareBox, proposalMessage } from './CrmShareBox'
 import { CrmDocViews } from './CrmDocViews'
-import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime, waLink } from '@/utils/crm'
-import type { CrmLead, CrmProposal, CrmProposalItem, CrmProposalOption } from '@/types'
+import { fmtBRL, todayISO, proposalTotals, itemTotal, proposalLink, fmtDateTime, waLink, planInstallment, paymentPlanText } from '@/utils/crm'
+import type { CrmLead, CrmPaymentPlan, CrmProposal, CrmProposalItem, CrmProposalOption } from '@/types'
 
 const newOptionId = () => Math.random().toString(36).slice(2, 10)
 
@@ -69,6 +69,11 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const [discount, setDiscount] = useState(0)
   const [validUntil, setValidUntil] = useState('')
   const [terms, setTerms]     = useState('')
+  // Forma de pagamento: valor total ou entrada + parcelas mensais
+  const [planMode, setPlanMode] = useState<'total' | 'parcelado'>('total')
+  const [entrada, setEntrada]   = useState(0)
+  const [parcelas, setParcelas] = useState(2)
+  const [firstDue, setFirstDue] = useState('')
   const [notes, setNotes]     = useState('')
   const [shareOpen, setShareOpen] = useState(false)
   // Várias opções no mesmo envio: [] = proposta de uma opção só (items/discount)
@@ -100,6 +105,11 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
     setDiscount(Number(proposal?.discount ?? 0))
     setValidUntil(proposal?.valid_until ?? todayISO(d.valid_days ?? 7))
     setTerms(proposal?.payment_terms ?? d.payment_terms ?? '')
+    const plan = proposal?.payment_plan
+    setPlanMode(plan?.mode === 'parcelado' ? 'parcelado' : 'total')
+    setEntrada(Number(plan?.entrada ?? 0))
+    setParcelas(Number(plan?.parcelas ?? 2))
+    setFirstDue(plan?.primeiro_vencimento ?? todayISO(30))
     setNotes(proposal?.internal_notes ?? '')
     setOptions(proposal?.options ?? [])
     setActive(0)
@@ -132,6 +142,12 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
   const curItems    = opt ? opt.items : items
   const curDiscount = opt ? opt.discount : discount
   const totals = useMemo(() => proposalTotals(curItems, curDiscount), [curItems, curDiscount])
+
+  // Valor sobre o qual o parcelamento é feito (no PDF, o valor informado)
+  const planTotal = mode === 'pdf' ? Math.max(Number(pdfValue) || 0, 0) : totals.total
+  const paymentPlan: CrmPaymentPlan | null = planMode === 'parcelado' && !multi
+    ? { mode: 'parcelado', entrada: Math.max(Number(entrada) || 0, 0), parcelas: Math.max(Math.round(Number(parcelas) || 0), 1), primeiro_vencimento: firstDue || undefined }
+    : null
 
   function patchOpt(patch: Partial<CrmProposalOption>) {
     setOptions(prev => prev.map((o, i) => (i === active ? { ...o, ...patch } : o)))
@@ -203,6 +219,10 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
 
   async function persist(status?: CrmProposal['status']) {
     if (!title.trim()) { toast('Dê um título à proposta', 'warning'); return null }
+    if (paymentPlan?.mode === 'parcelado') {
+      if (!(Number(parcelas) >= 1)) { toast('Informe em quantas parcelas', 'warning'); return null }
+      if (Number(entrada) >= planTotal) { toast('A entrada precisa ser menor que o valor total', 'warning'); return null }
+    }
     if (mode === 'pdf') {
       if (!pdfUrl) { toast('Anexe o PDF da proposta', 'warning'); return null }
       const value = Math.max(Number(pdfValue) || 0, 0)
@@ -219,6 +239,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           pdf_name:       pdfName,
           valid_until:    validUntil || null,
           payment_terms:  terms.trim() || null,
+          payment_plan:   paymentPlan,
           internal_notes: notes.trim() || null,
           ...(status ? { status } : {}),
         })
@@ -258,6 +279,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
         pdf_name:       null,
         valid_until:    validUntil || null,
         payment_terms:  terms.trim() || null,
+        payment_plan:   paymentPlan,
         internal_notes: notes.trim() || null,
         ...(status ? { status } : {}),
       })
@@ -616,9 +638,57 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           </div>
           </>)}
 
+          {/* Forma de pagamento */}
+          <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label>Forma de pagamento</Label>
+              <div className="inline-flex rounded-lg border p-0.5" style={{ borderColor: 'var(--sm-border)' }}>
+                {([['total', 'Valor total'], ['parcelado', 'Entrada + parcelas']] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setPlanMode(k)} disabled={k === 'parcelado' && multi}
+                          className="px-3 h-7 rounded-md text-[12px] font-medium disabled:opacity-40"
+                          style={planMode === k ? { background: 'var(--sm-primary)', color: '#fff' } : { color: 'var(--sm-text-2)' }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {multi && (
+              <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>Entrada + parcelas fica disponível em propostas de uma opção só.</p>
+            )}
+            {planMode === 'parcelado' && !multi && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Entrada (R$)</Label>
+                    <Input type="number" min={0} step="0.01" value={entrada || ''} placeholder="0,00" onChange={e => setEntrada(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label>Parcelas mensais</Label>
+                    <Input type="number" min={1} max={60} step={1} value={parcelas || ''} onChange={e => setParcelas(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label>1ª parcela vence em</Label>
+                    <Input type="date" value={firstDue} onChange={e => setFirstDue(e.target.value)} />
+                  </div>
+                </div>
+                <p className="text-[12.5px]" style={{ color: 'var(--sm-text-1)' }}>
+                  {planTotal > 0
+                    ? <>Total {fmtBRL(planTotal, true)} = {paymentPlanText(planTotal, paymentPlan)}.</>
+                    : 'Informe o valor da proposta para calcular as parcelas.'}
+                </p>
+                {planTotal > 0 && (planInstallment(planTotal, paymentPlan) ?? 0) * Math.max(parcelas, 1) + Number(entrada || 0) !== planTotal && (
+                  <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>Os centavos que sobram do arredondamento entram na entrada.</p>
+                )}
+                <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>
+                  No contrato assinado, a entrada entra no Financeiro como receita do mês e as parcelas viram uma recorrência com a quantidade de meses.
+                </p>
+              </>
+            )}
+          </div>
+
           <div>
-            <Label>Condições de pagamento</Label>
-            <Input value={terms} onChange={e => setTerms(e.target.value)} placeholder="Ex: Mensal, todo dia 10, via PIX" />
+            <Label>Condições de pagamento {planMode === 'parcelado' && '(observação, opcional)'}</Label>
+            <Input value={terms} onChange={e => setTerms(e.target.value)} placeholder={planMode === 'parcelado' ? 'Ex: via PIX, todo dia 10' : 'Ex: Mensal, todo dia 10, via PIX'} />
           </div>
 
           <div>

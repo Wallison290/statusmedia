@@ -94,7 +94,7 @@ export function CrmProposals() {
     try {
       const copy = await save.mutateAsync({
         lead_id: p.lead_id, title: `${p.title} (cópia)`, intro: p.intro, items: p.items,
-        discount: p.discount, options: p.options ?? [], accepted_option: null, valid_until: todayISO(7), payment_terms: p.payment_terms,
+        discount: p.discount, options: p.options ?? [], accepted_option: null, valid_until: todayISO(7), payment_terms: p.payment_terms, payment_plan: p.payment_plan ?? null,
         internal_notes: p.internal_notes, pdf_url: p.pdf_url ?? null, pdf_name: p.pdf_name ?? null, status: 'rascunho',
       })
       setEditing(copy); setNewLeadId(null); setEditorOpen(true)

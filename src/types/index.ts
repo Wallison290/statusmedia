@@ -620,6 +620,15 @@ export interface CrmProposalOption {
   total?:       number    // calculado pelo banco
 }
 
+/** Forma de pagamento (migration 112): valor total ou entrada + parcelas mensais.
+ *  A parcela é (total − entrada) ÷ parcelas; o banco recalcula ao faturar. */
+export interface CrmPaymentPlan {
+  mode:                 'total' | 'parcelado'
+  entrada?:             number
+  parcelas?:            number
+  primeiro_vencimento?: string   // AAAA-MM-DD da 1ª parcela; as demais no mesmo dia dos meses seguintes
+}
+
 export type CrmProposalStatus = 'rascunho' | 'enviada' | 'visualizada' | 'aceita' | 'recusada'
 
 export interface CrmProposal {
@@ -635,6 +644,7 @@ export interface CrmProposal {
   accepted_option: string | null        // id da opção que o cliente aceitou
   valid_until:    string | null
   payment_terms:  string | null
+  payment_plan?:  CrmPaymentPlan | null
   internal_notes: string | null
   pdf_url?:       string | null   // migration 107: proposta em PDF anexado
   pdf_name?:      string | null
