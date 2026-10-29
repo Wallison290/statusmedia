@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
 import { PLANS, type PlanId } from '@/config/plans'
+import { fmtDate } from '@/components/billing/BillingNotices'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,37 @@ export function Pricing() {
           >
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
             Pagamento confirmado! Ativando seu plano...
+          </motion.div>
+        )}
+
+        {/* Acesso suspenso por falta de pagamento (migration 113) */}
+        {subData?.access?.state === 'bloqueado' && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-2xl relative overflow-hidden rounded-xl border border-red-200 bg-white pl-6 pr-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4"
+          >
+            <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-red-500" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-semibold text-[#0f172a]">Acesso suspenso por falta de pagamento</p>
+              <p className="text-[12.5px] text-[#64748b] mt-0.5">
+                O plano {subData.plan.name} venceu em {fmtDate(subData.access.paidUntil)} e a carência de {subData.access.graceDays} dias terminou.
+                {hasStripe
+                  ? ' Pague a fatura em aberto ou troque o cartão: o acesso volta assim que a Stripe confirmar o pagamento.'
+                  : ' Escolha um plano abaixo para voltar a usar o sistema.'}
+              </p>
+            </div>
+            {hasStripe && (
+              <button
+                onClick={async () => { setLoadingPlan(currentPlanId); await openPortal(); setLoadingPlan(null) }}
+                disabled={!!loadingPlan}
+                className="h-10 px-4 rounded-xl text-[13px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #29457A, #16284D)' }}
+              >
+                {loadingPlan && <Loader2 className="w-4 h-4 animate-spin" />}
+                Regularizar pagamento
+              </button>
+            )}
           </motion.div>
         )}
 

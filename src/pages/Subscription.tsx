@@ -7,7 +7,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useAIUsage } from '@/hooks/useAIUsage'
 import { useStorageUsage } from '@/hooks/useStorageUsage'
+import { useQuery } from '@tanstack/react-query'
 import { PLANS, type PlanId } from '@/config/plans'
+import { fmtDate } from '@/components/billing/BillingNotices'
+import type { AccessState, SubscriptionData } from '@/hooks/useSubscription'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +75,151 @@ function Meter({ label, valueLabel, pct, warn }: { label: string; valueLabel: st
           <AlertTriangle className="w-3 h-3" /> {warn}
         </p>
       )}
+    </div>
+  )
+}
+
+// ── Renovação e pagamentos ──────────────────────────────────────────────────
+// Situação vem do banco (subscription_access_info, migration 113) e o histórico
+// de subscription_payments, gravado pelo webhook da Stripe a cada cobrança paga.
+
+const STATE_LABEL: Record<AccessState, { label: string; color: string }> = {
+  cortesia:       { label: 'Cortesia',             color: '#3B82F6' },
+  teste:          { label: 'Período de teste',     color: '#3B82F6' },
+  em_dia:         { label: 'Em dia',               color: '#22C55E' },
+  vence_em_breve: { label: 'Vence em breve',       color: '#EAB308' },
+  carencia:       { label: 'Em carência',          color: '#F97316' },
+  bloqueado:      { label: 'Suspenso',             color: '#EF4444' },
+  inativo:        { label: 'Sem assinatura ativa', color: '#94A3B8' },
+}
+
+interface PaymentRow {
+  id: string
+  plan: string | null
+  amount_cents: number
+  paid_at: string
+  period_start: string | null
+  period_end: string | null
+  invoice_url: string | null
+}
+
+function fmtCents(c: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c / 100)
+}
+
+const dias = (n: number) => `${n} dia${n === 1 ? '' : 's'}`
+
+function RenewalSection({ sub, agencyId, onPortal, loadingPlan }: {
+  sub: SubscriptionData
+  agencyId: string | null
+  onPortal: () => void
+  loadingPlan: string | null
+}) {
+  const { data: payments = [], isLoading } = useQuery<PaymentRow[]>({
+    queryKey: ['subscription-payments', agencyId],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from('subscription_payments')
+        .select('id, plan, amount_cents, paid_at, period_start, period_end, invoice_url')
+        .eq('user_id', agencyId)
+        .order('paid_at', { ascending: false })
+        .limit(12)
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const access    = sub.access
+  const st        = STATE_LABEL[access?.state ?? 'inativo']
+  const hasStripe = !!sub.subscription.stripe_subscription_id
+  const exempt    = access?.state === 'cortesia'
+  const paidUntil = access?.paidUntil ?? null
+  const daysLeft  = paidUntil ? Math.ceil((new Date(paidUntil).getTime() - Date.now()) / 86_400_000) : null
+
+  const cells: { label: string; value: string; sub: string; bar?: string }[] = [
+    {
+      label: 'Situação', value: st.label, bar: st.color,
+      sub: access?.state === 'carencia' ? `Acesso até ${fmtDate(access.graceUntil)}`
+         : access?.state === 'bloqueado' ? 'Regularize para voltar a usar'
+         : exempt ? 'Sem cobrança nesta conta'
+         : sub.cancelAtPeriodEnd ? 'Cancelamento agendado'
+         : 'Acesso liberado',
+    },
+    {
+      label: sub.cancelAtPeriodEnd ? 'Termina em' : 'Próximo vencimento',
+      value: exempt || !paidUntil ? '—' : fmtDate(paidUntil),
+      sub: exempt || daysLeft === null ? 'Sem data de vencimento'
+         : daysLeft > 0 ? `Faltam ${dias(daysLeft)}`
+         : daysLeft === 0 ? 'Vence hoje'
+         : `Venceu há ${dias(-daysLeft)}`,
+    },
+    {
+      label: 'Valor da renovação', value: exempt ? '—' : `R$ ${sub.plan.price}/mês`,
+      sub: exempt ? 'Cortesia'
+         : hasStripe ? (sub.cancelAtPeriodEnd ? 'Não será renovado' : 'Cobrado automaticamente no cartão')
+         : 'Pagamento combinado direto com a StatusMedia',
+    },
+    {
+      label: 'Se o pagamento não vier', value: exempt ? '—' : `${dias(access?.graceDays ?? 5)} de carência`,
+      sub: exempt ? 'Não se aplica' : `Aviso ${dias(access?.reminderDays ?? 5)} antes; depois o acesso é suspenso`,
+    },
+  ]
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px overflow-hidden" style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+        {cells.map(c => (
+          <div key={c.label} className="relative px-5 py-4" style={{ background: 'var(--sm-bg-card)' }}>
+            {c.bar && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: c.bar }} />}
+            <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>{c.label}</p>
+            <p className="font-display text-[19px] font-bold leading-tight mt-1 tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{c.value}</p>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>{c.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border overflow-hidden" style={card}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+          <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Pagamentos da assinatura</p>
+          {hasStripe && (
+            <button onClick={onPortal} disabled={!!loadingPlan}
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold disabled:opacity-60" style={{ color: '#2563EB' }}>
+              {loadingPlan === 'portal' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+              Atualizar cartão ou pagar fatura
+            </button>
+          )}
+        </div>
+        {isLoading ? (
+          <div className="h-16 animate-pulse" style={{ background: 'var(--sm-bg-alt)' }} />
+        ) : payments.length === 0 ? (
+          <p className="px-5 py-5 text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>
+            {hasStripe ? 'Os próximos pagamentos aparecem aqui assim que forem confirmados.' : 'Nenhum pagamento pelo cartão registrado nesta conta.'}
+          </p>
+        ) : (
+          <div>
+            <div className="hidden sm:grid grid-cols-[110px_1fr_110px_80px] gap-4 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--sm-text-4)', background: 'var(--sm-bg-alt)' }}>
+              <span>Pago em</span><span>Período</span><span className="text-right">Valor</span><span className="text-right">Recibo</span>
+            </div>
+            {payments.map(p => (
+              <div key={p.id} className="grid grid-cols-2 sm:grid-cols-[110px_1fr_110px_80px] gap-x-4 gap-y-0.5 px-5 py-3 border-t text-[12.5px] items-center" style={{ borderColor: 'var(--sm-border)' }}>
+                <span className="tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{fmtDate(p.paid_at)}</span>
+                <span className="max-sm:text-right" style={{ color: 'var(--sm-text-3)' }}>
+                  {p.plan ? `${PLANS[p.plan as PlanId]?.name ?? p.plan} · ` : ''}
+                  {p.period_start && p.period_end ? `${fmtDate(p.period_start)} a ${fmtDate(p.period_end)}` : ''}
+                </span>
+                <span className="sm:text-right tabular-nums font-semibold" style={{ color: 'var(--sm-text-1)' }}>{fmtCents(p.amount_cents)}</span>
+                <span className="text-right">
+                  {p.invoice_url
+                    ? <a href={p.invoice_url} target="_blank" rel="noreferrer" className="font-semibold" style={{ color: '#2563EB' }}>Ver</a>
+                    : <span style={{ color: 'var(--sm-text-4)' }}>—</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -312,8 +460,8 @@ export function Subscription() {
             <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Plano atual</p>
             <p className="font-display text-[26px] font-bold leading-tight mt-0.5" style={{ color: 'var(--sm-text-1)' }}>{subData?.plan.name ?? 'Starter'}</p>
             <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-              {subData?.subscription.current_period_end
-                ? `Renova em ${new Date(subData.subscription.current_period_end).toLocaleDateString('pt-BR')}`
+              {subData?.access?.paidUntil && subData.access.state !== 'cortesia'
+                ? `${subData.cancelAtPeriodEnd ? 'Termina' : 'Vence'} em ${fmtDate(subData.access.paidUntil)}`
                 : `R$ ${PLANS[currentPlanId].price}/mês`}
             </p>
           </div>
@@ -338,10 +486,21 @@ export function Subscription() {
         </div>
       </section>
 
-      {/* 02 · Planos */}
+      {/* 02 · Renovação */}
+      {subData && (
+        <section>
+          <h2 className="flex items-baseline gap-2 mb-3">
+            <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>02</span>
+          <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Renovação e pagamentos</span>
+          </h2>
+          <RenewalSection sub={subData} agencyId={agencyId ?? null} onPortal={() => handlePortal()} loadingPlan={loadingPlan} />
+        </section>
+      )}
+
+      {/* 03 · Planos */}
       <section>
         <h2 className="flex items-baseline gap-2 mb-3">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>02</span>
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>03</span>
           <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Planos disponíveis</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -352,10 +511,10 @@ export function Subscription() {
         </div>
       </section>
 
-      {/* 03 · Comparativo */}
+      {/* 04 · Comparativo */}
       <section>
         <h2 className="flex items-baseline gap-2 mb-3">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>03</span>
+          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>04</span>
           <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Comparativo</span>
         </h2>
         <div className="rounded-2xl border overflow-x-auto" style={card}>

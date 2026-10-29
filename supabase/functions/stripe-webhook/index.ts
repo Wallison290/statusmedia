@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
         stripe_customer_id:     customerId,
         stripe_subscription_id: subId,
         current_period_end:     periodEnd,
+        paid_until:             periodEnd,
         cancel_at_period_end:   false,
         updated_at:             new Date().toISOString(),
       }, { onConflict: 'user_id' })
@@ -99,6 +100,8 @@ Deno.serve(async (req) => {
       const updatePayload: Record<string, unknown> = {
         status:             'active',
         current_period_end: periodEnd,
+        // Só pagamento confirmado avança o "pago até" (migration 113)
+        paid_until:         periodEnd,
         updated_at:         new Date().toISOString(),
       }
       if (plan) updatePayload.plan = plan
@@ -117,6 +120,22 @@ Deno.serve(async (req) => {
         .maybeSingle()
 
       if (sub?.user_id) {
+        // Histórico de pagamentos mostrado na tela de Assinatura
+        const line = invoice.lines?.data?.[0]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (sb as any).from('subscription_payments').upsert({
+          user_id:           sub.user_id,
+          stripe_invoice_id: invoice.id,
+          plan:              plan ?? null,
+          amount_cents:      invoice.amount_paid ?? 0,
+          currency:          invoice.currency ?? 'brl',
+          paid_at:           new Date(((invoice.status_transitions?.paid_at ?? invoice.created) || 0) * 1000).toISOString(),
+          period_start:      line?.period?.start ? new Date(line.period.start * 1000).toISOString() : null,
+          period_end:        line?.period?.end   ? new Date(line.period.end * 1000).toISOString()   : periodEnd,
+          invoice_url:       invoice.hosted_invoice_url ?? null,
+          invoice_pdf:       invoice.invoice_pdf ?? null,
+        }, { onConflict: 'stripe_invoice_id' })
+
         // Reseta contador de IA no início de cada ciclo de cobrança
         const month = new Date().toISOString().slice(0, 7)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -168,7 +187,8 @@ Deno.serve(async (req) => {
       const periodEnd = new Date((stripeSub.current_period_end ?? 0) * 1000).toISOString()
       const status    = stripeSub.status === 'active'   ? 'active'
                       : stripeSub.status === 'trialing' ? 'trialing'
-                      : stripeSub.status === 'past_due' ? 'past_due'
+                      // Sem pagamento: quem decide o bloqueio é o "pago até" + carência
+                      : ['past_due', 'unpaid', 'incomplete'].includes(stripeSub.status) ? 'past_due'
                       : 'inactive'
 
       const updateData: Record<string, unknown> = {

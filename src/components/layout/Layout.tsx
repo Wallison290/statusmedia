@@ -4,6 +4,7 @@ import { Menu, Clock, AlertTriangle } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
+import { BillingBanner, BillingPopup } from '@/components/billing/BillingNotices'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -131,7 +132,9 @@ export function Layout() {
           <Menu className="w-4 h-4 text-white/80" />
         </button>
 
+        <BillingPopup />
         <AgencyWhatsappPopup />
+        <BillingBanner />
         <TrialBanner />
         {/* sm-menu-gap: no celular a página começa abaixo do botão de menu
             flutuante, que senão cobre o título e os primeiros controles */}
