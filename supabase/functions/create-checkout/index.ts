@@ -76,7 +76,8 @@ Deno.serve(async (req) => {
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
-    payment_method_types: ['card'],
+    // Sem lista fixa: a Stripe mostra as formas ativadas no painel que aceitam
+    // assinatura (cartão, boleto...).
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${APP_URL}/planos?success=1`,
     cancel_url:  `${APP_URL}/planos?canceled=1`,

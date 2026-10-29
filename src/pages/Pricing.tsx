@@ -288,7 +288,7 @@ export function Pricing() {
             className="flex items-center gap-3 px-5 py-3.5 bg-green-50 border border-green-200 rounded-xl text-green-700 text-[13px] font-medium"
           >
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            Pagamento confirmado! Ativando seu plano...
+            Pedido recebido! No cartão o plano ativa em instantes; no boleto, assim que o banco confirmar o pagamento (até 3 dias úteis).
           </motion.div>
         )}
 

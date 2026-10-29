@@ -61,6 +61,21 @@ Deno.serve(async (req) => {
       }
       const periodEnd = new Date((stripeSub.current_period_end ?? 0) * 1000).toISOString()
 
+      // Boleto: o checkout termina antes do pagamento. Guarda a assinatura sem
+      // liberar o acesso; invoice.payment_succeeded ativa quando o banco confirmar.
+      if (session.payment_status !== 'paid') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (sb as any).from('subscriptions').upsert({
+          user_id:                userId,
+          plan,
+          stripe_customer_id:     customerId,
+          stripe_subscription_id: subId,
+          updated_at:             new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+        console.log(`[webhook] ${userId} → plano ${plan} aguardando pagamento (${session.payment_status})`)
+        break
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (sb as any).from('subscriptions').upsert({
         user_id:                userId,
