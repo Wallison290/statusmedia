@@ -55,7 +55,7 @@ export const PLANS: Record<PlanId, Plan> = {
     aiAssistant: 0,
     supportLevel: 'email',
     supportLabel: 'WhatsApp',
-    stripePriceId: 'CONFIGURE_STARTER_2026',
+    stripePriceId: 'price_1UVuJP0khDYycmTviTss4KsC',
     description: 'Para quem está começando a agência',
     featureGroups: [
       { title: 'Gestão da Agência', items: ['Até 5 clientes', 'Equipe com 1 usuário', '10 GB de armazenamento', 'Financeiro: mensalidades e lançamentos'] },
@@ -83,7 +83,7 @@ export const PLANS: Record<PlanId, Plan> = {
     aiAssistant: 0,
     supportLevel: 'priority',
     supportLabel: 'WhatsApp',
-    stripePriceId: 'CONFIGURE_PRO_2026',
+    stripePriceId: 'price_1UVuLf0khDYycmTvqROgIZeE',
     badge: 'Mais popular',
     description: 'Para agências em crescimento',
     featureGroups: [
@@ -112,7 +112,7 @@ export const PLANS: Record<PlanId, Plan> = {
     aiAssistant: 1000,
     supportLevel: 'sla',
     supportLabel: 'WhatsApp prioritário',
-    stripePriceId: 'CONFIGURE_AGENCY_2026',
+    stripePriceId: 'price_1UVuN70khDYycmTvTYVaUKFH',
     badge: 'Completo',
     description: 'Para agências consolidadas',
     featureGroups: [

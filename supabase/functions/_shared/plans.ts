@@ -11,9 +11,9 @@ type PlanKey = 'starter' | 'pro' | 'agency'
 
 // Preços de 2026 (R$97 / R$197 / R$297) — iguais aos de src/config/plans.ts
 export const CURRENT_PRICES: Record<PlanKey, string> = {
-  starter: 'CONFIGURE_STARTER_2026',
-  pro:     'CONFIGURE_PRO_2026',
-  agency:  'CONFIGURE_AGENCY_2026',
+  starter: 'price_1UVuJP0khDYycmTviTss4KsC',
+  pro:     'price_1UVuLf0khDYycmTvqROgIZeE',
+  agency:  'price_1UVuN70khDYycmTvTYVaUKFH',
 }
 
 // Preços antigos (R$57 / R$97 / R$197): só para assinaturas existentes
