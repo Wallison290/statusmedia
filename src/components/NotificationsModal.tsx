@@ -189,14 +189,14 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
             initial={{ x: glass ? 'calc(100% + 24px)' : '100%' }} animate={{ x: 0 }} exit={{ x: glass ? 'calc(100% + 24px)' : '100%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
             className={glass
-              ? 'sm-glass-drawer fixed top-0 right-0 bottom-0 sm:top-4 sm:right-4 sm:bottom-4 z-50 w-full sm:w-[400px] sm:rounded-[28px] overflow-hidden flex flex-col'
-              : 'fixed top-0 right-0 z-50 h-full w-full sm:w-[390px] bg-[#0B1020] border-l border-[#1e293b] shadow-2xl flex flex-col'}
+              ? 'sm-notif sm-glass-drawer fixed top-0 right-0 bottom-0 sm:top-4 sm:right-4 sm:bottom-4 z-50 w-full sm:w-[400px] sm:rounded-[28px] overflow-hidden flex flex-col'
+              : 'sm-notif fixed top-0 right-0 z-50 h-full w-full sm:w-[390px] bg-[#0B1020] border-l border-[#1e293b] shadow-2xl flex flex-col'}
           >
             {/* ── Cabeçalho ── */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e293b] flex-shrink-0">
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#94a3b8]" />
-                <span className="text-[15px] font-bold text-[#F8FAFC]">Notificações</span>
+                <Bell className="w-4 h-4 text-[color:var(--sm-text-3)]" />
+                <span className="text-[15px] font-bold text-[color:var(--sm-text-1)]">Notificações</span>
                 {unreadCount > 0 && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#29457a] text-white leading-none">
                     {unreadCount}
@@ -204,7 +204,7 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
                 )}
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#1e293b] transition-colors">
-                <X className="w-4 h-4 text-[#94a3b8]" />
+                <X className="w-4 h-4 text-[color:var(--sm-text-3)]" />
               </button>
             </div>
 
@@ -215,7 +215,7 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${
                   onlyUnread
                     ? 'bg-[#29457a]/30 border-[#29457a] text-[#9bb6dd]'
-                    : 'bg-[#182233] border-[#1e293b] text-[#94a3b8] hover:text-[color:var(--sm-text-1)]'
+                    : 'bg-[#182233] border-[#1e293b] text-[color:var(--sm-text-3)] hover:text-[color:var(--sm-text-1)]'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${onlyUnread ? 'bg-[#6f93c9]' : 'bg-[#475569]'}`} />
@@ -247,7 +247,7 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-medium whitespace-nowrap transition-all ${
                         active
                           ? 'bg-[#29457a] text-white'
-                          : 'bg-[#182233] text-[#94a3b8] hover:text-[color:var(--sm-text-1)]'
+                          : 'bg-[#182233] text-[color:var(--sm-text-3)] hover:text-[color:var(--sm-text-1)]'
                       }`}
                     >
                       {label}
@@ -267,18 +267,18 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
             {/* ── Lista ── */}
             <div className="flex-1 overflow-y-auto">
               {isLoading && (
-                <div className="px-5 py-12 text-center text-[12px] text-[#64748b]">Carregando…</div>
+                <div className="px-5 py-12 text-center text-[12px] text-[color:var(--sm-text-4)]">Carregando…</div>
               )}
 
               {!isLoading && filtered.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full px-5 py-16 text-center">
                   <div className="w-12 h-12 rounded-2xl bg-[#182233] border border-[#1e293b] flex items-center justify-center mb-3">
-                    <Bell className="w-5 h-5 text-[#475569]" />
+                    <Bell className="w-5 h-5 text-[color:var(--sm-text-4)]" />
                   </div>
-                  <p className="text-[13px] font-medium text-[#94a3b8]">
+                  <p className="text-[13px] font-medium text-[color:var(--sm-text-3)]">
                     {onlyUnread ? 'Nenhuma não lida' : 'Nenhuma notificação'}
                   </p>
-                  <p className="text-[11px] text-[#64748b] mt-0.5">Você está em dia!</p>
+                  <p className="text-[11px] text-[color:var(--sm-text-4)] mt-0.5">Você está em dia!</p>
                 </div>
               )}
 
@@ -300,12 +300,12 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-[12.5px] font-semibold text-[#F8FAFC] leading-snug">{n.title}</p>
+                        <p className="text-[12.5px] font-semibold text-[color:var(--sm-text-1)] leading-snug">{n.title}</p>
                         {!n.is_read && <div className="w-1.5 h-1.5 rounded-full bg-[#6f93c9] flex-shrink-0 mt-1.5" />}
                       </div>
-                      <p className="text-[11.5px] text-[#94a3b8] leading-snug mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-[11.5px] text-[color:var(--sm-text-3)] leading-snug mt-0.5 line-clamp-2">{n.message}</p>
                       <div className="flex items-center justify-between mt-1.5 gap-2">
-                        <span className="text-[10px] text-[#64748b]">
+                        <span className="text-[10px] text-[color:var(--sm-text-4)]">
                           {formatDistanceToNow(parseISO(n.created_at), { addSuffix: true, locale: ptBR })}
                         </span>
                         {n.link && (
@@ -319,7 +319,7 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
                         {!n.link && !n.is_read && (
                           <button
                             onClick={() => markRead.mutate(n.id)}
-                            className="text-[11px] text-[#64748b] hover:text-[#94a3b8] transition-colors flex-shrink-0"
+                            className="text-[11px] text-[color:var(--sm-text-4)] hover:text-[color:var(--sm-text-2)] transition-colors flex-shrink-0"
                           >
                             Marcar lida
                           </button>
@@ -334,7 +334,7 @@ export function NotificationsModal({ open, onClose, onView, glass = false }: Not
             {/* ── Rodapé ── */}
             {filtered.length > 0 && (
               <div className={`px-5 py-2.5 border-t border-[#1e293b] flex-shrink-0 ${glass ? '' : 'bg-[#0B1020]'}`}>
-                <p className="text-[10px] text-[#64748b] text-center">
+                <p className="text-[10px] text-[color:var(--sm-text-4)] text-center">
                   {filtered.length} notificaç{filtered.length === 1 ? 'ão' : 'ões'}
                   {onlyUnread ? ' não lida' + (filtered.length === 1 ? '' : 's') : ''}
                 </p>

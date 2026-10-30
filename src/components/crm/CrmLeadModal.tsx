@@ -10,7 +10,7 @@ import {
   History, CheckSquare, FileText, XCircle, MessagesSquare, Video, RefreshCw,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ServiceBillingPicker, splitInstallments } from '@/components/ServiceBillingPicker'
+import { ServiceBillingPicker, InstallmentChooser, splitInstallments } from '@/components/ServiceBillingPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -385,14 +385,17 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
       {/* Mensal: dia do mês em que o pagamento se repete */}
       {planMode === 'recorrente' && (
         <Field label="Dia do pagamento (todo mês)" icon={<CalendarClock className="w-3 h-3" />}>
-          <select
-            className={selectClass}
-            value={form.payment_plan?.dia ?? ''}
-            onChange={e => set('payment_plan', { ...form.payment_plan!, dia: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">Escolha o dia</option>
-            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>Todo dia {d}</option>)}
-          </select>
+          <div className="flex items-center gap-2.5">
+            <Input type="number" inputMode="numeric" min={1} max={31} placeholder="Ex.: 10" className="w-24"
+              value={form.payment_plan?.dia ?? ''}
+              onChange={e => {
+                const d = e.target.value ? Math.min(31, Math.max(1, Math.floor(Number(e.target.value)))) : null
+                set('payment_plan', { ...form.payment_plan!, dia: d })
+              }} />
+            {form.payment_plan?.dia && (
+              <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>Todo dia {form.payment_plan.dia}</span>
+            )}
+          </div>
         </Field>
       )}
 
@@ -402,28 +405,19 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
         const entrada  = form.payment_plan?.entrada ?? 0
         const parcelas = form.payment_plan?.parcelas ?? null
         const split    = parcelas ? splitInstallments(total, entrada, parcelas) : null
-        const max      = Math.max(36, parcelas ?? 0)
         return (
           <div className="rounded-2xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:max-w-[50%]">
               <Field label="Entrada (opcional)" icon={<Wallet className="w-3 h-3" />}>
                 <MoneyInput hidden={hideValues} value={form.payment_plan?.entrada ?? null}
                   onChange={v => set('payment_plan', { ...form.payment_plan!, entrada: v })} />
               </Field>
-              <Field label={entrada > 0 ? 'Restante dividido em' : 'Dividido em'} icon={<Receipt className="w-3 h-3" />}>
-                <select
-                  className={selectClass}
-                  value={parcelas ?? ''}
-                  onChange={e => set('payment_plan', { ...form.payment_plan!, parcelas: e.target.value ? Number(e.target.value) : null })}
-                >
-                  <option value="">Quantas parcelas?</option>
-                  {Array.from({ length: max }, (_, i) => i + 1).map(n => {
-                    const s = splitInstallments(total, entrada, n)
-                    return <option key={n} value={n}>{s ? `${n}x de ${money(s.parcela, true)}` : `${n}x`}</option>
-                  })}
-                </select>
-              </Field>
             </div>
+            <Field label={entrada > 0 ? 'Restante dividido em' : 'Dividido em'} icon={<Receipt className="w-3 h-3" />}>
+              <InstallmentChooser total={total} entrada={entrada} value={parcelas}
+                onChange={n => set('payment_plan', { ...form.payment_plan!, parcelas: n })}
+                format={v => money(v, true)} />
+            </Field>
             <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>
               {!(total > 0)
                 ? 'Preencha o valor total acima para ver quanto fica cada parcela.'

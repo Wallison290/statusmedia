@@ -856,3 +856,33 @@
 [data-theme="light"] .sm-glass-modal select { color-scheme: light; }
 /* Hover de linhas pensado para o escuro (white/5) fica invisível no claro */
 [data-theme="light"] .sm-glass-modal .hover\:bg-white\/5:hover { background: rgba(15, 23, 42, 0.05); }
+
+/* Notificações no tema claro: os azuis claros e os fundos escuros do desenho
+   original sumiam no fundo claro */
+[data-theme="light"] .sm-notif .text-\[\#6f93c9\],
+[data-theme="light"] .sm-notif .text-\[\#9bb6dd\],
+[data-theme="light"] .sm-notif .hover\:text-\[\#9bb6dd\]:hover { color: #29457A; }
+[data-theme="light"] .sm-notif .bg-\[\#29457a\]\/30 { background: rgba(41, 69, 122, 0.10); }
+[data-theme="light"] .sm-notif .bg-\[\#29457a\]\/10 { background: rgba(37, 99, 235, 0.06); }
+[data-theme="light"] .sm-notif .bg-\[\#0d1424\] { background: #E2E8F0; }
+[data-theme="light"] .sm-notif .bg-\[\#182233\] { background: #F1F5F9; }
+[data-theme="light"] .sm-notif .border-\[\#1e293b\],
+[data-theme="light"] .sm-notif .border-\[\#1e293b\]\/60 { border-color: #E2E8F0; }
+[data-theme="light"] .sm-notif .hover\:bg-\[\#1e293b\]:hover { background: #F1F5F9; }
+
+/* A gaveta abre de dentro do cartão do perfil (.sm-invert, cores trocadas):
+   aqui ela volta para as cores do tema atual */
+[data-theme="light"] .sm-notif {
+  --sm-text-1: #1e293b;
+  --sm-text-2: #475569;
+  --sm-text-3: #64748b;
+  --sm-text-4: #94a3b8;
+  --sm-border: #e2e8f0;
+}
+[data-theme="dark"] .sm-notif {
+  --sm-text-1: #F8FAFC;
+  --sm-text-2: #CBD5E1;
+  --sm-text-3: #94a3b8;
+  --sm-text-4: #64748b;
+  --sm-border: #1e293b;
+}

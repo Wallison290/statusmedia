@@ -17,7 +17,7 @@ import { checkStorageLimit } from '@/utils/storageGate'
 import { ApplyTemplateModal } from '@/components/tasks/ApplyTemplateModal'
 import { Field, TextInput, SelectInput, PrimaryButton, GhostButton, inputCls, inputStyle, parseMoney, moneyToInput } from '@/pages/financial/finUi'
 import type { Client } from '@/types'
-import { ServiceBillingPicker, splitInstallments, type ServiceBillingMode } from '@/components/ServiceBillingPicker'
+import { ServiceBillingPicker, InstallmentChooser, splitInstallments, type ServiceBillingMode } from '@/components/ServiceBillingPicker'
 import { fmtBRL } from '@/utils/crm'
 
 // Mapeia o tipo de serviço escolhido no cadastro para a categoria do modelo
@@ -384,15 +384,17 @@ export function ClientForm() {
                 <TextInput inputMode="decimal" value={entradaMoney} onChange={e => setEntradaMoney(e.target.value)} placeholder="Ex.: 3.000,00" />
               </Field>
               {/* A lista já mostra quanto fica cada parcela */}
-              <Field label={entradaMoney.trim() ? 'Restante dividido em' : 'Dividido em'}>
-                <SelectInput value={form.parcelas ?? ''} onChange={e => set('parcelas', e.target.value ? Number(e.target.value) : null)}>
-                  <option value="">Quantas parcelas?</option>
-                  {Array.from({ length: Math.max(36, form.parcelas ?? 0) }, (_, i) => i + 1).map(n => {
-                    const s = splitInstallments(totalMoney.trim() ? parseMoney(totalMoney) : 0, entradaMoney.trim() ? parseMoney(entradaMoney) : 0, n)
-                    return <option key={n} value={n}>{s ? `${n}x de ${fmtBRL(s.parcela, true)}` : `${n}x`}</option>
-                  })}
-                </SelectInput>
-              </Field>
+              <div className="md:col-span-2">
+                <span className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--sm-text-3)' }}>
+                  {entradaMoney.trim() ? 'Restante dividido em' : 'Dividido em'}
+                </span>
+                <InstallmentChooser
+                  total={totalMoney.trim() ? parseMoney(totalMoney) : 0}
+                  entrada={entradaMoney.trim() ? parseMoney(entradaMoney) : 0}
+                  value={form.parcelas ?? null}
+                  onChange={n => set('parcelas', n)}
+                  format={v => fmtBRL(v, true)} />
+              </div>
               <Field label="Data da entrada">
                 <TextInput type="date" value={form.billing_due_date ?? ''} onChange={e => set('billing_due_date', e.target.value || null)} />
               </Field>
