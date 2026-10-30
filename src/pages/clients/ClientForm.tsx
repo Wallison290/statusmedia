@@ -57,8 +57,7 @@ function Section({ n, title, text, children }: { n: string; title: string; text:
     <section className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-x-10 gap-y-4 py-7 border-t first:border-t-0 first:pt-2"
       style={{ borderColor: 'var(--sm-border)' }}>
       <div>
-        <p className="text-[12px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</p>
-        <h2 className="font-display text-[18px] font-bold leading-tight mt-0.5" style={{ color: 'var(--sm-text-1)' }}>{title}</h2>
+        <h2 className="font-display text-[18px] font-bold leading-tight" style={{ color: 'var(--sm-text-1)' }}>{title}</h2>
         <p className="text-[12.5px] mt-1.5 leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>{text}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 content-start">{children}</div>

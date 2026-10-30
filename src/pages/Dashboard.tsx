@@ -123,14 +123,13 @@ function Reveal({ children, delay = 0, className = '' }: { children: React.React
   )
 }
 
-/** Título de seção numerado: 01, 02… em azul + nome em display. */
+/** Título de seção: nome em display (sem numeração, pedido do usuário). */
 function SectionHead({ n, title, aside, children }: {
   n: string; title: string; aside?: React.ReactNode; children?: React.ReactNode
 }) {
   return (
     <div className="flex items-end justify-between gap-x-4 gap-y-3 mb-4 flex-wrap">
       <div className="flex items-baseline gap-3 min-w-0">
-        <span className="font-display text-[12px] font-semibold tabular-nums text-[#2563EB]">{n}</span>
         <h2 className="font-display text-[20px] sm:text-[22px] font-bold tracking-[-0.025em] leading-none text-[var(--sm-text-1)]">
           {title}
         </h2>
