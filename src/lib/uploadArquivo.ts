@@ -47,7 +47,8 @@ export function jaPublicoNoR2(url: string): boolean {
   if (!url) return false
   if (R2_PUBLIC_BASE && url.startsWith(R2_PUBLIC_BASE)) return true
   try {
-    return new URL(url).hostname.endsWith('.r2.dev')
+    const h = new URL(url).hostname
+    return h.endsWith('.r2.dev') || h === 'midia.statusmedia.com.br'
   } catch {
     return false
   }

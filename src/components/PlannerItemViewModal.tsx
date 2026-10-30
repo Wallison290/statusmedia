@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ThumbImg, MediumImg, preloadMedium } from '@/components/ThumbImg'
+import { mediaUrl } from '@/lib/thumbs'
 import {
   ImageIcon, Video, Music, FileText, File,
   ExternalLink, Link2, Building2, Pencil, Trash2, Check,
@@ -551,7 +552,7 @@ export function PlannerItemViewModal({
                     />
                   ) : (
                     <video
-                      src={allMedia[imgIdx].file_url}
+                      src={mediaUrl(allMedia[imgIdx].file_url)}
                       controls
                       className="absolute inset-0 w-full h-full object-cover"
                     />
@@ -753,7 +754,7 @@ export function PlannerItemViewModal({
                         />
                       ) : (
                         <video
-                          src={allMedia[imgIdx].file_url}
+                          src={mediaUrl(allMedia[imgIdx].file_url)}
                           controls
                           autoPlay={false}
                           className="w-full h-full object-contain"

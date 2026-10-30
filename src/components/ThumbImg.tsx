@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { Play } from 'lucide-react'
-import { thumbUrl, mediumUrl } from '@/lib/thumbs'
+import { thumbUrl, mediumUrl, mediaUrl } from '@/lib/thumbs'
 
 export function ThumbImg({ src, alt = '', className = '', draggable = false }: {
   src: string; alt?: string; className?: string; draggable?: boolean
@@ -13,7 +13,7 @@ export function ThumbImg({ src, alt = '', className = '', draggable = false }: {
   const [useOriginal, setUseOriginal] = useState(!thumb)
   return (
     <img
-      src={useOriginal ? src : thumb!}
+      src={useOriginal ? mediaUrl(src) : thumb!}
       alt={alt}
       loading="lazy"
       decoding="async"
@@ -42,7 +42,7 @@ export function MediumImg({ src, alt = '', className = '', fit = 'cover' }: {
     // na hora. Sem isso o navegador segurava a imagem anterior até a próxima chegar
     <img
       key={src}
-      src={useOriginal ? src : md!}
+      src={useOriginal ? mediaUrl(src) : md!}
       alt={alt}
       decoding="async"
       draggable={false}
@@ -85,7 +85,7 @@ export function VideoCover({ src, title, small = false, className = '' }: {
       {stage === 'thumb'
         ? <img src={thumb!} alt={title ?? ''} loading="lazy" decoding="async" draggable={false}
             className={`w-full h-full object-cover ${className}`} onError={() => setStage('video')} />
-        : <video src={`${src}#t=0.5`} muted playsInline preload="metadata" onError={() => setStage('failed')}
+        : <video src={`${mediaUrl(src)}#t=0.5`} muted playsInline preload="metadata" onError={() => setStage('failed')}
             className={`w-full h-full object-cover pointer-events-none ${className}`} />}
       {play}
     </span>

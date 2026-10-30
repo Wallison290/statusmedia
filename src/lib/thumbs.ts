@@ -24,12 +24,34 @@ const THUMB_QUALITY = 0.72
 const MEDIUM_MAX = 1080
 const MEDIUM_QUALITY = 0.82
 
+// Domínio próprio do bucket (Cloudflare, com CDN). O endereço r2.dev é de
+// testes: limitado e sem cache. Os links gravados no banco continuam r2.dev
+// (é o que o agendamento do Instagram usa); só a EXIBIÇÃO passa pelo domínio.
+const MEDIA_HOST = 'midia.statusmedia.com.br'
+const MEDIA_ORIGIN = `https://${MEDIA_HOST}`
+
+function isR2Url(url: string, u: URL) {
+  return (R2_PUBLIC_BASE && url.startsWith(R2_PUBLIC_BASE)) || u.hostname.endsWith('.r2.dev') || u.hostname === MEDIA_HOST
+}
+
+/** Mesmo arquivo, servido pelo domínio próprio (rápido, com cache). */
+export function mediaUrl<T extends string | null | undefined>(url: T): T {
+  if (!url) return url
+  try {
+    const u = new URL(url)
+    if (!u.hostname.endsWith('.r2.dev')) return url
+    return (MEDIA_ORIGIN + u.pathname + u.search + u.hash) as T
+  } catch {
+    return url
+  }
+}
+
 /** Chave do arquivo no R2 a partir da URL pública (null se não for do R2). */
 export function r2KeyOf(url: string | null | undefined): string | null {
   if (!url) return null
   try {
     const u = new URL(url)
-    const isR2 = (R2_PUBLIC_BASE && url.startsWith(R2_PUBLIC_BASE)) || u.hostname.endsWith('.r2.dev')
+    const isR2 = isR2Url(url, u)
     if (!isR2) return null
     const key = decodeURIComponent(u.pathname.replace(/^\//, ''))
     if (!key || key.startsWith('thumbs/')) return null
@@ -43,16 +65,14 @@ export function r2KeyOf(url: string | null | undefined): string | null {
 export function thumbUrl(url: string | null | undefined): string | null {
   const key = r2KeyOf(url)
   if (!key) return null
-  const base = new URL(url!).origin
-  return `${base}/thumbs/${key.split('/').map(encodeURIComponent).join('/')}.webp`
+  return `${MEDIA_ORIGIN}/thumbs/${key.split('/').map(encodeURIComponent).join('/')}.webp`
 }
 
 /** URL da versão média de 1080 px (ou null quando o arquivo não está no R2). */
 export function mediumUrl(url: string | null | undefined): string | null {
   const key = r2KeyOf(url)
   if (!key) return null
-  const base = new URL(url!).origin
-  return `${base}/thumbs/md/${key.split('/').map(encodeURIComponent).join('/')}.webp`
+  return `${MEDIA_ORIGIN}/thumbs/md/${key.split('/').map(encodeURIComponent).join('/')}.webp`
 }
 
 // ── Geração no aparelho de quem envia ───────────────────────────────────────
