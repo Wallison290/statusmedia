@@ -890,12 +890,11 @@
   --sm-border: #1e293b;
 }
 
-/* ── Aparelhos mais leves: tablet, celular, tela de toque ─────────────────────
-   O desfoque de fundo (backdrop-filter) é o efeito mais caro do vidro. Em
-   toque e telas até 1024 px ele sai, e os painéis ficam mais opacos para
-   manter a leitura. O visual continua o mesmo; muda o custo. Vale também
-   para quem pede menos transparência no sistema. */
-@media (hover: none), (max-width: 1024px), (prefers-reduced-transparency: reduce) {
+/* ── Vidro leve, em todos os aparelhos ────────────────────────────────────────
+   O desfoque de fundo (backdrop-filter) é o efeito mais caro do vidro. Ele
+   sai em tudo (primeiro foi só tablet/celular; o usuário preferiu esse visual
+   também no computador) e os painéis ficam mais opacos para manter a leitura. */
+@media all {
   .sm-glass-panel, .sm-glass-drawer, .sm-glass-rail, .sm-glass-modal,
   .sm-glass-pop, .sm-glass-overlay {
     -webkit-backdrop-filter: none !important;
