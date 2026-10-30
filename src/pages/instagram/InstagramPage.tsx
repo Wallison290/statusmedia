@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale'
 import { useToast } from '@/components/ui/toast'
 import { supabase } from '@/integrations/supabase/client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { ThumbImg, VideoCover } from '@/components/ThumbImg'
 import { useAuth } from '@/hooks/useAuth'
 import { useClients } from '@/hooks/useClients'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -38,8 +39,8 @@ import {
 const IG_RING = 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'
 const card = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
 const eyebrow = 'text-[10.5px] font-semibold uppercase tracking-[0.08em]'
-const primaryBtn = 'inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90 whitespace-nowrap'
-const ghostBtn = 'inline-flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl border text-[13px] font-medium hover:bg-black/5 transition-colors whitespace-nowrap disabled:opacity-50'
+const primaryBtn = 'inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold text-white transition-opacity hover:opacity-90 whitespace-nowrap'
+const ghostBtn = 'inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-full border text-[13px] font-medium hover:bg-[var(--sm-bg-alt)] transition-colors whitespace-nowrap disabled:opacity-50'
 const ghostStyle = { borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' } as const
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ function TokenBadge({ expiresAt }: { expiresAt: string | null }) {
 function IgAvatar({ account, size, onError }: { account: InstagramAccount; size: number; onError: () => void }) {
   return (
     <span className="block rounded-full p-[2px] flex-shrink-0" style={{ width: size, height: size, background: IG_RING }}>
-      <span className="block w-full h-full rounded-full p-[2px]" style={{ background: 'var(--sm-bg-card)' }}>
+      <span className="block w-full h-full rounded-full p-[2px]" style={{ background: 'var(--sm-bg-card2)' }}>
         {account.profile_picture_url ? (
           <img src={account.profile_picture_url} alt={account.username}
             className="w-full h-full rounded-full object-cover"
@@ -162,14 +163,14 @@ function AccountListCard({
   const num = (n: number, label: string, color: string) => (
     <span className="text-center min-w-[64px]">
       <span className="block font-display text-[18px] font-bold leading-none tabular-nums" style={{ color: n > 0 ? color : 'var(--sm-text-4)' }}>{n}</span>
-      <span className="block text-[10.5px] mt-1" style={{ color: 'var(--sm-text-4)' }}>{label}</span>
+      <span className="block text-[10.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>{label}</span>
     </span>
   )
 
   return (
     <button
       onClick={onClick}
-      className={`relative w-full flex items-center gap-4 pl-5 pr-4 py-4 text-left transition-colors hover:bg-black/[0.02] group ${first ? '' : 'border-t'}`}
+      className={`relative w-full flex items-center gap-4 pl-5 pr-4 py-4 text-left transition-colors hover:bg-[var(--sm-bg-alt)] group ${first ? '' : 'border-t'}`}
       style={{ borderColor: 'var(--sm-border)' }}
     >
       {alerta && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: failedCount > 0 ? '#EF4444' : tk!.color }} />}
@@ -221,9 +222,9 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
     setEditing(false)
   }
 
-  const field = 'h-9 text-[12.5px] rounded-lg border px-2.5 focus:outline-none focus:border-[#2563EB]/60 [color-scheme:light_dark]'
+  const field = 'h-9 text-[12.5px] rounded-full border px-3.5 focus:outline-none focus:border-[#2563EB]/60 [color-scheme:light_dark]'
   const fieldStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
-  const linkBtn = 'inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[12px] font-semibold hover:bg-black/5 transition-colors'
+  const linkBtn = 'inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-semibold hover:bg-[var(--sm-bg-alt)] transition-colors'
 
   return (
     <div className={`relative pl-5 pr-4 py-4 space-y-3 ${first ? '' : 'border-t'}`} style={{ borderColor: 'var(--sm-border)' }}>
@@ -234,9 +235,8 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
         {post.media_urls.length > 0 && (
           <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
             {post.post_type === 'REELS'
-              ? <video src={post.media_urls[0]} className="w-full h-full object-cover" />
-              : <img src={post.media_urls[0]} alt="" className="w-full h-full object-cover"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+              ? <VideoCover src={post.media_urls[0]} small />
+              : <ThumbImg src={post.media_urls[0]} className="w-full h-full object-cover" />}
             {post.media_urls.length > 1 && (
               <span className="absolute bottom-1 right-1 min-w-[20px] h-5 px-1 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
                 {post.media_urls.length}
@@ -274,7 +274,7 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
 
       {/* Mensagem de erro */}
       {post.error_message && (
-        <div className="flex items-start gap-2 text-[12px] rounded-lg px-3 py-2" style={{ background: 'rgba(239,68,68,0.07)', color: '#B91C1C' }}>
+        <div className="flex items-start gap-2 text-[12px] font-medium rounded-xl px-3 py-2" style={{ background: 'rgba(239,68,68,0.10)', color: '#EF4444' }}>
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
           <span className="min-w-0 [overflow-wrap:anywhere]">{post.error_message}</span>
         </div>
@@ -285,7 +285,7 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
         <div className="flex items-center gap-1 flex-wrap -ml-2">
           {post.status === 'failed' && (
             <button onClick={() => onRetry(post.id)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 ml-2 rounded-lg text-[12px] font-semibold text-white hover:opacity-90"
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 ml-2 rounded-full text-[12px] font-semibold text-white hover:opacity-90"
               style={{ background: 'var(--sm-primary)' }}>
               <RefreshCw className="w-3 h-3" />
               Tentar novamente
@@ -316,14 +316,14 @@ function PostCard({ post, first, onCancel, onRetry, onReschedule }: { post: Sche
       {post.status === 'scheduled' && editing && (
         <div className="flex items-end gap-2 flex-wrap pt-3 border-t" style={{ borderColor: 'var(--sm-border)' }}>
           <div>
-            <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-4)' }}>Data</p>
+            <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-3)' }}>Data</p>
             <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className={field} style={fieldStyle} />
           </div>
           <div>
-            <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-4)' }}>Horário</p>
+            <p className={`${eyebrow} mb-1`} style={{ color: 'var(--sm-text-3)' }}>Horário</p>
             <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)} className={field} style={fieldStyle} />
           </div>
-          <button onClick={saveReschedule} className="h-9 px-3.5 rounded-lg text-[12.5px] font-semibold text-white hover:opacity-90" style={{ background: 'var(--sm-primary)' }}>
+          <button onClick={saveReschedule} className="h-9 px-4 rounded-full text-[12.5px] font-semibold text-white hover:opacity-90" style={{ background: 'var(--sm-primary)' }}>
             Salvar
           </button>
         </div>
@@ -383,7 +383,7 @@ function AccountDetailView({
       </button>
 
       {/* Cabeçalho da conta */}
-      <div className="rounded-2xl border p-4 md:p-5 flex items-center gap-4 flex-wrap sm:flex-nowrap" style={card}>
+      <div className="sm-glass-tile rounded-[24px] p-4 md:p-5 flex items-center gap-4 flex-wrap sm:flex-nowrap">
         <IgAvatar account={account} size={64} onError={() => onRefreshPic(account.id)} />
         <div className="flex-1 min-w-0">
           <p className="font-display text-[22px] font-bold leading-tight truncate" style={{ color: 'var(--sm-text-1)' }}>@{account.username}</p>
@@ -399,17 +399,17 @@ function AccountDetailView({
           <div className="flex items-center justify-end gap-1.5 w-full sm:w-auto flex-shrink-0">
             <span className="text-[12px] font-semibold" style={{ color: '#EF4444' }}>Desconectar esta conta?</span>
             <button onClick={() => { onDisconnect(account.id); onBack() }}
-              className="h-8 px-3 rounded-lg text-[12px] font-semibold text-white" style={{ background: '#EF4444' }}>
+              className="h-8 px-3.5 rounded-full text-[12px] font-semibold text-white" style={{ background: '#DC2626' }}>
               Sim
             </button>
-            <button onClick={() => setConfirmDisconnect(false)} className="h-8 px-3 rounded-lg border text-[12px] hover:bg-black/5" style={ghostStyle}>
+            <button onClick={() => setConfirmDisconnect(false)} className="h-8 px-3.5 rounded-full border text-[12px] hover:bg-[var(--sm-bg-alt)]" style={ghostStyle}>
               Não
             </button>
           </div>
         ) : (
           <button onClick={() => setConfirmDisconnect(true)}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-[12.5px] font-medium hover:bg-red-500/10 hover:text-red-500 transition-colors flex-shrink-0"
-            style={{ color: 'var(--sm-text-3)' }}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[12.5px] font-medium hover:bg-red-500/10 hover:text-red-500 transition-colors flex-shrink-0"
+            style={{ color: 'var(--sm-text-3)', borderColor: 'var(--sm-border)' }}
             aria-label="Desconectar conta" title="Desconectar conta">
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Desconectar</span>
@@ -418,15 +418,15 @@ function AccountDetailView({
       </div>
 
       {/* Números da conta */}
-      <div className="rounded-2xl border grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden" style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Agendados',  value: stats.scheduled, color: '#2563EB' },
           { label: 'Publicados', value: stats.published, color: '#22C55E' },
           { label: 'Falhas',     value: stats.failed,    color: '#EF4444' },
           { label: 'Cancelados', value: stats.cancelled, color: '#94A3B8' },
         ].map(s => (
-          <div key={s.label} className="px-4 py-3.5" style={{ background: 'var(--sm-bg-card)' }}>
-            <p className={`${eyebrow} flex items-center gap-1.5`} style={{ color: 'var(--sm-text-4)' }}>
+          <div key={s.label} className="sm-glass-tile rounded-[22px] px-4 py-3.5">
+            <p className={`${eyebrow} flex items-center gap-1.5`} style={{ color: 'var(--sm-text-3)' }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} /><span>{s.label}</span>
             </p>
             <p className="font-display text-[26px] font-bold leading-tight tabular-nums mt-0.5"
@@ -437,23 +437,23 @@ function AccountDetailView({
 
       {/* Posts: abas sublinhadas + lista com linhas finas */}
       <div>
-        <div className="flex items-end gap-1 border-b overflow-x-auto [&::-webkit-scrollbar]:hidden mb-3" style={{ borderColor: 'var(--sm-border)' }}>
+        <div className="flex items-center gap-0.5 p-1 rounded-full border w-fit max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden mb-3" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
           {TABS.map(t => {
             const count  = accountPosts.filter(p => t.statuses.includes(p.status)).length
             const active = tab === t.value
             return (
               <button key={t.value} onClick={() => setTab(t.value)} aria-current={active ? 'true' : undefined}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 h-10 px-3 border-b-2 -mb-px text-[13px] whitespace-nowrap transition-colors"
-                style={{ borderColor: active ? '#2563EB' : 'transparent', color: active ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: active ? 600 : 500 }}>
+                className={`sm-glass-segment ${active ? 'is-active' : 'hover:text-[var(--sm-text-1)]'} flex-shrink-0 inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[12.5px] whitespace-nowrap transition-colors`}
+                style={{ color: active ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: active ? 600 : 500 }}>
                 {t.label}
-                {count > 0 && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{count}</span>}
+                {count > 0 && <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-3)' }}>{count}</span>}
               </button>
             )
           })}
         </div>
 
         {filteredPosts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed py-12 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+          <div className="sm-glass-tile rounded-[24px] py-12 px-4 text-center">
             <Calendar className="w-6 h-6 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
             <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum post aqui</p>
             <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
@@ -461,7 +461,7 @@ function AccountDetailView({
             </p>
           </div>
         ) : (
-          <div className="rounded-2xl border overflow-hidden" style={card}>
+          <div className="sm-glass-tile rounded-[24px] overflow-hidden">
             {filteredPosts.map((post, i) => (
               <PostCard key={post.id} post={post} first={i === 0} onCancel={onCancel} onRetry={onRetry} onReschedule={onReschedule} />
             ))}
@@ -526,7 +526,7 @@ function ConnectInstagramModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-md">
+      <DialogContent glass className="w-[95vw] max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-[19px] font-bold">Conectar Instagram</DialogTitle>
           <DialogDescription>
@@ -552,7 +552,7 @@ function ConnectInstagramModal({
         {isLoading ? (
           <div className="h-40 rounded-xl animate-pulse" style={{ background: 'var(--sm-bg-alt)' }} />
         ) : clients.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-8 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+          <div className="rounded-2xl border border-dashed py-8 px-4 text-center" style={{ borderColor: 'var(--sm-border)' }}>
             <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
               Você ainda não tem clientes cadastrados.
             </p>
@@ -565,21 +565,21 @@ function ConnectInstagramModal({
             </Link>
           </div>
         ) : (
-          <div className="max-h-[320px] overflow-y-auto rounded-xl border" style={{ borderColor: 'var(--sm-border)' }}>
+          <div className="max-h-[320px] overflow-y-auto rounded-2xl border" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-card)' }}>
             {clients.map((client, i) => {
               const already = connectedClientIds.has(client.id)
               return (
                 <button
                   key={client.id}
                   onClick={() => handlePick(client.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-black/[0.03] ${i > 0 ? 'border-t' : ''}`}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--sm-bg-alt)] ${i > 0 ? 'border-t' : ''}`}
                   style={{ borderColor: 'var(--sm-border)' }}
                 >
                   {client.logo_url ? (
-                    <img src={client.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                    <img src={client.logo_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                   ) : (
-                    <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
-                      <Building2 className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
+                      <Building2 className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
                     </span>
                   )}
                   <span className="flex-1 min-w-0">
@@ -598,7 +598,7 @@ function ConnectInstagramModal({
           </div>
         )}
 
-        <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--sm-text-4)' }}>
+        <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>
           É preciso que a conta seja Business ou Creator. Ao autorizar, o StatusMedia
           passa a ler o perfil, publicar os conteúdos que você agendar e consultar
           as métricas para os relatórios. Você pode desconectar quando quiser.
@@ -691,14 +691,14 @@ export function InstagramPage() {
   const totalAgendados = posts.filter(p => ['scheduled', 'publishing'].includes(p.status)).length
 
   return (
-    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
-      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
+    <div className="min-h-full">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-7 pb-12 space-y-6">
 
         {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
         <header className="max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Publicação</p>
-            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Publicação</p>
+            <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
               Instagram
             </h1>
             <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
@@ -759,15 +759,15 @@ export function InstagramPage() {
             >
               {/* Resumo da fila */}
               {!isLoading && accounts.length > 0 && (
-                <div className="rounded-2xl border grid grid-cols-3 gap-px overflow-hidden" style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+                <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
                   {[
                     { label: 'Contas conectadas', value: accounts.length, alert: false },
                     { label: 'Agendados', value: totalAgendados, alert: false },
                     { label: 'Falhas', value: totalFalhas, alert: totalFalhas > 0 },
                   ].map(k => (
-                    <div key={k.label} className="relative px-4 md:px-5 py-3.5" style={{ background: 'var(--sm-bg-card)' }}>
+                    <div key={k.label} className="sm-glass-tile relative rounded-[22px] overflow-hidden px-4 md:px-5 py-3.5">
                       {k.alert && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: '#EF4444' }} />}
-                      <p className={`${eyebrow} leading-tight`} style={{ color: 'var(--sm-text-4)' }}>{k.label}</p>
+                      <p className={`${eyebrow} leading-tight`} style={{ color: 'var(--sm-text-3)' }}>{k.label}</p>
                       <p className="font-display text-[24px] md:text-[26px] font-bold leading-tight tabular-nums mt-0.5"
                         style={{ color: k.alert ? '#EF4444' : 'var(--sm-text-1)' }}>{k.value}</p>
                     </div>
@@ -776,19 +776,16 @@ export function InstagramPage() {
               )}
 
               <section>
-                <h2 className="flex items-baseline gap-2 mb-2.5">
-                  <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>01</span>
-                  <span className="font-display text-[16px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Contas conectadas</span>
-                </h2>
+                <h2 className="font-display text-[17px] font-bold tracking-[-0.01em] mb-3" style={{ color: 'var(--sm-text-1)' }}>Contas conectadas</h2>
 
                 {isLoading ? (
                   <div className="space-y-2" aria-busy="true">
-                    {[0, 1].map(i => <div key={i} className="h-[80px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />)}
+                    {[0, 1].map(i => <div key={i} className="h-[80px] rounded-[24px] animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />)}
                   </div>
                 ) : accounts.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed py-12 px-6 text-center" style={{ borderColor: 'var(--sm-border)' }}>
+                  <div className="sm-glass-tile rounded-[28px] py-12 px-6 text-center">
                     <span className="inline-block rounded-2xl p-[2px] mb-4" style={{ background: IG_RING }}>
-                      <span className="w-14 h-14 rounded-[14px] flex items-center justify-center" style={{ background: 'var(--sm-bg-card)' }}>
+                      <span className="w-14 h-14 rounded-[14px] flex items-center justify-center" style={{ background: 'var(--sm-bg-card2)' }}>
                         <Instagram className="w-7 h-7" style={{ color: 'var(--sm-text-2)' }} />
                       </span>
                     </span>
@@ -814,7 +811,7 @@ export function InstagramPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border overflow-hidden" style={card}>
+                  <div className="sm-glass-tile rounded-[24px] overflow-hidden">
                     {accounts.map((acc, i) => (
                       <AccountListCard
                         key={acc.id}
