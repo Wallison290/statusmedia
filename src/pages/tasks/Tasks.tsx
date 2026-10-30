@@ -1143,9 +1143,9 @@ export function Tasks() {
 
   // short: rótulo do celular, para as quatro abas caberem sem rolar de lado
   const TABS: { id: ViewTab; label: string; short: string; Icon: React.ElementType }[] = [
+    { id: 'calendario', label: 'Calendário',     short: 'Mês',    Icon: Calendar   },
     { id: 'semanal',    label: 'Visão semanal',  short: 'Semana', Icon: LayoutGrid },
     { id: 'timeline',   label: 'Linha do tempo', short: 'Linha',  Icon: AlignLeft  },
-    { id: 'calendario', label: 'Calendário',     short: 'Mês',    Icon: Calendar   },
     { id: 'lista',      label: 'Lista',          short: 'Lista',  Icon: List       },
   ]
 
@@ -1162,45 +1162,44 @@ export function Tasks() {
     <div className="flex flex-col h-full overflow-x-hidden" style={{ background: 'var(--sm-bg-page)' }}>
 
       {/* ── Cabeçalho (no celular, ao lado do menu) ───────────────────────── */}
-      <div className="px-4 md:px-6 pt-4 md:pt-7 flex-shrink-0">
-        <header className="mb-5 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Operação</p>
-            <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
-              Tarefas
-            </h1>
+      <div className="px-4 md:px-6 pt-4 md:pt-5 flex-shrink-0">
+        {/* Uma linha só: título, números em pílulas e botões (como no CRM).
+            Libera altura para o calendário aparecer inteiro na primeira tela. */}
+        <header className="mb-4 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-center gap-x-4 gap-y-2.5">
+          <h1 className="font-display text-[26px] md:text-[30px] font-bold leading-none tracking-[-0.03em] flex-shrink-0" style={{ color: 'var(--sm-text-1)' }}>
+            Tarefas
+          </h1>
+          <div className="flex items-center gap-1.5 flex-wrap max-md:order-last max-md:-ml-12 max-md:w-[calc(100%+3rem)]">
+            {kpis.map(k => (
+              <span key={k.label} title={k.hint}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-[12px] whitespace-nowrap"
+                style={{
+                  borderColor: k.alert ? 'rgba(239,68,68,0.45)' : 'var(--sm-border)',
+                  background:  k.alert ? 'rgba(239,68,68,0.10)' : 'var(--sm-bg-card)',
+                  color: 'var(--sm-text-3)',
+                }}>
+                <strong className="font-display text-[14px] tabular-nums" style={{ color: k.alert ? OVERDUE : 'var(--sm-text-1)' }}>{k.value}</strong>
+                {k.label.toLowerCase()}
+                {k.bar != null && (
+                  <span className="w-10 h-1 rounded-full overflow-hidden ml-0.5" style={{ background: 'var(--sm-bg-alt)' }}>
+                    <span className="block h-full rounded-full" style={{ width: `${k.bar}%`, background: '#10B981' }} />
+                  </span>
+                )}
+              </span>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setTemplatesOpen(true)} className={ghostBtn} style={ghostStyle}>
-              <ClipboardList className="w-4 h-4" /> Modelos
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => setTemplatesOpen(true)} className={`${ghostBtn} h-9`} style={ghostStyle}>
+              <ClipboardList className="w-4 h-4" /> <span className="max-sm:hidden">Modelos</span>
             </button>
-            <button onClick={handleNewTask} className={primaryBtn} style={{ background: 'var(--sm-primary)' }}>
-              <Plus className="w-4 h-4" /> Nova tarefa
+            <button onClick={handleNewTask} className={`${primaryBtn} h-9`} style={{ background: 'var(--sm-primary)' }}>
+              <Plus className="w-4 h-4" /> <span className="max-sm:hidden">Nova tarefa</span>
             </button>
           </div>
         </header>
 
-        {/* ── Números em uma faixa com divisórias ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          {kpis.map(k => (
-            <div key={k.label} className="sm-glass-tile relative rounded-[22px] overflow-hidden px-4 md:px-5 py-3.5">
-              {k.alert && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: OVERDUE }} />}
-              <p className={eyebrow} style={{ color: 'var(--sm-text-3)' }}>{k.label}</p>
-              <p className="font-display text-[26px] font-bold leading-tight tabular-nums mt-0.5"
-                style={{ color: k.alert ? OVERDUE : 'var(--sm-text-1)' }}>{k.value}</p>
-              {k.bar != null ? (
-                <div className="h-1 rounded-full overflow-hidden mt-1.5" style={{ background: 'var(--sm-bg-alt)' }}>
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${k.bar}%`, background: '#10B981' }} />
-                </div>
-              ) : (
-                <p className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>{k.hint}</p>
-              )}
-            </div>
-          ))}
-        </div>
-
         {/* ── Abas de visão + navegação da semana ── */}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3">
           <div className="flex items-center gap-0.5 p-1 rounded-full border max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden"
             style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
             {TABS.map(({ id, label, short, Icon }) => {

@@ -296,6 +296,22 @@ export function Sidebar({ onMobileClose, glass = false }: SidebarProps) {
   }
   useEffect(() => () => window.clearTimeout(railTimer.current), [])
   useEffect(() => { if (!rail) setRailOpen(false) }, [rail])
+
+  // Toque (tablet/celular): não existe "passar o mouse". Tocar num ícone troca de
+  // aba sem abrir o menu; tocar no espaço vazio do trilho abre; escolhida a aba
+  // (ou tocando fora), o menu recolhe sozinho.
+  const asideRef    = useRef<HTMLElement | null>(null)
+  const lastPointer = useRef<string>('mouse')
+  const isTouch     = () => lastPointer.current !== 'mouse'
+  useEffect(() => {
+    if (!rail || !railOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return
+      if (asideRef.current && !asideRef.current.contains(e.target as Node)) setRailOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [rail, railOpen])
   const collapsed = rail ? !railOpen : collapsedPref
   const [igTooltip, setIgTooltip] = useState<{ x: number; y: number } | null>(null)
   const { data: subData }          = useSubscription()
@@ -317,16 +333,28 @@ export function Sidebar({ onMobileClose, glass = false }: SidebarProps) {
 
   useEffect(() => {
     onMobileClose?.()
+    // No toque, abriu a aba: o trilho recolhe
+    if (rail && isTouch()) { window.clearTimeout(railTimer.current); setRailOpen(false) }
   }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const aside = (
     <motion.aside
       animate={{ width: rail ? (railOpen ? 236 : 68) : collapsed ? 56 : 220 }}
       transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-      onMouseEnter={rail ? () => openRail(true)  : undefined}
-      onMouseLeave={rail ? () => openRail(false) : undefined}
-      onFocusCapture={rail ? () => openRail(true) : undefined}
-      onBlurCapture={rail ? e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) openRail(false) } : undefined}
+      ref={asideRef as any}
+      // Mouse: abre ao passar por cima. Toque: só ao tocar no espaço vazio.
+      onPointerDownCapture={rail ? e => { lastPointer.current = e.pointerType } : undefined}
+      onPointerEnter={rail ? e => { if (e.pointerType === 'mouse') { lastPointer.current = 'mouse'; openRail(true) } } : undefined}
+      onPointerLeave={rail ? e => { if (e.pointerType === 'mouse') openRail(false) } : undefined}
+      onFocusCapture={rail ? () => { if (!isTouch()) openRail(true) } : undefined}
+      onBlurCapture={rail ? e => { if (!isTouch() && !e.currentTarget.contains(e.relatedTarget as Node)) openRail(false) } : undefined}
+      onClick={rail ? e => {
+        if (!isTouch()) return
+        // Ícone (link/botão): navega sem abrir. Espaço vazio: abre ou fecha.
+        if ((e.target as HTMLElement).closest('a, button')) return
+        window.clearTimeout(railTimer.current)
+        setRailOpen(o => !o)
+      } : undefined}
       className={rail
         ? `relative h-full flex-shrink-0 flex flex-col overflow-hidden sm-glass-rail ${railOpen ? 'sm-glass-rail-open' : ''}`
         : 'relative flex flex-col h-full overflow-hidden flex-shrink-0'}
