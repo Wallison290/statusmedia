@@ -31,7 +31,7 @@ const CLIENT_COLOR = '#8B5CF6'
 
 const card = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
 const eyebrow = 'text-[10.5px] font-semibold uppercase tracking-[0.08em]'
-const selectCls = 'h-9 max-w-full text-[12.5px] rounded-xl border px-3 outline-none cursor-pointer hover:border-[#2563EB]/50 transition-colors [color-scheme:light_dark]'
+const selectCls = 'h-9 max-w-full text-[12.5px] rounded-full border pl-3.5 pr-3 outline-none cursor-pointer hover:border-[#2563EB]/50 transition-colors [color-scheme:light_dark]'
 const selectStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
 
 function newItem(text = ''): NoteChecklistItem {
@@ -56,13 +56,11 @@ export function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
 
   return (
     <motion.button
-      layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       onClick={onOpen}
-      className="relative w-full text-left rounded-xl pl-4 pr-3.5 py-3 border transition-colors hover:border-[#2563EB]/50 select-none overflow-hidden"
-      style={card}
+      className="sm-glass-tile relative w-full text-left rounded-2xl pl-4 pr-3.5 py-3 transition-colors hover:!border-[#2563EB]/50 select-none overflow-hidden"
     >
       <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: fromClient ? CLIENT_COLOR : typeColors[note.type] }} />
 
@@ -145,7 +143,7 @@ function ChecklistEditor({
   return (
     <div className="space-y-0.5">
       {items.map((item, idx) => (
-        <div key={item.id} className="flex items-center gap-2 group/item rounded-lg px-1 py-1 hover:bg-black/[0.03]">
+        <div key={item.id} className="flex items-center gap-2 group/item rounded-lg px-1 py-1 hover:bg-[var(--sm-bg-alt)]">
           <GripVertical className="w-3.5 h-3.5 flex-shrink-0 cursor-grab" style={{ color: 'var(--sm-text-4)' }} />
           <button
             type="button"
@@ -170,7 +168,7 @@ function ChecklistEditor({
             type="button"
             onClick={() => remove(item.id)}
             aria-label="Remover item"
-            className="md:opacity-0 md:group-hover/item:opacity-100 transition-opacity w-6 h-6 rounded flex items-center justify-center hover:bg-black/5"
+            className="md:opacity-0 md:group-hover/item:opacity-100 transition-opacity w-6 h-6 rounded flex items-center justify-center hover:bg-[var(--sm-bg-alt)]"
           >
             <X className="w-3 h-3" style={{ color: 'var(--sm-text-3)' }} />
           </button>
@@ -193,13 +191,12 @@ function ChecklistEditor({
 function NoteShell({ onBackdrop, children }: { onBackdrop: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onBackdrop} />
+      <div className="sm-glass-overlay fixed inset-0" onClick={onBackdrop} />
       <motion.div
         initial={{ opacity: 0, y: -12, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -8, scale: 0.97 }}
-        className="relative w-full max-w-lg rounded-2xl shadow-2xl border flex flex-col max-h-[85vh] overflow-hidden"
-        style={card}
+        className="sm-glass-modal relative w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {children}
@@ -295,7 +292,7 @@ export function NoteModal({
               style={{ color: 'var(--sm-text-1)' }}
             />
           </div>
-          <button onClick={handleSave} aria-label="Salvar e fechar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0">
+          <button onClick={handleSave} aria-label="Salvar e fechar" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors flex-shrink-0">
             <X className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
           </button>
         </div>
@@ -325,13 +322,14 @@ export function NoteModal({
       </div>
 
       {/* Abas Texto / Checklist (sublinhadas) */}
-      <div className="flex items-end gap-1 px-5 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+      <div className="px-5 pb-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+       <div className="inline-flex items-center gap-0.5 p-1 rounded-full border" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
         {(['texto', 'checklist'] as const).map(t => {
           const ativo = tab === t
           return (
             <button key={t} onClick={() => setTab(t)}
-              className="h-9 px-2.5 border-b-2 -mb-px text-[13px] transition-colors inline-flex items-center gap-1.5"
-              style={{ borderColor: ativo ? '#2563EB' : 'transparent', color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
+              className={`sm-glass-segment ${ativo ? 'is-active' : 'hover:text-[var(--sm-text-1)]'} h-8 px-3.5 rounded-full text-[12.5px] transition-colors inline-flex items-center gap-1.5`}
+              style={{ color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
               {t === 'texto' ? 'Texto' : 'Checklist'}
               {t === 'checklist' && checklist.length > 0 && (
                 <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{done}/{checklist.length}</span>
@@ -339,6 +337,7 @@ export function NoteModal({
             </button>
           )
         })}
+       </div>
       </div>
 
       {/* Corpo */}
@@ -375,7 +374,7 @@ export function NoteModal({
             <div className="flex items-center gap-1.5">
               <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>Excluir nota?</span>
               <button onClick={() => setConfirmDelete(false)}
-                className="h-8 px-2.5 rounded-lg border text-[12px] hover:bg-black/5" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+                className="h-8 px-2.5 rounded-lg border text-[12px] hover:bg-[var(--sm-bg-alt)]" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
                 Não
               </button>
               <button onClick={handleDelete} disabled={deleteNote.isPending}
@@ -424,7 +423,7 @@ function NoteViewModal({
               <Dot color={CLIENT_COLOR}>Do cliente</Dot>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Fechar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0">
+          <button onClick={onClose} aria-label="Fechar" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors flex-shrink-0">
             <X className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
           </button>
         </div>
@@ -459,7 +458,7 @@ function NoteViewModal({
         {confirmDelete ? (
           <div className="flex items-center gap-1.5">
             <span className="text-[12px]" style={{ color: 'var(--sm-text-3)' }}>Excluir?</span>
-            <button onClick={() => setConfirmDelete(false)} className="h-8 px-2.5 rounded-lg border text-[12px] hover:bg-black/5" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>Não</button>
+            <button onClick={() => setConfirmDelete(false)} className="h-8 px-2.5 rounded-lg border text-[12px] hover:bg-[var(--sm-bg-alt)]" style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>Não</button>
             <button onClick={() => onDelete(note.id)} className="h-8 px-2.5 rounded-lg text-[12px] font-semibold text-white" style={{ background: '#EF4444' }}>Sim</button>
           </div>
         ) : (
@@ -469,7 +468,7 @@ function NoteViewModal({
               style={{ color: 'var(--sm-text-3)' }}>
               <Trash2 className="w-3.5 h-3.5" /> Excluir
             </button>
-            <button onClick={onClose} className="h-9 px-4 rounded-xl border text-[13px] font-semibold hover:bg-black/5"
+            <button onClick={onClose} className="h-9 px-4 rounded-full border text-[13px] font-semibold hover:bg-[var(--sm-bg-alt)]"
               style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>Fechar</button>
           </div>
         )}
@@ -486,10 +485,9 @@ function NotesColumn({
   n: string; title: string; accent: string; count: number; children: React.ReactNode
 }) {
   return (
-    <section className="flex flex-col w-[82vw] sm:w-[310px] flex-shrink-0 h-full min-h-0 rounded-2xl border"
+    <section className="flex flex-col w-[82vw] sm:w-[310px] flex-shrink-0 h-full min-h-0 rounded-[22px] border"
       style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
-      <header className="flex items-baseline gap-2 px-4 pt-3.5 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--sm-border)' }}>
-        <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{n}</span>
+      <header className="flex items-center gap-2 px-4 pt-3.5 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--sm-border)' }}>
         <span className="font-display text-[15px] font-bold truncate flex-1" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
         <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold tabular-nums flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent }} />{count}
@@ -541,7 +539,7 @@ function FilterBar({
 
       {(filter.client_id || filter.type || filter.origin) && (
         <button onClick={() => onChange({})}
-          className="inline-flex items-center gap-1 h-9 px-2 rounded-lg text-[12.5px] font-medium hover:bg-black/5"
+          className="inline-flex items-center gap-1 h-9 px-2 rounded-lg text-[12.5px] font-medium hover:bg-[var(--sm-bg-alt)]"
           style={{ color: 'var(--sm-text-3)' }}>
           <X className="w-3.5 h-3.5" /> Limpar
         </button>
@@ -593,11 +591,11 @@ export function Notes() {
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--sm-bg-page)' }}>
       {/* Cabeçalho (no celular, ao lado do menu) */}
-      <div className="px-4 md:px-6 pt-4 md:pt-6 flex-shrink-0">
+      <div className="px-4 md:px-6 pt-4 md:pt-7 flex-shrink-0">
         <header className="mb-4 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Operação</p>
-            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Operação</p>
+            <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
               Notas
             </h1>
             <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
@@ -606,12 +604,12 @@ export function Notes() {
             </p>
           </div>
           <button onClick={() => setSelected('new')}
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
             style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-4 h-4" /> Nova nota
           </button>
         </header>
-        <div className="pb-4 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+        <div className="pb-1">
           <FilterBar filter={filter} clients={clients} onChange={setFilter} />
         </div>
       </div>
@@ -626,7 +624,7 @@ export function Notes() {
           </div>
         ) : notes.length === 0 ? (
           <div className="h-full flex items-center justify-center">
-            <div className="rounded-2xl border border-dashed py-14 px-8 text-center max-w-sm" style={{ borderColor: 'var(--sm-border)' }}>
+            <div className="sm-glass-tile rounded-[28px] py-14 px-8 text-center max-w-sm">
               <StickyNote className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
               <p className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
                 {filtrando ? 'Nenhuma nota com esses filtros' : 'Nenhuma nota ainda'}
@@ -636,7 +634,7 @@ export function Notes() {
               </p>
               {!filtrando && (
                 <button onClick={() => setSelected('new')}
-                  className="mt-4 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12.5px] font-semibold text-white hover:opacity-90"
+                  className="mt-4 inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-[12.5px] font-semibold text-white hover:opacity-90"
                   style={{ background: 'var(--sm-primary)' }}>
                   <Plus className="w-3.5 h-3.5" /> Nova nota
                 </button>
@@ -648,7 +646,7 @@ export function Notes() {
             <NotesColumn n="01" title="Notas da agência" accent="#2563EB" count={agencyNotes.length}>
               <button
                 onClick={() => setSelected('new')}
-                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl border border-dashed hover:border-[#2563EB]/50 transition-colors text-[12.5px] font-medium"
+                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-full border border-dashed hover:border-[#2563EB]/50 transition-colors text-[12.5px] font-medium"
                 style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}
               >
                 <Plus className="w-3.5 h-3.5" /> Nova nota
