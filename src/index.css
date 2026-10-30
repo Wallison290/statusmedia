@@ -603,6 +603,9 @@
 [data-theme="light"] .hover\:bg-white\/10:hover        { background-color: var(--sm-bg-alt) !important; }
 
 /* ── Scrollbar light mode ────────────────────────────────────────────────────── */
+/* Tema escuro: a barra preta translúcida sumia no fundo escuro */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.30); }
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
 
@@ -920,3 +923,26 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Quadro do CRM: rolagem lateral bem visível ───────────────────────────────
+   Barra de 10 px com trilho e alça arredondada (fácil de ver e de pegar com o
+   mouse) e setas flutuantes nas bordas quando há colunas fora da tela. */
+.sm-board-scroll { scrollbar-width: auto; scrollbar-color: rgba(148, 163, 184, 0.55) rgba(148, 163, 184, 0.12); }
+.sm-board-scroll::-webkit-scrollbar { height: 10px; }
+.sm-board-scroll::-webkit-scrollbar-track { background: rgba(148, 163, 184, 0.12); border-radius: 100px; margin: 0 24px; }
+.sm-board-scroll::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.55); border-radius: 100px; border: 2px solid transparent; background-clip: padding-box; }
+.sm-board-scroll::-webkit-scrollbar-thumb:hover { background: #2563EB; background-clip: padding-box; }
+[data-theme="light"] .sm-board-scroll { scrollbar-color: rgba(71, 85, 105, 0.45) rgba(15, 23, 42, 0.06); }
+[data-theme="light"] .sm-board-scroll::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.06); }
+[data-theme="light"] .sm-board-scroll::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.45); background-clip: padding-box; }
+[data-theme="light"] .sm-board-scroll::-webkit-scrollbar-thumb:hover { background: #2563EB; background-clip: padding-box; }
+
+.sm-board-arrow {
+  background: #182233; color: #F8FAFC;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.6);
+  transition: background-color .15s, transform .15s;
+}
+.sm-board-arrow:hover { background: #2563EB; transform: translateY(-50%) scale(1.06); }
+[data-theme="light"] .sm-board-arrow { background: #FFFFFF; color: #0F172A; border-color: #E2E8F0; box-shadow: 0 10px 24px -10px rgba(15, 23, 42, 0.35); }
+[data-theme="light"] .sm-board-arrow:hover { background: #2563EB; color: #FFFFFF; }

@@ -3,7 +3,7 @@
 // se movem entre elas arrastando. No mobile, o menu "mover para" do card faz o
 // mesmo trabalho — arrastar em tela de toque é ruim demais para ser a única via.
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -541,6 +541,28 @@ export function CrmBoard() {
   const archiveLead   = useArchiveCrmLead()
   const [searchParams, setSearchParams] = useSearchParams()
 
+  // Rolagem lateral do quadro: barra visível + setas nas bordas quando há
+  // colunas escondidas (antes a barra tinha 4 px e quase não aparecia)
+  const boardRef = useRef<HTMLDivElement>(null)
+  const [edges, setEdges] = useState({ left: false, right: false })
+  const updateEdges = useCallback(() => {
+    const el = boardRef.current
+    if (!el) return
+    const left  = el.scrollLeft > 4
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+    setEdges(e => (e.left === left && e.right === right ? e : { left, right }))
+  }, [])
+  useEffect(() => {
+    const el = boardRef.current
+    if (!el) return
+    updateEdges()
+    const ro = new ResizeObserver(updateEdges)
+    ro.observe(el)
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    return () => ro.disconnect()
+  }, [loadingCols, loadingLeads, columns.length, updateEdges])
+  const scrollBoard = (dir: 1 | -1) => boardRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' })
+
   const [search, setSearch]           = useState('')
   const [filterMember, setFilterMember] = useState('')
   const [filterTag, setFilterTag]       = useState('')
@@ -915,7 +937,9 @@ export function CrmBoard() {
 
           {/* Board */}
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-4 sm:px-6 pb-3">
+            <div className="relative flex-1 min-h-0 flex flex-col">
+            <div ref={boardRef} onScroll={updateEdges}
+              className="sm-board-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-4 sm:px-6 pb-2">
               <div className="flex gap-3 h-full min-h-0 items-stretch">
                 {columns.map((col, i) => (
                   <Column
@@ -960,6 +984,20 @@ export function CrmBoard() {
                   Nova coluna
                 </button>
               </div>
+            </div>
+            {/* Setas: mostram que há mais colunas e rolam o quadro */}
+            {edges.left && (
+              <button type="button" onClick={() => scrollBoard(-1)} aria-label="Ver colunas à esquerda" title="Ver colunas à esquerda"
+                className="sm-board-arrow absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            {edges.right && (
+              <button type="button" onClick={() => scrollBoard(1)} aria-label="Ver mais colunas à direita" title="Ver mais colunas à direita"
+                className="sm-board-arrow absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full flex items-center justify-center">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
             </div>
 
             <DragOverlay dropAnimation={null}>
