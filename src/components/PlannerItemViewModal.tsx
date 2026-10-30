@@ -463,6 +463,11 @@ export function PlannerItemViewModal({
   )
 
   const [imgIdx, setImgIdx]           = useState(0)
+  // Ao abrir o post, todos os slides começam a baixar (o servidor demora ~2 s
+  // por arquivo; esperar o clique deixava a troca lenta)
+  useEffect(() => {
+    preloadMedium(allMedia.filter(m => m.file_type.startsWith('image/')).map(m => m.file_url))
+  }, [item.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // Próximo e anterior já baixados: a troca de slide fica imediata
   useEffect(() => {
     const near = [allMedia[imgIdx - 1], allMedia[imgIdx + 1]]

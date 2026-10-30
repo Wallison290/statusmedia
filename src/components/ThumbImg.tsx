@@ -38,7 +38,10 @@ export function MediumImg({ src, alt = '', className = '', fit = 'cover' }: {
   // Trocou de slide: tenta de novo a versão média da nova imagem
   useEffect(() => { setUseOriginal(!md) }, [src]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
+    // key: troca de slide cria uma <img> nova, que já mostra a miniatura (em cache)
+    // na hora. Sem isso o navegador segurava a imagem anterior até a próxima chegar
     <img
+      key={src}
       src={useOriginal ? src : md!}
       alt={alt}
       decoding="async"
