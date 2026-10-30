@@ -4,6 +4,7 @@
 // mesmo trabalho — arrastar em tela de toque é ruim demais para ser a única via.
 
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { supabase } from '@/integrations/supabase/client'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors,
@@ -753,7 +754,13 @@ export function CrmBoard() {
   // Leva os dados do lead para o cadastro de cliente e marca a conversão. O
   // cadastro em si continua sendo feito na tela de clientes, que já valida tudo.
 
-  function handleConvert(lead: CrmLead) {
+  async function handleConvert(lead: CrmLead) {
+    // Contrato já assinado: a cobrança existe (o contrato gerou entrada,
+    // parcelas ou pagamento único no Financeiro). O cadastro não pode criar
+    // outra por cima, então a forma de cobrança do lead não vai para o cadastro.
+    const { count: signed } = await (supabase as any).from('crm_contracts')
+      .select('id', { count: 'exact', head: true }).eq('lead_id', lead.id).eq('status', 'assinado')
+    const hasContract = (signed ?? 0) > 0
     // `from_lead` é o que faz o cadastro gravar converted_client_id de volta
     // no lead depois que o cliente é criado de fato.
     const params = new URLSearchParams({
@@ -763,12 +770,17 @@ export function CrmBoard() {
       ...(lead.whatsapp  ? { whatsapp:  lead.whatsapp  } : {}),
       ...(lead.email     ? { email:     lead.email     } : {}),
       ...(lead.instagram ? { instagram: lead.instagram } : {}),
-      // Forma de cobrança do lead já entra no cadastro do cliente
-      billing_mode: lead.payment_plan?.mode ?? 'unico',
-      ...(lead.estimated_value ? { valor: String(lead.estimated_value) } : {}),
-      ...(lead.payment_plan?.entrada ? { entrada: String(lead.payment_plan.entrada) } : {}),
-      ...(lead.payment_plan?.parcelas ? { parcelas: String(lead.payment_plan.parcelas) } : {}),
-      ...(lead.payment_plan?.dia ? { dia_vencimento: String(lead.payment_plan.dia) } : {}),
+      ...(lead.notes     ? { observations: lead.notes } : {}),
+      ...(hasContract
+        ? { contrato: '1' }
+        : {
+            // Sem contrato: a forma de cobrança do lead já entra no cadastro
+            billing_mode: lead.payment_plan?.mode ?? 'unico',
+            ...(lead.estimated_value ? { valor: String(lead.estimated_value) } : {}),
+            ...(lead.payment_plan?.entrada ? { entrada: String(lead.payment_plan.entrada) } : {}),
+            ...(lead.payment_plan?.parcelas ? { parcelas: String(lead.payment_plan.parcelas) } : {}),
+            ...(lead.payment_plan?.dia ? { dia_vencimento: String(lead.payment_plan.dia) } : {}),
+          }),
     })
     setModalOpen(false)
     navigate(`/clients/new?${params.toString()}`)

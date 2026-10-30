@@ -46,7 +46,7 @@ const emptyForm = {
 }
 
 // Campos que o CRM pode pré-preencher ao converter um lead em cliente
-const prefillableFields = ['company_name', 'responsible_name', 'whatsapp', 'email', 'instagram'] as const
+const prefillableFields = ['company_name', 'responsible_name', 'whatsapp', 'email', 'instagram', 'observations'] as const
 
 function TextArea(p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea rows={3} {...p} className={`${inputCls} h-auto py-2 leading-relaxed resize-y`} style={inputStyle} />
@@ -71,6 +71,8 @@ export function ClientForm() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fromLeadId = searchParams.get('from_lead')
+  // Lead com contrato assinado: a cobrança já existe no Financeiro (vinda do contrato)
+  const fromContract = !!fromLeadId && searchParams.get('contrato') === '1'
   const { user, agencyId } = useAuth()
   const { toast } = useToast()
   const { data: existingClient } = useClient(id || '')
@@ -211,6 +213,15 @@ export function ClientForm() {
       if (fromLeadId) {
         try {
           await (supabase as any).from('crm_leads').update({ converted_client_id: created.id }).eq('id', fromLeadId)
+          // Cobranças dos contratos do lead (entrada, parcelas, pagamento único)
+          // passam para o nome do cliente: aparecem no perfil, no portal e na
+          // aba Clientes do Financeiro. As parcelas futuras acompanham a recorrência.
+          const { data: cts } = await (supabase as any).from('crm_contracts').select('id').eq('lead_id', fromLeadId)
+          const ids = ((cts ?? []) as { id: string }[]).map(c => c.id)
+          if (ids.length) {
+            await (supabase as any).from('fin_recurrences').update({ client_id: created.id }).in('contract_id', ids).is('client_id', null)
+            await (supabase as any).from('fin_entries').update({ client_id: created.id }).in('contract_id', ids).is('client_id', null)
+          }
         } catch { /* secundário: o cliente já foi criado */ }
       }
 
@@ -354,6 +365,14 @@ export function ClientForm() {
 
           {/* 04 · Cobrança */}
           <Section n="04" title="Cobrança" text="Como o serviço é pago. Gera as cobranças do cliente no Financeiro automaticamente.">
+            {fromContract && (
+              <p className="md:col-span-2 text-[12.5px] leading-relaxed rounded-xl border px-3.5 py-2.5"
+                style={{ borderColor: 'rgba(37,99,235,0.35)', background: 'rgba(37,99,235,0.08)', color: 'var(--sm-text-2)' }}>
+                <strong style={{ color: 'var(--sm-text-1)' }}>A cobrança deste cliente já existe.</strong> Ela vem do contrato assinado
+                no CRM (entrada, parcelas ou pagamento único) e, ao salvar, passa para o nome deste cliente. Deixe esta parte
+                em branco, a não ser que exista uma mensalidade a mais, separada do contrato.
+              </p>
+            )}
             <ServiceBillingPicker className="md:col-span-2" value={form.billing_mode ?? 'recorrente'} onChange={m => set('billing_mode', m)} />
 
             {(form.billing_mode ?? 'recorrente') === 'recorrente' && <>
