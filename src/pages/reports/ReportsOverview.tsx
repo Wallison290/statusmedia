@@ -21,7 +21,8 @@ function fmt(n: number | null | undefined): string {
 type OverviewReport = Pick<ClientReport, 'ig_synced_at' | 'analysis_text' | 'reach' | 'followers_end' | 'posts_published'>
 
 // Colunas fixas: os números ficam sempre alinhados na vertical.
-const COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_120px_120px_96px_96px_72px_28px] md:items-center md:gap-x-4'
+// A partir do lg: a tabela com colunas fixas (no tablet ela não cabia e era cortada)
+const COLS = 'lg:grid lg:grid-cols-[minmax(0,1fr)_120px_120px_96px_96px_72px_28px] lg:items-center lg:gap-x-4'
 
 function Dot({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
   return (
@@ -44,9 +45,9 @@ function ClientReportRow({
 }) {
   const hasReport = !!report
   const num = (v: number | null | undefined, label: string) => (
-    <span className="md:text-right tabular-nums">
+    <span className="lg:text-right tabular-nums">
       <span className="text-[13.5px] font-semibold" style={{ color: hasReport ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>{hasReport ? fmt(v) : '—'}</span>
-      <span className="md:hidden text-[11px] ml-1" style={{ color: 'var(--sm-text-3)' }}>{label}</span>
+      <span className="lg:hidden text-[11px] ml-1" style={{ color: 'var(--sm-text-3)' }}>{label}</span>
     </span>
   )
 
@@ -73,16 +74,16 @@ function ClientReportRow({
             {hasReport ? client.niche : 'Sem relatório neste mês · clique para criar'}
           </span>
         </span>
-        <ChevronRight className="md:hidden w-4 h-4 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }} />
+        <ChevronRight className="lg:hidden w-4 h-4 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }} />
       </span>
 
       {hasReport ? (
         <>
-          <span className="max-md:hidden"><Dot ok={!!report?.ig_synced_at} yes="Sincronizado" no="Sem sync" /></span>
-          <span className="max-md:hidden"><Dot ok={!!report?.analysis_text} yes="Análise pronta" no="Sem análise" /></span>
-          <span className="max-md:flex max-md:flex-wrap max-md:gap-x-4 max-md:gap-y-1 max-md:mt-2 max-md:pl-12 md:contents">
-            <span className="md:hidden"><Dot ok={!!report?.ig_synced_at} yes="Sincronizado" no="Sem sync" /></span>
-            <span className="md:hidden"><Dot ok={!!report?.analysis_text} yes="Análise pronta" no="Sem análise" /></span>
+          <span className="max-lg:hidden"><Dot ok={!!report?.ig_synced_at} yes="Sincronizado" no="Sem sync" /></span>
+          <span className="max-lg:hidden"><Dot ok={!!report?.analysis_text} yes="Análise pronta" no="Sem análise" /></span>
+          <span className="max-lg:flex max-lg:flex-wrap max-lg:gap-x-4 max-lg:gap-y-1 max-lg:mt-2 max-lg:pl-12 lg:contents">
+            <span className="lg:hidden"><Dot ok={!!report?.ig_synced_at} yes="Sincronizado" no="Sem sync" /></span>
+            <span className="lg:hidden"><Dot ok={!!report?.analysis_text} yes="Análise pronta" no="Sem análise" /></span>
             {num(report?.followers_end, 'seguidores')}
             {num(report?.reach, 'alcance')}
             {num(report?.posts_published, 'posts')}
@@ -90,12 +91,12 @@ function ClientReportRow({
         </>
       ) : (
         <>
-          <span className="max-md:hidden" /><span className="max-md:hidden" />
-          <span className="max-md:hidden" /><span className="max-md:hidden" /><span className="max-md:hidden" />
+          <span className="max-lg:hidden" /><span className="max-lg:hidden" />
+          <span className="max-lg:hidden" /><span className="max-lg:hidden" /><span className="max-lg:hidden" />
         </>
       )}
 
-      <ChevronRight className="max-md:hidden w-4 h-4 justify-self-end opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--sm-text-3)' }} />
+      <ChevronRight className="max-lg:hidden w-4 h-4 justify-self-end opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--sm-text-3)' }} />
     </button>
   )
 }
@@ -143,7 +144,7 @@ export function ReportsOverview() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-7 pb-12">
 
         {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
-        <header className="mb-7 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <header className="mb-7 max-lg:pl-12 max-lg:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
             <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Resultados</p>
             <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
@@ -206,7 +207,7 @@ export function ReportsOverview() {
 
             {/* ── Lista de clientes ── */}
             <div className="sm-glass-tile rounded-[24px] overflow-hidden">
-              <div className={`max-md:hidden px-5 py-3 border-b text-[10.5px] font-semibold uppercase tracking-[0.08em] ${COLS}`}
+              <div className={`max-lg:hidden px-5 py-3 border-b text-[10.5px] font-semibold uppercase tracking-[0.08em] ${COLS}`}
                 style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)', background: 'var(--sm-bg-alt)' }}>
                 <span>Cliente</span>
                 <span>Instagram</span>

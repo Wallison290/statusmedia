@@ -701,8 +701,9 @@
 
 
 /* Gaveta de notificações em vidro (aberta pelo sino do Dashboard) */
+/* Fosca (opaca): transparente, o conteúdo do Dashboard competia com a lista */
 .sm-glass-drawer {
-  background: linear-gradient(160deg, rgba(24, 34, 51, 0.78) 0%, rgba(11, 16, 32, 0.72) 100%);
+  background: linear-gradient(160deg, #182233 0%, #101A2B 100%);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 30px 80px -24px rgba(0, 0, 0, 0.7);
   -webkit-backdrop-filter: blur(28px) saturate(140%);
@@ -714,8 +715,8 @@
 .sm-glass-drawer .border-\[\#1e293b\]\/60     { border-color: rgba(255, 255, 255, 0.06) !important; }
 .sm-glass-drawer .hover\:bg-\[\#1e293b\]:hover { background-color: rgba(255, 255, 255, 0.08) !important; }
 [data-theme="light"] .sm-glass-drawer {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.80) 0%, rgba(241, 245, 249, 0.70) 100%);
-  border-color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(160deg, #FFFFFF 0%, #F8FAFC 100%);
+  border-color: #E2E8F0;
   box-shadow: inset 0 1px 0 #ffffff, 0 30px 80px -24px rgba(15, 23, 42, 0.30);
 }
 [data-theme="light"] .sm-glass-drawer .bg-\[\#182233\]             { background-color: rgba(255, 255, 255, 0.75) !important; }

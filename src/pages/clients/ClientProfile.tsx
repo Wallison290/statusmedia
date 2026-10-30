@@ -1130,19 +1130,20 @@ export function ClientProfile() {
         <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="sm-glass-tile rounded-[24px] overflow-hidden mb-4">
           <div className="h-20 md:h-24" style={getBannerStyle(clientBannerId(client))} />
-          <div className="px-4 md:px-6 pb-5 flex flex-col md:flex-row md:items-end gap-x-6 gap-y-3">
+          <div className="px-4 md:px-6 pb-5 flex flex-col md:flex-row md:items-start gap-x-6 gap-y-3">
             <div className="-mt-9 flex-shrink-0">
               {client.logo_url ? (
-                <img src={client.logo_url} alt="" className="w-[72px] h-[72px] rounded-2xl object-cover" style={{ boxShadow: '0 0 0 4px var(--sm-bg-card)' }} />
+                <img src={client.logo_url} alt="" className="w-[72px] h-[72px] rounded-2xl object-cover" style={{ boxShadow: '0 0 0 4px var(--sm-bg-card2)' }} />
               ) : (
                 <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center font-display font-bold text-[24px]"
-                  style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', boxShadow: '0 0 0 4px var(--sm-bg-card)' }}>
+                  style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', boxShadow: '0 0 0 4px var(--sm-bg-card2)' }}>
                   {client.company_name.slice(0, 2).toUpperCase()}
                 </div>
               )}
             </div>
 
-            <div className="min-w-0 flex-1">
+            {/* pt: respiro entre o nome e a capa colorida */}
+            <div className="min-w-0 flex-1 pt-1 md:pt-5">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h1 className="font-display text-[26px] md:text-[32px] font-bold leading-[1.05] tracking-[-0.02em] [overflow-wrap:anywhere]"
                   style={{ color: 'var(--sm-text-1)' }}>
