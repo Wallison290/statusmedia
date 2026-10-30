@@ -14,6 +14,38 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { PrimaryButton, GhostButton } from '@/pages/clients/tabs/tabUi'
 import { SettingsSection, FieldLabel, cardStyle, fieldStyle, fieldClass } from './settingsUi'
 
+/** "Sextou!" no Dashboard com cerveja 🍺 ou vinho 🍷: escolha da pessoa,
+ *  guardada no cadastro dela (user_metadata.friday_drink), vale em qualquer aparelho. */
+function FridayDrinkPicker() {
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [drink, setDrink] = useState<'cerveja' | 'vinho'>(user?.user_metadata?.friday_drink === 'vinho' ? 'vinho' : 'cerveja')
+  const choose = async (d: 'cerveja' | 'vinho') => {
+    if (d === drink) return
+    const prev = drink
+    setDrink(d)
+    const { error } = await supabase.auth.updateUser({ data: { friday_drink: d } })
+    if (error) { setDrink(prev); toast(error.message, 'error') }
+    else toast(d === 'vinho' ? 'Na sexta, vinho 🍷' : 'Na sexta, cerveja 🍺', 'success')
+  }
+  return (
+    <SettingsSection n="" title="Brinde da sexta" description="O emoji que aparece no &quot;Sextou!&quot; do Dashboard.">
+      <div role="radiogroup" aria-label="Brinde da sexta" className="inline-flex gap-0.5 p-1 rounded-full border" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
+        {([['cerveja', '🍺', 'Cerveja'], ['vinho', '🍷', 'Vinho']] as const).map(([id, emoji, label]) => {
+          const on = drink === id
+          return (
+            <button key={id} type="button" role="radio" aria-checked={on} onClick={() => choose(id)}
+              className={`sm-glass-segment ${on ? 'is-active font-semibold' : 'font-medium hover:text-[var(--sm-text-1)]'} h-9 px-4 rounded-full text-[13px] inline-flex items-center gap-2 transition-colors`}
+              style={{ color: on ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
+              <span className="text-[16px] leading-none">{emoji}</span> {label}
+            </button>
+          )
+        })}
+      </div>
+    </SettingsSection>
+  )
+}
+
 // Miniaturas do tema com as cores do kit: Noite/Grafite no escuro, gelo/branco no claro
 const THEMES = [
   { dark: true,  label: 'Escuro', hint: 'Fundo noite, menos brilho à noite', page: '#0B1020', side: '#050816', card: '#182233', line: '#1E293B', text: '#CBD5E1' },
@@ -212,6 +244,9 @@ export function AccountSettings() {
           })}
         </div>
       </SettingsSection>
+
+      {/* ── Brinde da sexta ── */}
+      <FridayDrinkPicker />
 
       {/* ── 03: Senha ── */}
       <SettingsSection n="03" title="Senha">

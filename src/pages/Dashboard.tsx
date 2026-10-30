@@ -5,7 +5,7 @@ import { CalendarDays, ArrowUpRight, ArrowRight, ChevronLeft, ChevronRight } fro
 import { useCrmPeriodStats } from '@/hooks/useCrmDashboard'
 import { useMoney } from '@/hooks/useHideValues'
 import { DashboardHero, HeroControls } from '@/components/dashboard/DashboardHero'
-import { useDashboardGreeting } from '@/hooks/useDashboardGreeting'
+import { getGreetingText, type FridayDrink } from '@/hooks/useDashboardGreeting'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { contentTypeLabels } from '@/utils/formatters'
@@ -608,12 +608,14 @@ export function Dashboard() {
   const money = useMoney()
 
   // ── User name ─────────────────────────────────────────────────────────────
-  const userName = (
-    user?.user_metadata?.full_name?.split(' ')[0] ||
-    user?.user_metadata?.name?.split(' ')[0] ||
-    user?.email?.split('@')[0] ||
-    'você'
-  ) as string
+  // Primeiro nome do perfil; fica guardado no navegador para a saudação já
+  // abrir com o nome (antes aparecia "você" até o perfil carregar)
+  const liveName = String(profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim().split(' ')[0]
+  useEffect(() => {
+    if (liveName) { try { localStorage.setItem('sm_first_name', liveName) } catch { /* modo privado */ } }
+  }, [liveName])
+  const userName = liveName || (() => { try { return localStorage.getItem('sm_first_name') ?? '' } catch { return '' } })()
+  const fridayDrink: FridayDrink = user?.user_metadata?.friday_drink === 'vinho' ? 'vinho' : 'cerveja'
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [statsReady, setStatsReady]           = useState(false)
@@ -739,9 +741,8 @@ export function Dashboard() {
     setFinStats({ mrr, received, pending, overdueAmt, overdueCount, avgTicket })
   }
 
-  // ── Greeting com IA ───────────────────────────────────────────────────────
-  const { greeting, message, pills, isLoading: greetingLoading, refresh: refreshGreeting } =
-    useDashboardGreeting(agencyId ?? undefined, userName, stats, statsReady, (agencyProfile as any)?.agency_name || '')
+  // Saudação simples, sem o resumo da IA embaixo (pesava a abertura do Dashboard)
+  const greeting = getGreetingText(userName, fridayDrink)
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -815,10 +816,9 @@ export function Dashboard() {
             }
             greeting={greeting}
             userName={userName}
-            message={message}
-            pills={pills}
-            isLoading={greetingLoading}
-            onRefresh={refreshGreeting}
+            message=""
+            pills={[]}
+            isLoading={false}
           />
 
           {/* ── 01 · O período ─────────────────────────────────────────────── */}

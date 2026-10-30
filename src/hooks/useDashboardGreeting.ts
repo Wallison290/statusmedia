@@ -48,14 +48,20 @@ function withHrefs(pills: HeroPill[]): HeroPill[] {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getGreetingText(name: string): string {
+export type FridayDrink = 'cerveja' | 'vinho'
+
+/** Saudação do topo do Dashboard. Sem nome (ainda carregando ou não
+ *  cadastrado): sem o "você" no lugar, só a saudação. O brinde da sexta é
+ *  escolha da pessoa em Configurações › Conta (cerveja 🍺 ou vinho 🍷). */
+export function getGreetingText(name: string, drink: FridayDrink = 'cerveja'): string {
   const hour = new Date().getHours()
   const dow  = new Date().getDay() // 5 = sexta
+  const n = name ? `, ${name}` : ''
 
-  if (dow === 5) return `Sextou, ${name}! 🍻`
-  if (hour < 12) return `Bom dia, ${name}.`
-  if (hour < 18) return `Boa tarde, ${name}.`
-  return `Boa noite, ${name}.`
+  if (dow === 5) return `Sextou${n}! ${drink === 'vinho' ? '🍷' : '🍺'}`
+  if (hour < 12) return `Bom dia${n}.`
+  if (hour < 18) return `Boa tarde${n}.`
+  return `Boa noite${n}.`
 }
 
 function getFallbackPills(stats: DashboardStats): HeroPill[] {

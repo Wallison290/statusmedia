@@ -206,8 +206,8 @@ export function DashboardHero({
             )}
           </motion.h1>
 
-          {/* Mensagem da IA */}
-          <div className="mt-4 sm:mt-5 min-h-[40px] max-w-[62ch]">
+          {/* Mensagem da IA (o Dashboard não usa mais: pesava a abertura) */}
+          {(isLoading || message) && <div className="mt-4 sm:mt-5 min-h-[40px] max-w-[62ch]">
             {isLoading ? (
               <div className="space-y-2 pt-1">
                 <div className="h-[13px] w-full max-w-[420px] rounded-full bg-[var(--sm-bg-alt)] animate-pulse" />
@@ -224,10 +224,10 @@ export function DashboardHero({
                 {message}
               </motion.p>
             )}
-          </div>
+          </div>}
 
           {/* Pauta */}
-          <div className="flex flex-wrap gap-x-5 gap-y-0.5 mt-4 pt-4 border-t border-[var(--sm-border)] max-w-[720px] min-h-[28px]">
+          {(isLoading || pills.length > 0) && <div className="flex flex-wrap gap-x-5 gap-y-0.5 mt-4 pt-4 border-t border-[var(--sm-border)] max-w-[720px] min-h-[28px]">
             {isLoading
               ? [120, 170, 140].map(w => (
                   <div key={w} className="h-[12px] my-2 rounded-full bg-[var(--sm-bg-alt)] animate-pulse" style={{ width: w }} />
@@ -242,7 +242,7 @@ export function DashboardHero({
                     <Pill {...pill} />
                   </motion.div>
                 ))}
-          </div>
+          </div>}
         </div>
 
         {/* Ilustração */}
