@@ -21,7 +21,7 @@ import {
   Plus, Trash2, Pencil, Check, X, ChevronDown, Upload,
   Images, GripVertical, Copy, Link2,
   ArrowLeft, LayoutGrid, ChevronRight, ZoomIn, Hand, Layers, MousePointerClick,
-  Instagram, Sparkles, CalendarDays, RefreshCw, ImageOff,
+  Instagram, Sparkles, CalendarDays, RefreshCw, ImageOff, Play,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -39,7 +39,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/toast'
 import { uploadArquivo } from '@/lib/uploadArquivo'
 import { checkStorageLimit } from '@/utils/storageGate'
-import { isImageUrl, isImageMedia } from '@/utils/media'
+import { isImageUrl, isImageMedia, isVideoMedia } from '@/utils/media'
 import type { ContentAsset, Client, PlannerItem } from '@/types'
 
 // ─── arrayMove (local) ────────────────────────────────────────────────────────
@@ -57,6 +57,7 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
 type GridItem = {
   id: string
   image: string | null
+  video?: string | null    // post só com vídeo (reels): a capa é o primeiro quadro
   title?: string
   date?: string            // AAAA-MM-DD
   status?: string
@@ -110,8 +111,10 @@ function planToGrid(items: PlannerItem[]): GridItem[] {
     .filter(i => i.content_type !== 'story')
     .sort((a, b) => (b.scheduled_date + (b.scheduled_time ?? '')).localeCompare(a.scheduled_date + (a.scheduled_time ?? '')))
     .map(i => {
-      const img = (i.attachments ?? []).find(a => isImageMedia(a.file_type, a.file_url))
-      return { id: `plan-${i.id}`, image: img?.file_url ?? null, title: i.title, date: i.scheduled_date, status: i.status, kind: 'plan' as const }
+      const atts = i.attachments ?? []
+      const img = atts.find(a => isImageMedia(a.file_type, a.file_url))
+      const vid = img ? undefined : atts.find(a => isVideoMedia(a.file_type, a.file_url))
+      return { id: `plan-${i.id}`, image: img?.file_url ?? null, video: vid?.file_url ?? null, title: i.title, date: i.scheduled_date, status: i.status, kind: 'plan' as const }
     })
 }
 
@@ -220,15 +223,45 @@ function NoArt({ title, small = false }: { title?: string; small?: boolean }) {
   )
 }
 
+/** Primeiro quadro do vídeo como capa. Se o navegador não abrir o formato
+ *  (ex.: .mov HEVC do iPhone no Windows), mostra o ícone de vídeo e o título. */
+function VideoThumb({ src, title, small = false }: { src: string; title?: string; small?: boolean }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <div className={`w-full h-full flex flex-col items-center justify-center text-center ${small ? 'p-1' : 'p-2'}`}>
+        <Play className={small ? 'w-3 h-3' : 'w-4 h-4'} style={{ color: 'var(--sm-text-3)' }} />
+        {!small && title && <span className="mt-1 text-[10.5px] leading-tight line-clamp-3" style={{ color: 'var(--sm-text-3)' }}>{title}</span>}
+      </div>
+    )
+  }
+  return (
+    <span className="relative block w-full h-full">
+      <video src={`${src}#t=0.5`} muted playsInline preload="metadata" onError={() => setFailed(true)}
+        className="w-full h-full object-cover pointer-events-none" />
+      <span className={`absolute ${small ? 'top-0.5 right-0.5' : 'top-1.5 right-1.5'} text-white drop-shadow`}>
+        <Play className={small ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} fill="currentColor" />
+      </span>
+    </span>
+  )
+}
+
+function Thumb({ item, small = false, hover = false }: { item: GridItem; small?: boolean; hover?: boolean }) {
+  if (item.image) {
+    return <img src={item.image} alt={item.title ?? ''} loading="lazy" draggable={false}
+      className={`w-full h-full object-cover ${hover ? 'transition-transform duration-300 group-hover:scale-[1.03]' : ''}`} />
+  }
+  if (item.video) return <VideoThumb src={item.video} title={item.title} small={small} />
+  return <NoArt title={item.title} small={small} />
+}
+
 function Mosaic({ items }: { items: GridItem[] }) {
   const cells = Array.from({ length: 9 }, (_, i) => items[i] ?? null)
   return (
     <div className="grid grid-cols-3 gap-[2px] rounded-2xl overflow-hidden" style={{ background: 'var(--sm-border)' }}>
       {cells.map((p, i) => (
         <div key={i} className="aspect-square" style={{ background: 'var(--sm-bg-alt)' }}>
-          {p && (p.image
-            ? <img src={p.image} alt="" loading="lazy" className="w-full h-full object-cover" draggable={false} />
-            : <NoArt small />)}
+          {p && <Thumb item={p} small />}
         </div>
       ))}
     </div>
@@ -277,9 +310,7 @@ function PhonePreview({ client, meta, items, ig, footer }: {
         <div className="grid grid-cols-3 gap-[1.5px] max-h-[420px] overflow-y-auto scrollbar-none" style={{ background: 'var(--sm-border)' }}>
           {cells.map((post, i) => (
             <div key={i} className="aspect-square" style={{ background: 'var(--sm-bg-alt)' }}>
-              {post && (post.image
-                ? <img src={post.image} alt="" loading="lazy" className="w-full h-full object-cover" draggable={false} />
-                : <NoArt small />)}
+              {post && <Thumb item={post} small />}
             </div>
           ))}
         </div>
@@ -465,9 +496,7 @@ function AutoCell({ item, index }: { item: GridItem; index: number }) {
   const dot = item.status ? STATUS_DOT[item.status] : null
   const body = (
     <>
-      {item.image
-        ? <img src={item.image} alt={item.title ?? ''} loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" draggable={false} />
-        : <NoArt title={item.title} />}
+      <Thumb item={item} hover />
       {/* Sobre a foto: preto translúcido fixo, legível em qualquer tema */}
       <span className="absolute bottom-1.5 left-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-[10px] text-white font-bold tabular-nums">
         {index + 1}
