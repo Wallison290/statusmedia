@@ -326,6 +326,122 @@ function ClientRow({ client, first, onPay, onHistory }: {
 
 // ── Aba ──────────────────────────────────────────────────────────────────────
 
+// ── Contratos fechados no CRM ────────────────────────────────────────────────
+// Contrato assinado gera lançamentos com contract_id (pagamento único, entrada e
+// parcelas). Quem ainda não virou cliente cadastrado (ex.: lead do CRM sem
+// conversão) não tem mensalidade e não aparecia nesta aba.
+
+type ContractRow = {
+  contractId: string; name: string; total: number; received: number; open: number
+  overdue: number; nextDue: string | null; parcels: number
+}
+
+function useContractReceivables() {
+  const { agencyId } = useAuth()
+  return useQuery<ContractRow[]>({
+    queryKey: ['fin_entries', agencyId, 'contracts'],
+    enabled: !!agencyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('fin_entries')
+        .select('id, amount, paid_amount, status, due_date, contract_id, counterparty, recurrence_id, clients!fin_entries_client_id_fkey(company_name)')
+        .eq('user_id', agencyId).eq('type', 'receita').not('contract_id', 'is', null).neq('status', 'cancelado')
+        .order('due_date')
+      if (error) throw error
+      // Parcelas com fim: os lançamentos só existem 3 meses à frente, então o
+      // total do contrato vem da recorrência (valor × quantidade de meses)
+      const { data: recs } = await (supabase as any).from('fin_recurrences')
+        .select('id, contract_id, amount, start_date, end_date, interval_months')
+        .eq('user_id', agencyId).eq('type', 'receita').not('contract_id', 'is', null).not('end_date', 'is', null)
+      const recTotal = new Map<string, number>()
+      for (const r of (recs ?? []) as any[]) {
+        const [ys, ms] = String(r.start_date).split('-').map(Number)
+        const [ye, me] = String(r.end_date).split('-').map(Number)
+        const n = Math.floor(((ye - ys) * 12 + (me - ms)) / (r.interval_months || 1)) + 1
+        recTotal.set(r.id, Math.max(0, n) * Number(r.amount))
+      }
+      const today = todayISO()
+      const map = new Map<string, ContractRow>()
+      const recSeen = new Map<string, number>()   // recorrência → soma dos lançamentos já gerados
+      for (const e of (data ?? []) as any[]) {
+        const row = map.get(e.contract_id) ?? {
+          contractId: e.contract_id, name: e.clients?.company_name ?? e.counterparty ?? 'Contrato',
+          total: 0, received: 0, open: 0, overdue: 0, nextDue: null, parcels: 0,
+        }
+        const amount = Number(e.amount)
+        row.total += amount
+        if (e.status === 'pago') row.received += Number(e.paid_amount ?? amount)
+        else {
+          row.open += amount
+          if (e.due_date < today) row.overdue += amount
+          else if (!row.nextDue || e.due_date < row.nextDue) row.nextDue = e.due_date
+        }
+        if (e.recurrence_id) {
+          row.parcels++
+          recSeen.set(e.recurrence_id, (recSeen.get(e.recurrence_id) ?? 0) + amount)
+          ;(row as any)._recs = new Set([...((row as any)._recs ?? []), e.recurrence_id])
+        }
+        map.set(e.contract_id, row)
+      }
+      // Soma as parcelas que ainda não viraram lançamento (a receber)
+      for (const row of map.values()) {
+        for (const recId of ((row as any)._recs ?? []) as Set<string>) {
+          const falta = (recTotal.get(recId) ?? 0) - (recSeen.get(recId) ?? 0)
+          if (falta > 0) { row.total += falta; row.open += falta }
+        }
+        delete (row as any)._recs
+      }
+      return [...map.values()].sort((a, b) => b.overdue - a.overdue || b.open - a.open)
+    },
+  })
+}
+
+function ContractsSection() {
+  const { data: rows = [], isLoading } = useContractReceivables()
+  if (isLoading || rows.length === 0) return null
+  return (
+    <section>
+      <SectionTitle title="Contratos fechados no CRM" />
+      <Card>
+        {rows.map((r, i) => {
+          const color = r.overdue > 0 ? '#EF4444' : r.open > 0 ? '#2563EB' : '#22C55E'
+          return (
+            <div key={r.contractId} className={`relative flex flex-wrap items-center gap-x-6 gap-y-2 pl-5 pr-4 py-3.5 ${i > 0 ? 'border-t' : ''}`}
+              style={{ borderColor: 'var(--sm-border)' }}>
+              <span className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r" style={{ background: color }} />
+              <div className="min-w-[160px] flex-1">
+                <p className="text-[13.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{r.name}</p>
+                <p className="text-[11.5px] inline-flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                  {r.overdue > 0 ? `${brl(r.overdue)} em atraso` : r.open > 0 ? 'Em dia' : 'Quitado'}
+                  {r.nextDue && <> · próximo vencimento {fmtDate(r.nextDue)}</>}
+                </p>
+              </div>
+              <div className="flex items-center gap-6 text-right">
+                <div>
+                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-3)' }}>Contrato</p>
+                  <p className="text-[13.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{brl(r.total)}</p>
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-3)' }}>Recebido</p>
+                  <p className="text-[13.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{brl(r.received)}</p>
+                </div>
+                <div>
+                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--sm-text-3)' }}>A receber</p>
+                  <p className="text-[13.5px] font-semibold tabular-nums" style={{ color: r.overdue > 0 ? '#EF4444' : 'var(--sm-text-1)' }}>{brl(r.open)}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </Card>
+      <p className="text-[11.5px] mt-2" style={{ color: 'var(--sm-text-3)' }}>
+        Lançamentos gerados pelos contratos assinados (pagamento único, entrada e parcelas). Para dar baixa, use a aba Lançamentos ou Inadimplência.
+        Contrato de quem ainda não foi convertido em cliente aparece pelo nome do lead.
+      </p>
+    </section>
+  )
+}
+
 export function ClientBillingTab() {
   const { data: allClients = [], isLoading } = useClients()
   const [filter, setFilter] = useState<FilterKey>('todos')
@@ -431,6 +547,8 @@ export function ClientBillingTab() {
           </p>
         )}
       </section>
+
+      <ContractsSection />
 
       <RegisterPaymentModal client={paying} onClose={() => setPaying(null)} />
       <PaymentHistoryModal client={history} onClose={() => setHistory(null)} />

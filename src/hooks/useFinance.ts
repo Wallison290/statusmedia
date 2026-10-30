@@ -136,7 +136,10 @@ export function useFinCategories() {
   })
 }
 
-const ENTRY_SELECT = '*, clients(company_name), fin_invoices(number, pdf_url)'
+// clients!fin_entries_client_id_fkey: desde a migration 114 existem dois caminhos entre
+// fin_entries e clients (client_id e clients.plan_entry_id). Sem dizer qual usar, o
+// PostgREST recusa a consulta (PGRST201) e o Financeiro aparecia todo zerado.
+const ENTRY_SELECT = '*, clients!fin_entries_client_id_fkey(company_name), fin_invoices(number, pdf_url)'
 const num = (e: any): FinEntry => ({
   ...e, amount: Number(e.amount), paid_amount: e.paid_amount == null ? null : Number(e.paid_amount),
 })
