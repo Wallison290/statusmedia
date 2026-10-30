@@ -6,11 +6,11 @@
 // Componente compartilhado entre a aba Resultados da agência (ReportsTab), o
 // workspace global de Relatórios e o portal do cliente (PortalResultadosTab).
 // Read-only. `isDark` é opcional (default claro). Visual do kit da marca:
-// superfícies neutras, fios de 1px, azul #2563EB só em barras e números de
-// seção. `numbers` traz o número (01, 02…) de cada seção, calculado por quem
-// chama com `igSectionKeys` (o filho renderiza depois do pai, então não dá
-// para numerar com um contador compartilhado);
-// `showKpis={false}` omite a faixa de KPIs quando a página já os mostra.
+// superfícies neutras, fios de 1px, azul #2563EB só em barras. Seções sem
+// numeração (pedido do usuário); `numbers` segue aceito mas não aparece.
+// `glass`: dentro do painel de vidro, usa os tokens do tema (--sm-*) e os
+// cartões viram vidro. `showKpis={false}` omite a faixa de KPIs quando a
+// página já os mostra.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Heart, MessageCircle, Eye, ImageIcon, ArrowUpRight } from 'lucide-react'
@@ -50,25 +50,28 @@ export function igSectionKeys(report: ClientReport): IgSection[] {
 function palette(isDark: boolean) {
   return isDark
     ? { card: '#182233', alt: '#101A2B', border: '#1E293B', track: '#1E293B', text: '#F8FAFC', text2: '#CBD5E1', text3: '#94A3B8' }
-    : { card: '#FFFFFF', alt: '#F8FAFC', border: '#E2E8F0', track: '#EEF2F6', text: '#0F172A', text2: '#475569', text3: '#94A3B8' }
+    // text3 #64748B: o #94A3B8 de antes ficava claro demais no fundo branco
+    : { card: '#FFFFFF', alt: '#F8FAFC', border: '#E2E8F0', track: '#EEF2F6', text: '#0F172A', text2: '#475569', text3: '#64748B' }
 }
-type Pal = ReturnType<typeof palette>
+/** Dentro do painel de vidro: tokens do tema (mudam sozinhos no claro/escuro). */
+const GLASS_PAL = {
+  card: 'var(--sm-bg-card)', alt: 'var(--sm-bg-alt)', border: 'var(--sm-border)', track: 'var(--sm-bg-alt)',
+  text: 'var(--sm-text-1)', text2: 'var(--sm-text-2)', text3: 'var(--sm-text-3)',
+}
+type Pal = ReturnType<typeof palette> | typeof GLASS_PAL
 
-/** Cabeçalho de seção: número azul + título em Bricolage + fio embaixo. */
-function Head({ n, title, aside, p }: { n?: string; title: string; aside?: React.ReactNode; p: Pal }) {
+/** Cabeçalho de seção: título em Bricolage + fio embaixo (sem numeração). */
+function Head({ title, aside, p, glass }: { n?: string; title: string; aside?: React.ReactNode; p: Pal; glass?: boolean }) {
   return (
-    <div className="px-5 py-3.5 flex items-center justify-between gap-3 border-b" style={{ borderColor: p.border }}>
-      <h3 className="flex items-baseline gap-2 min-w-0">
-        {n && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: ACCENT }}>{n}</span>}
-        <span className="font-display text-[15px] font-bold truncate" style={{ color: p.text }}>{title}</span>
-      </h3>
+    <div className={`px-5 ${glass ? 'py-4' : 'py-3.5'} flex items-center justify-between gap-3 border-b`} style={{ borderColor: p.border }}>
+      <h3 className={`font-display ${glass ? 'text-[17px] tracking-[-0.01em]' : 'text-[15px]'} font-bold truncate min-w-0`} style={{ color: p.text }}>{title}</h3>
       {aside}
     </div>
   )
 }
 
 function Eyebrow({ children, p }: { children: React.ReactNode; p: Pal }) {
-  return <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: p.text3 }}>{children}</p>
+  return <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: p.text3 }}>{children}</p>
 }
 
 function Bar({ label, value, total, max, p }: { label: string; value: number; total: number; max: number; p: Pal }) {
@@ -88,12 +91,12 @@ function Bar({ label, value, total, max, p }: { label: string; value: number; to
   )
 }
 
-export function IgInsights({ report, isDark = false, numbers, showKpis = true }: {
-  report: ClientReport; isDark?: boolean; numbers?: Partial<Record<IgSection, string>>; showKpis?: boolean
+export function IgInsights({ report, isDark = false, numbers, showKpis = true, glass = false }: {
+  report: ClientReport; isDark?: boolean; numbers?: Partial<Record<IgSection, string>>; showKpis?: boolean; glass?: boolean
 }) {
   const ig = report.ig_data
   if (!ig) return null
-  const p = palette(isDark)
+  const p: Pal = glass ? GLASS_PAL : palette(isDark)
 
   const inter = ig.interactions
   const demo  = ig.demographics
@@ -115,6 +118,8 @@ export function IgInsights({ report, isDark = false, numbers, showKpis = true }:
   const demoCols      = [genderEntries.length, ageEntries.length, cities.length].filter(Boolean).length
 
   const section = { background: p.card, borderColor: p.border }
+  const sectionCls = glass ? 'sm-glass-tile rounded-[24px] overflow-hidden' : 'rounded-2xl border overflow-hidden'
+  const sectionStyle = glass ? undefined : section
 
   return (
     <>
@@ -138,8 +143,8 @@ export function IgInsights({ report, isDark = false, numbers, showKpis = true }:
 
       {/* Interações: quanto cada tipo pesa no total */}
       {hasInter && (
-        <section className="rounded-2xl border overflow-hidden" style={section}>
-          <Head n={numbers?.inter} title="Interações do mês" p={p}
+        <section className={sectionCls} style={sectionStyle}>
+          <Head n={numbers?.inter} title="Interações do mês" p={p} glass={glass}
             aside={<span className="text-[12px] tabular-nums" style={{ color: p.text3 }}>{fmt(interTotal)} no total</span>} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-px" style={{ background: p.border }}>
             {([
@@ -166,19 +171,19 @@ export function IgInsights({ report, isDark = false, numbers, showKpis = true }:
 
       {/* Top publicações */}
       {topPosts.length > 0 && (
-        <section className="rounded-2xl border overflow-hidden" style={section}>
-          <Head n={numbers?.top} title="Top publicações do mês" p={p} />
+        <section className={sectionCls} style={sectionStyle}>
+          <Head n={numbers?.top} title="Top publicações do mês" p={p} glass={glass} />
           <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
             {topPosts.map((post, i) => (
               <a key={post.id} href={post.permalink ?? undefined} target="_blank" rel="noopener noreferrer"
-                className="group rounded-xl border overflow-hidden flex flex-col transition-colors"
+                className={`group ${glass ? 'rounded-2xl' : 'rounded-xl'} border overflow-hidden flex flex-col transition-colors hover:border-[#2563EB]/50`}
                 style={{ background: p.alt, borderColor: p.border }}>
                 <div className="relative aspect-square overflow-hidden" style={{ background: p.track }}>
                   {post.thumbnail
                     ? <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
                     : <div className="w-full h-full flex items-center justify-center" style={{ color: p.text3 }}><ImageIcon className="w-6 h-6" /></div>}
                   <span className="absolute top-2.5 left-2.5 h-6 px-2 rounded-md text-[11px] font-semibold tabular-nums inline-flex items-center bg-black/70 text-white">
-                    {String(i + 1).padStart(2, '0')}
+                    {i + 1}º
                   </span>
                   {post.permalink && (
                     <span className="absolute top-2.5 right-2.5 w-6 h-6 rounded-md inline-flex items-center justify-center bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -205,8 +210,8 @@ export function IgInsights({ report, isDark = false, numbers, showKpis = true }:
 
       {/* Audiência */}
       {hasDemo && (
-        <section className="rounded-2xl border overflow-hidden" style={section}>
-          <Head n={numbers?.audience} title="Audiência" p={p}
+        <section className={sectionCls} style={sectionStyle}>
+          <Head n={numbers?.audience} title="Audiência" p={p} glass={glass}
             aside={<span className="text-[12px]" style={{ color: p.text3 }}>Seguidores da conta</span>} />
           <div className={`grid grid-cols-1 gap-px ${demoCols === 3 ? 'lg:grid-cols-3' : demoCols === 2 ? 'lg:grid-cols-2' : ''}`} style={{ background: p.border }}>
             {genderEntries.length > 0 && (

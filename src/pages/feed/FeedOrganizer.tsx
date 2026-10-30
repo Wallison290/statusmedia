@@ -1,8 +1,14 @@
 // ── Feed do Perfil ───────────────────────────────────────────────────────────
 // Visual em vidro (como Dashboard, CRM e Clientes): a visão geral mostra os
 // feeds como cartões com o mosaico da grade e uma prévia num celular ao lado;
-// o editor tem a grade grande para arrastar à esquerda e o perfil (bio, link,
-// versão) numa coluna à direita. As versões ficam numa cápsula de abas.
+// o editor tem a grade grande à esquerda e o perfil numa coluna à direita.
+//
+// Automático: cada cliente com planejamento ganha a versão "Planejamento",
+// montada sozinha a partir da aba Planejamento (todos os status, todo o
+// período, sem stories), na ordem do Instagram: a data mais distante no topo.
+// Com Instagram conectado, a edge function instagram-profile traz bio, link,
+// seguidores, seguindo, nº de posts, foto e os posts já no ar, que entram
+// abaixo dos planejados. Versões manuais continuam existindo (opcionais).
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import {
@@ -15,7 +21,11 @@ import {
   Plus, Trash2, Pencil, Check, X, ChevronDown, Upload,
   Images, GripVertical, Copy, Link2,
   ArrowLeft, LayoutGrid, ChevronRight, ZoomIn, Hand, Layers, MousePointerClick,
+  Instagram, Sparkles, CalendarDays, RefreshCw, ImageOff,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '@/integrations/supabase/client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useClients } from '@/hooks/useClients'
 import { useContentAssets } from '@/hooks/useContentAssets'
@@ -30,7 +40,7 @@ import { useToast } from '@/components/ui/toast'
 import { uploadArquivo } from '@/lib/uploadArquivo'
 import { checkStorageLimit } from '@/utils/storageGate'
 import { isImageUrl, isImageMedia } from '@/utils/media'
-import type { ContentAsset, Client } from '@/types'
+import type { ContentAsset, Client, PlannerItem } from '@/types'
 
 // ─── arrayMove (local) ────────────────────────────────────────────────────────
 
@@ -39,6 +49,91 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
   const [item] = result.splice(from, 1)
   result.splice(to, 0, item)
   return result
+}
+
+// ─── Feed automático: planejamento + Instagram ───────────────────────────────
+
+/** Quadrado da grade: post planejado, post já no ar ou post de versão manual. */
+type GridItem = {
+  id: string
+  image: string | null
+  title?: string
+  date?: string            // AAAA-MM-DD
+  status?: string
+  kind: 'plan' | 'ig' | 'manual'
+  permalink?: string | null
+}
+
+type IgProfile = {
+  username: string | null; name: string | null; biography: string; website: string
+  followers_count: number | null; follows_count: number | null; media_count: number | null
+  profile_picture_url: string | null
+}
+type IgMedia = { id: string; media_type: string | null; image: string; permalink: string | null; timestamp: string | null; caption: string | null }
+
+const AUTO_ID = 'auto'
+
+const STATUS_DOT: Record<string, { label: string; color: string }> = {
+  ideia:     { label: 'Ideia',     color: '#94A3B8' },
+  producao:  { label: 'Produção',  color: '#F59E0B' },
+  revisao:   { label: 'Revisão',   color: '#8B5CF6' },
+  aprovado:  { label: 'Aprovado',  color: '#2563EB' },
+  publicado: { label: 'Publicado', color: '#22C55E' },
+}
+
+/** Perfil + posts no ar do Instagram conectado (null = sem conta conectada). */
+function useIgProfile(clientId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['ig_profile', clientId],
+    enabled: !!clientId,
+    staleTime: 10 * 60_000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('instagram-profile', { body: { client_id: clientId } })
+      if (error) throw error
+      if (!data?.ok) return { profile: null as IgProfile | null, media: [] as IgMedia[], reason: (data?.error as string) ?? 'erro', message: data?.message as string | undefined }
+      return { profile: data.profile as IgProfile, media: (data.media ?? []) as IgMedia[], reason: null as string | null, message: undefined }
+    },
+  })
+}
+
+function fmtCount(n: number | null | undefined) {
+  if (n == null) return '—'
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.', ',') + ' mi'
+  if (n >= 10_000) return Math.round(n / 1000) + ' mil'
+  return n.toLocaleString('pt-BR')
+}
+
+/** Planejamento → grade: sem stories, data mais distante primeiro (como o Instagram). */
+function planToGrid(items: PlannerItem[]): GridItem[] {
+  return items
+    .filter(i => i.content_type !== 'story')
+    .sort((a, b) => (b.scheduled_date + (b.scheduled_time ?? '')).localeCompare(a.scheduled_date + (a.scheduled_time ?? '')))
+    .map(i => {
+      const img = (i.attachments ?? []).find(a => isImageMedia(a.file_type, a.file_url))
+      return { id: `plan-${i.id}`, image: img?.file_url ?? null, title: i.title, date: i.scheduled_date, status: i.status, kind: 'plan' as const }
+    })
+}
+
+/** Planejados em cima; embaixo o que já está no ar. Publicado no planejamento
+ *  com data até o último post do Instagram já aparece pelo Instagram. */
+function mergeFeed(plan: GridItem[], media: IgMedia[]): GridItem[] {
+  if (!media.length) return plan
+  const lastIg = (media[0]?.timestamp ?? '').slice(0, 10)
+  const planned = plan.filter(i => !(i.status === 'publicado' && i.date && i.date <= lastIg))
+  return [
+    ...planned,
+    ...media.map(m => ({ id: `ig-${m.id}`, image: m.image, title: m.caption ?? undefined, date: m.timestamp?.slice(0, 10), kind: 'ig' as const, permalink: m.permalink })),
+  ]
+}
+
+const manualToGrid = (posts: FeedPost[]): GridItem[] =>
+  posts.map(p => ({ id: p.id, image: p.image_url, title: p.caption, kind: 'manual' as const }))
+
+function fmtDay(d?: string) {
+  if (!d) return ''
+  const [y, m, day] = d.split('-')
+  return y && m && day ? `${day}/${m}` : ''
 }
 
 // ─── Estilos comuns ──────────────────────────────────────────────────────────
@@ -55,9 +150,10 @@ function usernameOf(client: Client) {
     : client.company_name.toLowerCase().replace(/\s+/g, '_')
 }
 
-function Avatar({ client, size, ring = false }: { client: Client; size: number; ring?: boolean }) {
-  const inner = client.logo_url ? (
-    <img src={client.logo_url} alt="" className="w-full h-full rounded-full object-cover" />
+function Avatar({ client, size, ring = false, src }: { client: Client; size: number; ring?: boolean; src?: string | null }) {
+  const pic = src || client.logo_url
+  const inner = pic ? (
+    <img src={pic} alt="" className="w-full h-full rounded-full object-cover" />
   ) : (
     <span className="w-full h-full rounded-full flex items-center justify-center font-bold"
       style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)', fontSize: Math.round(size * 0.36) }}>
@@ -73,13 +169,15 @@ function Avatar({ client, size, ring = false }: { client: Client; size: number; 
   )
 }
 
-function IgStats({ posts, compact = false }: { posts: number; compact?: boolean }) {
+function IgStats({ posts, followers, following, compact = false }: {
+  posts: number | null; followers?: number | null; following?: number | null; compact?: boolean
+}) {
   return (
     <div className={`flex items-center ${compact ? 'gap-4' : 'gap-6'}`}>
       {[
-        { label: 'posts', value: posts },
-        { label: 'seguidores', value: '—' },
-        { label: 'seguindo', value: '—' },
+        { label: 'posts', value: fmtCount(posts) },
+        { label: 'seguidores', value: fmtCount(followers) },
+        { label: 'seguindo', value: fmtCount(following) },
       ].map(s => (
         <div key={s.label} className="text-center">
           <p className={`${compact ? 'text-[13px]' : 'text-[15px]'} font-bold leading-none tabular-nums`} style={{ color: 'var(--sm-text-1)' }}>{s.value}</p>
@@ -112,13 +210,25 @@ function SectionHead({ n, title, aside }: { n: string; title: string; aside?: Re
 
 // ─── Mosaico 3×3 (cartão da visão geral) ─────────────────────────────────────
 
-function Mosaic({ posts }: { posts: FeedPost[] }) {
-  const cells = Array.from({ length: 9 }, (_, i) => posts[i] ?? null)
+/** Quadrado sem arte (post planejado ainda sem imagem): mostra o título. */
+function NoArt({ title, small = false }: { title?: string; small?: boolean }) {
+  return (
+    <div className={`w-full h-full flex flex-col items-center justify-center text-center ${small ? 'p-1' : 'p-2'}`}>
+      <ImageOff className={small ? 'w-3 h-3' : 'w-4 h-4'} style={{ color: 'var(--sm-text-4)' }} />
+      {!small && title && <span className="mt-1 text-[10.5px] leading-tight line-clamp-3" style={{ color: 'var(--sm-text-3)' }}>{title}</span>}
+    </div>
+  )
+}
+
+function Mosaic({ items }: { items: GridItem[] }) {
+  const cells = Array.from({ length: 9 }, (_, i) => items[i] ?? null)
   return (
     <div className="grid grid-cols-3 gap-[2px] rounded-2xl overflow-hidden" style={{ background: 'var(--sm-border)' }}>
       {cells.map((p, i) => (
         <div key={i} className="aspect-square" style={{ background: 'var(--sm-bg-alt)' }}>
-          {p && <img src={p.image_url} alt="" loading="lazy" className="w-full h-full object-cover" draggable={false} />}
+          {p && (p.image
+            ? <img src={p.image} alt="" loading="lazy" className="w-full h-full object-cover" draggable={false} />
+            : <NoArt small />)}
         </div>
       ))}
     </div>
@@ -127,10 +237,12 @@ function Mosaic({ posts }: { posts: FeedPost[] }) {
 
 // ─── Prévia no celular ───────────────────────────────────────────────────────
 
-function PhonePreview({ client, meta, posts, footer }: {
-  client: Client; meta: FeedClientMeta; posts: FeedPost[]; footer?: React.ReactNode
+function PhonePreview({ client, meta, items, ig, footer }: {
+  client: Client; meta: FeedClientMeta; items: GridItem[]; ig?: IgProfile | null; footer?: React.ReactNode
 }) {
-  const cells = Array.from({ length: Math.max(9, Math.ceil(posts.length / 3) * 3) }, (_, i) => posts[i] ?? null)
+  const cells = Array.from({ length: Math.max(9, Math.ceil(items.length / 3) * 3) }, (_, i) => items[i] ?? null)
+  const bio  = ig ? ig.biography : meta.bio
+  const link = ig ? ig.website : meta.link
   return (
     <div className="rounded-[40px] p-2.5 border"
       style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)', boxShadow: '0 30px 60px -30px rgba(5,8,22,0.55), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
@@ -140,19 +252,21 @@ function PhonePreview({ client, meta, posts, footer }: {
           <span className="w-20 h-5 rounded-full" style={{ background: 'rgba(5,8,22,0.85)' }} />
         </div>
         <div className="px-4 pt-2 pb-3">
-          <p className="text-center text-[12.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{usernameOf(client)}</p>
+          <p className="text-center text-[12.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{ig?.username ?? usernameOf(client)}</p>
           <div className="flex items-center gap-4 mt-3">
-            <Avatar client={client} size={64} ring />
-            <div className="flex-1 min-w-0 flex justify-center"><IgStats posts={posts.length} compact /></div>
+            <Avatar client={client} size={64} ring src={ig?.profile_picture_url} />
+            <div className="flex-1 min-w-0 flex justify-center">
+              <IgStats posts={ig?.media_count ?? items.length} followers={ig?.followers_count} following={ig?.follows_count} compact />
+            </div>
           </div>
           <div className="mt-3 space-y-0.5">
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{client.company_name}</p>
-            {meta.bio ? (
-              <p className="text-[12px] leading-relaxed whitespace-pre-wrap line-clamp-4" style={{ color: 'var(--sm-text-2)' }}>{meta.bio}</p>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{ig?.name || client.company_name}</p>
+            {bio ? (
+              <p className="text-[12px] leading-relaxed whitespace-pre-wrap line-clamp-4" style={{ color: 'var(--sm-text-2)' }}>{bio}</p>
             ) : (
               <p className="text-[11.5px] italic" style={{ color: 'var(--sm-text-4)' }}>Sem bio ainda.</p>
             )}
-            {meta.link && <BioLink link={meta.link} />}
+            {link && <BioLink link={link} />}
           </div>
         </div>
         <div className="flex border-t" style={{ borderColor: 'var(--sm-border)' }}>
@@ -163,7 +277,9 @@ function PhonePreview({ client, meta, posts, footer }: {
         <div className="grid grid-cols-3 gap-[1.5px] max-h-[420px] overflow-y-auto scrollbar-none" style={{ background: 'var(--sm-border)' }}>
           {cells.map((post, i) => (
             <div key={i} className="aspect-square" style={{ background: 'var(--sm-bg-alt)' }}>
-              {post && <img src={post.image_url} alt="" loading="lazy" className="w-full h-full object-cover" draggable={false} />}
+              {post && (post.image
+                ? <img src={post.image} alt="" loading="lazy" className="w-full h-full object-cover" draggable={false} />
+                : <NoArt small />)}
             </div>
           ))}
         </div>
@@ -176,12 +292,16 @@ function PhonePreview({ client, meta, posts, footer }: {
 // ─── Perfil (editor): bio e link ─────────────────────────────────────────────
 
 function ProfileCard({
-  client, postsCount, meta, onMetaChange,
+  client, postsCount, meta, onMetaChange, ig, igLoading, igReason, onRefresh,
 }: {
   client: Client
   postsCount: number
   meta: FeedClientMeta
   onMetaChange: (m: FeedClientMeta) => void
+  ig?: IgProfile | null
+  igLoading?: boolean
+  igReason?: string | null
+  onRefresh?: () => void
 }) {
   const [editingBio, setEditingBio] = useState(false)
   const [bioValue,   setBioValue]   = useState(meta.bio)
@@ -190,6 +310,42 @@ function ProfileCard({
   const saveBio = () => {
     onMetaChange({ bio: bioValue.trim(), link: linkValue.trim() })
     setEditingBio(false)
+  }
+
+  // Instagram conectado: bio, link e números vêm da conta, sem editar à mão
+  if (ig) {
+    return (
+      <section className="sm-glass-tile rounded-[24px] p-5">
+        <div className="flex items-center gap-4">
+          <Avatar client={client} size={72} ring src={ig.profile_picture_url} />
+          <div className="min-w-0">
+            <p className="text-[15px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{ig.username ?? usernameOf(client)}</p>
+            <div className="mt-2"><IgStats posts={ig.media_count} followers={ig.followers_count} following={ig.follows_count} compact /></div>
+          </div>
+        </div>
+        <div className="mt-4 space-y-1">
+          <p className="text-[12.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>{ig.name || client.company_name}</p>
+          {ig.biography ? (
+            <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--sm-text-2)' }}>{ig.biography}</p>
+          ) : (
+            <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>A conta não tem bio.</p>
+          )}
+          {ig.website && <div><BioLink link={ig.website} /></div>}
+        </div>
+        <div className="mt-4 pt-3 border-t flex items-center justify-between gap-2" style={{ borderColor: 'var(--sm-border)' }}>
+          <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>
+            <Instagram className="w-3.5 h-3.5" /> Puxado do Instagram
+          </span>
+          {onRefresh && (
+            <button onClick={onRefresh} disabled={igLoading} title="Atualizar do Instagram" aria-label="Atualizar do Instagram"
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-[var(--sm-bg-alt)] disabled:opacity-50"
+              style={{ color: 'var(--sm-text-3)' }}>
+              <RefreshCw className={`w-3.5 h-3.5 ${igLoading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -201,6 +357,20 @@ function ProfileCard({
           <div className="mt-2"><IgStats posts={postsCount} compact /></div>
         </div>
       </div>
+      {igLoading ? (
+        <p className="mt-3 text-[11.5px] inline-flex items-center gap-1.5" style={{ color: 'var(--sm-text-3)' }}>
+          <RefreshCw className="w-3 h-3 animate-spin" /> Buscando o Instagram…
+        </p>
+      ) : (
+        <p className="mt-3 text-[11.5px] leading-snug rounded-xl px-3 py-2" style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-3)' }}>
+          <Instagram className="w-3 h-3 inline -mt-0.5 mr-1" />
+          {igReason === 'token_expired'
+            ? 'O acesso ao Instagram expirou. Reconecte a conta no perfil do cliente para puxar bio e números.'
+            : igReason === 'no_account' || !igReason
+              ? 'Conecte o Instagram no perfil do cliente para puxar bio, seguidores e posts automaticamente.'
+              : 'Não foi possível ler o Instagram agora. Tente atualizar mais tarde.'}
+        </p>
+      )}
 
       {editingBio ? (
         <div className="space-y-2 mt-4">
@@ -288,6 +458,36 @@ function DraggableCard({ post, index, onRemove, isActive }: {
       </span>
     </div>
   )
+}
+
+/** Quadrado da versão automática: só leitura (muda pelo Planejamento). */
+function AutoCell({ item, index }: { item: GridItem; index: number }) {
+  const dot = item.status ? STATUS_DOT[item.status] : null
+  const body = (
+    <>
+      {item.image
+        ? <img src={item.image} alt={item.title ?? ''} loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" draggable={false} />
+        : <NoArt title={item.title} />}
+      {/* Sobre a foto: preto translúcido fixo, legível em qualquer tema */}
+      <span className="absolute bottom-1.5 left-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-[10px] text-white font-bold tabular-nums">
+        {index + 1}
+      </span>
+      <span className="absolute top-1.5 left-1.5 h-[22px] px-2 rounded-full bg-black/55 backdrop-blur-sm inline-flex items-center gap-1.5 text-[10px] text-white font-semibold">
+        {item.kind === 'ig'
+          ? <><Instagram className="w-3 h-3" /> No ar</>
+          : <><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot?.color ?? '#94A3B8' }} /> {fmtDay(item.date)}</>}
+      </span>
+      {item.title && (
+        <span className="absolute inset-x-0 bottom-0 pt-6 pb-1.5 pl-9 pr-2 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="block text-[10.5px] text-white font-medium line-clamp-2">{dot ? `${dot.label} · ` : ''}{item.title}</span>
+        </span>
+      )}
+    </>
+  )
+  const cls = 'group relative aspect-square overflow-hidden block'
+  return item.permalink
+    ? <a href={item.permalink} target="_blank" rel="noopener noreferrer" className={cls} style={{ background: 'var(--sm-bg-alt)' }}>{body}</a>
+    : <div className={cls} style={{ background: 'var(--sm-bg-alt)' }}>{body}</div>
 }
 
 function EmptySlot({ index, onAdd }: { index: number; onAdd: () => void }) {
@@ -520,6 +720,20 @@ export function FeedOrganizer() {
   const updateVersionMut = useUpdateFeedVersion()
   const deleteVersionMut = useDeleteFeedVersion()
   const upsertMetaMut    = useUpsertFeedMeta()
+  const navigate = useNavigate()
+  const { data: allPlanner } = usePlanner()
+
+  // Versão automática de cada cliente, montada do Planejamento
+  const autoByClient = useMemo(() => {
+    const groups: Record<string, PlannerItem[]> = {}
+    for (const it of allPlanner ?? []) if (it.client_id) (groups[it.client_id] ??= []).push(it)
+    const out: Record<string, GridItem[]> = {}
+    for (const [id, items] of Object.entries(groups)) {
+      const grid = planToGrid(items)
+      if (grid.length) out[id] = grid
+    }
+    return out
+  }, [allPlanner])
 
   // ── View state ─────────────────────────────────────────────────────────────
   const [view,             setView]            = useState<AppView>('gallery')
@@ -548,24 +762,30 @@ export function FeedOrganizer() {
     (selectedClientId && feedMeta?.[selectedClientId]) || { bio: '', link: '' }
 
   // Keep the active version valid as server data changes (create / delete / load).
+  const autoPlan = selectedClientId ? (autoByClient[selectedClientId] ?? []) : []
+  const isAuto   = activeVersionId === AUTO_ID && autoPlan.length > 0
+
   useEffect(() => {
     if (view !== 'editor') return
+    if (activeVersionId === AUTO_ID && autoPlan.length > 0) return
     if (versions.length === 0) {
-      if (activeVersionId !== null) setActiveVersionId(null)
+      const next = autoPlan.length > 0 ? AUTO_ID : null
+      if (activeVersionId !== next) setActiveVersionId(next)
       return
     }
     if (!activeVersionId || !versions.some(v => v.id === activeVersionId)) {
       setActiveVersionId(versions[0].id)
     }
-  }, [view, versions, activeVersionId])
+  }, [view, versions, activeVersionId, autoPlan.length])
 
   // ── Load / open client feed ────────────────────────────────────────────────
 
   const openEditor = useCallback((clientId: string) => {
-    setActiveVersionId(versionsByClient[clientId]?.[0]?.id ?? null)
+    // Com planejamento, abre direto na versão automática
+    setActiveVersionId((autoByClient[clientId]?.length ?? 0) > 0 ? AUTO_ID : (versionsByClient[clientId]?.[0]?.id ?? null))
     setSelectedClientId(clientId)
     setView('editor')
-  }, [versionsByClient])
+  }, [versionsByClient, autoByClient])
 
   const handleSaveAndBack = () => {
     toast('Feed salvo com sucesso!', 'success')
@@ -677,8 +897,29 @@ export function FeedOrganizer() {
 
   // ── Gallery: clients that have feeds ──────────────────────────────────────
 
-  const clientsWithFeeds = (clients || []).filter(c => (versionsByClient[c.id]?.length ?? 0) > 0)
-  const clientsWithoutFeeds = (clients || []).filter(c => (versionsByClient[c.id]?.length ?? 0) === 0)
+  const hasFeed = (id: string) => (versionsByClient[id]?.length ?? 0) > 0 || (autoByClient[id]?.length ?? 0) > 0
+  const clientsWithFeeds = (clients || []).filter(c => hasFeed(c.id))
+  const clientsWithoutFeeds = (clients || []).filter(c => !hasFeed(c.id))
+
+  // Instagram: do cliente aberto no editor ou do escolhido na visão geral
+  const galleryClientId = clientsWithFeeds[Math.min(galleryIdx, Math.max(clientsWithFeeds.length - 1, 0))]?.id ?? null
+  const igQuery = useIgProfile(view === 'editor' ? selectedClientId : galleryClientId)
+  const ig      = igQuery.data?.profile ?? null
+  const igMedia = igQuery.data?.media ?? []
+  const autoFeed = mergeFeed(autoPlan, igMedia)
+
+  // Copia a versão automática para uma versão manual, para mexer na ordem
+  const duplicateAuto = () => {
+    if (!selectedClientId) return
+    const postsFromAuto = autoFeed.filter(i => i.image).map(i => ({ id: crypto.randomUUID(), image_url: i.image!, caption: i.title }))
+    createVersionMut.mutate(
+      { client_id: selectedClientId, name: 'Planejamento (cópia)', posts: postsFromAuto },
+      {
+        onSuccess: v => { setActiveVersionId(v.id); toast('Cópia criada: agora dá para arrastar e trocar a ordem.', 'success') },
+        onError: e => toast((e as Error).message || 'Erro ao duplicar.', 'error'),
+      },
+    )
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // GALLERY VIEW
@@ -750,10 +991,10 @@ export function FeedOrganizer() {
 
           {clientsWithFeeds.length === 0 ? (
             <div className="sm-glass-tile rounded-[28px] py-16 px-6 text-center">
-              <div className="w-48 mx-auto mb-5 opacity-70"><Mosaic posts={[]} /></div>
+              <div className="w-48 mx-auto mb-5 opacity-70"><Mosaic items={[]} /></div>
               <p className="font-display text-[18px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Nenhum feed criado ainda</p>
               <p className="text-[13px] mt-1.5 max-w-sm mx-auto" style={{ color: 'var(--sm-text-3)' }}>
-                Escolha um cliente e monte a grade do Instagram: arraste, troque a ordem e compare versões antes de publicar.
+                Quando houver posts no Planejamento, o feed aparece aqui sozinho. Você também pode montar uma grade à mão.
               </p>
               {clientsWithoutFeeds.length > 0 && (
                 <div className="flex flex-wrap justify-center gap-2 mt-6">
@@ -773,18 +1014,20 @@ export function FeedOrganizer() {
               {/* Prévia no celular (no celular vem primeiro) */}
               {activeClient && (() => {
                 const activeVersions = versionsByClient[activeClient.id] ?? []
-                const activePosts    = activeVersions[0]?.posts ?? []
+                const activeAuto     = autoByClient[activeClient.id] ?? []
+                const activeItems    = activeAuto.length ? mergeFeed(activeAuto, igMedia) : manualToGrid(activeVersions[0]?.posts ?? [])
                 const activeMeta     = feedMeta?.[activeClient.id] ?? { bio: '', link: '' }
                 return (
                   <motion.div key={activeClient.id}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                     className="lg:order-2 lg:sticky lg:top-4 w-full max-w-[360px] mx-auto">
-                    <PhonePreview client={activeClient} meta={activeMeta} posts={activePosts}
+                    <PhonePreview client={activeClient} meta={activeMeta} items={activeItems} ig={ig}
                       footer={
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-[12px] min-w-0 truncate" style={{ color: 'var(--sm-text-3)' }}>
-                            {activeVersions[0]?.name ?? 'Versão 1'}
-                            {activeVersions.length > 1 && <span style={{ color: 'var(--sm-text-4)' }}> · +{activeVersions.length - 1}</span>}
+                            {activeAuto.length
+                              ? <span className="inline-flex items-center gap-1"><Sparkles className="w-3 h-3" style={{ color: '#2563EB' }} /> Do planejamento</span>
+                              : (activeVersions[0]?.name ?? 'Versão 1')}
                           </span>
                           <button onClick={() => openEditor(activeClient.id)} className={primaryBtn}>
                             <Pencil className="w-3.5 h-3.5" /> Editar feed
@@ -801,8 +1044,9 @@ export function FeedOrganizer() {
                   <SectionHead n="01" title="Feeds organizados" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                     {clientsWithFeeds.map((c, i) => {
-                      const vs = versionsByClient[c.id] ?? []
-                      const n  = vs[0]?.posts?.length ?? 0
+                      const vs   = versionsByClient[c.id] ?? []
+                      const auto = autoByClient[c.id] ?? []
+                      const n    = auto.length || (vs[0]?.posts?.length ?? 0)
                       const ativo = i === idx
                       return (
                         <div key={c.id}
@@ -814,13 +1058,14 @@ export function FeedOrganizer() {
                           className={`sm-glass-tile group rounded-[24px] p-2.5 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 ${ativo ? '!border-[#2563EB]/70' : ''}`}
                           style={ativo ? { boxShadow: '0 0 0 1px rgba(37,99,235,0.55), 0 18px 40px -24px rgba(37,99,235,0.6)' } : undefined}
                         >
-                          <Mosaic posts={vs[0]?.posts ?? []} />
+                          <Mosaic items={auto.length ? auto : manualToGrid(vs[0]?.posts ?? [])} />
                           <div className="flex items-center gap-2.5 mt-2.5 px-1 pb-0.5">
                             <Avatar client={c} size={30} ring={ativo} />
                             <div className="flex-1 min-w-0">
                               <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{c.company_name}</p>
                               <p className="text-[11px] truncate" style={{ color: 'var(--sm-text-4)' }}>
-                                {n} post{n !== 1 ? 's' : ''} · {vs.length} {vs.length === 1 ? 'versão' : 'versões'}
+                                {auto.length ? `${n} planejado${n !== 1 ? 's' : ''}` : `${n} post${n !== 1 ? 's' : ''}`}
+                                {vs.length > 0 && ` · ${vs.length} ${vs.length === 1 ? 'versão' : 'versões'}`}
                               </p>
                             </div>
                             <button onClick={e => { e.stopPropagation(); openEditor(c.id) }}
@@ -893,18 +1138,26 @@ export function FeedOrganizer() {
             <aside className="lg:order-2 lg:sticky lg:top-4 space-y-4 min-w-0">
               <ProfileCard
                 client={selectedClient}
-                postsCount={posts.length}
+                postsCount={isAuto ? autoFeed.length : posts.length}
                 meta={clientMeta}
                 onMetaChange={handleMetaChange}
+                ig={ig}
+                igLoading={igQuery.isFetching}
+                igReason={igQuery.data?.reason ?? (igQuery.isError ? 'erro' : null)}
+                onRefresh={() => igQuery.refetch()}
               />
               <div className="sm-glass-tile rounded-[24px] p-5 max-lg:hidden">
                 <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] mb-3" style={{ color: 'var(--sm-text-4)' }}>Como usar</p>
                 <ul className="space-y-3">
-                  {[
+                  {(isAuto ? [
+                    { Icon: Sparkles,          text: 'Esta grade se monta sozinha com os posts do Planejamento, do mais distante para o mais recente.' },
+                    { Icon: CalendarDays,      text: 'Para mudar um post ou a data, edite no Planejamento: o feed acompanha.' },
+                    { Icon: Copy,              text: 'Quer testar outra ordem? Duplique para editar e arraste à vontade.' },
+                  ] : [
                     { Icon: Hand,              text: 'Arraste uma foto para outro quadrado para mudar a ordem.' },
                     { Icon: MousePointerClick, text: 'Clique num quadrado vazio para adicionar um post.' },
                     { Icon: Layers,            text: 'Crie versões para comparar grades diferentes com o cliente.' },
-                  ].map(({ Icon, text }) => (
+                  ]).map(({ Icon, text }) => (
                     <li key={text} className="flex items-start gap-3">
                       <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(37,99,235,0.12)' }}>
                         <Icon className="w-3.5 h-3.5" style={{ color: '#2563EB' }} />
@@ -922,6 +1175,13 @@ export function FeedOrganizer() {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-0.5 p-1 rounded-full border max-w-full overflow-x-auto scrollbar-none"
                   style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
+                  {autoPlan.length > 0 && (
+                    <button onClick={() => setActiveVersionId(AUTO_ID)} aria-current={isAuto ? 'true' : undefined}
+                      className={`sm-glass-segment ${isAuto ? 'is-active font-semibold' : 'font-medium hover:text-[var(--sm-text-1)]'} flex-shrink-0 inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[12.5px] whitespace-nowrap transition-colors`}
+                      style={{ color: isAuto ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
+                      <Sparkles className="w-3.5 h-3.5" style={{ color: '#2563EB' }} /> Planejamento
+                    </button>
+                  )}
                   {versions.map(v => (
                     <VersionChip key={v.id} version={v} isActive={v.id === activeVersionId}
                       onClick={() => setActiveVersionId(v.id)}
@@ -935,6 +1195,16 @@ export function FeedOrganizer() {
                     <Plus className="w-3.5 h-3.5" style={{ color: '#2563EB' }} /> Nova versão
                   </button>
                 </div>
+                {isAuto && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <button onClick={() => navigate('/planner')} className={ghostBtn} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
+                      <CalendarDays className="w-3.5 h-3.5" /> Abrir planejamento
+                    </button>
+                    <button onClick={duplicateAuto} disabled={createVersionMut.isPending} className={primaryBtn}>
+                      <Copy className="w-3.5 h-3.5" /> Duplicar para editar
+                    </button>
+                  </div>
+                )}
                 {activeVersion && (
                   <button onClick={() => setPickerOpen(true)} disabled={isUploading} className={`${primaryBtn} ml-auto`}>
                     {isUploading
@@ -944,9 +1214,34 @@ export function FeedOrganizer() {
                 )}
               </div>
 
-              {!activeVersion && (
+              {isAuto && (
+                <section className="sm-glass-tile rounded-[28px] overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                    <div className="min-w-0">
+                      <p className="font-display text-[16px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>Feed do planejamento</p>
+                      <p className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>
+                        {autoFeed.filter(i => i.kind === 'plan').length} planejado{autoFeed.filter(i => i.kind === 'plan').length !== 1 ? 's' : ''}
+                        {igMedia.length > 0 && ` · ${autoFeed.filter(i => i.kind === 'ig').length} já no ar`}
+                        {' · '}atualiza sozinho
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {Object.entries(STATUS_DOT).map(([k, d]) => (
+                        <span key={k} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--sm-text-3)' }}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: d.color }} /> {d.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-[3px] p-[3px]" style={{ background: 'var(--sm-border)' }}>
+                    {autoFeed.map((item, i) => <AutoCell key={item.id} item={item} index={i} />)}
+                  </div>
+                </section>
+              )}
+
+              {!activeVersion && !isAuto && (
                 <div className="sm-glass-tile rounded-[28px] py-14 px-4 text-center">
-                  <div className="w-40 mx-auto mb-5 opacity-70"><Mosaic posts={[]} /></div>
+                  <div className="w-40 mx-auto mb-5 opacity-70"><Mosaic items={[]} /></div>
                   <p className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Crie uma versão para começar</p>
                   <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Cada versão é uma grade diferente para o mesmo perfil.</p>
                   <button onClick={createVersion} className={`${primaryBtn} mt-4`}>

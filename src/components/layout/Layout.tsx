@@ -97,7 +97,7 @@ export function Layout() {
   // O Dashboard monta o próprio painel; as outras telas em vidro (CRM) ganham o
   // painel aqui, em volta da página, que passa a rolar dentro dele.
   const { pathname } = useLocation()
-  const glassPanel = ['/crm', '/clients', '/feed'].some(r => pathname === r || pathname.startsWith(r + '/'))
+  const glassPanel = ['/crm', '/clients', '/feed', '/reports'].some(r => pathname === r || pathname.startsWith(r + '/'))
   const glass = pathname === '/dashboard' || glassPanel
 
   // Aplica o data-theme só enquanto o app autenticado estiver montado — páginas

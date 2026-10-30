@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, ChevronRight, Building2 } from 'lucide-react'
+import { BarChart3, ChevronRight, Building2, FileBarChart, Instagram, Sparkles } from 'lucide-react'
 import { useClients } from '@/hooks/useClients'
 import { useReportsOverview } from '@/hooks/useReports'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -25,8 +25,8 @@ const COLS = 'md:grid md:grid-cols-[minmax(0,1fr)_120px_120px_96px_96px_72px_28p
 
 function Dot({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] whitespace-nowrap" style={{ color: ok ? 'var(--sm-text-2)' : 'var(--sm-text-4)' }}>
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ok ? '#22C55E' : 'var(--sm-border-alt)' }} />
+    <span className="inline-flex items-center gap-1.5 text-[12px] whitespace-nowrap" style={{ color: ok ? 'var(--sm-text-2)' : 'var(--sm-text-3)' }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ok ? '#22C55E' : 'var(--sm-text-4)' }} />
       {ok ? yes : no}
     </span>
   )
@@ -45,15 +45,15 @@ function ClientReportRow({
   const hasReport = !!report
   const num = (v: number | null | undefined, label: string) => (
     <span className="md:text-right tabular-nums">
-      <span className="text-[13.5px] font-semibold" style={{ color: hasReport ? 'var(--sm-text-1)' : 'var(--sm-text-4)' }}>{hasReport ? fmt(v) : '—'}</span>
-      <span className="md:hidden text-[11px] ml-1" style={{ color: 'var(--sm-text-4)' }}>{label}</span>
+      <span className="text-[13.5px] font-semibold" style={{ color: hasReport ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>{hasReport ? fmt(v) : '—'}</span>
+      <span className="md:hidden text-[11px] ml-1" style={{ color: 'var(--sm-text-3)' }}>{label}</span>
     </span>
   )
 
   return (
     <button
       onClick={onClick}
-      className={`relative w-full text-left px-4 md:px-5 py-3.5 group transition-colors hover:bg-black/[0.02] ${COLS} ${first ? '' : 'border-t'}`}
+      className={`relative w-full text-left px-4 md:px-5 py-3.5 group transition-colors hover:bg-[var(--sm-bg-alt)] ${COLS} ${first ? '' : 'border-t'}`}
       style={{ borderColor: 'var(--sm-border)' }}
     >
       <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r"
@@ -61,19 +61,19 @@ function ClientReportRow({
 
       <span className="flex items-center gap-3 min-w-0">
         {client.logo_url ? (
-          <img src={client.logo_url} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+          <img src={client.logo_url} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
         ) : (
-          <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
-            <Building2 className="w-4 h-4" style={{ color: 'var(--sm-text-4)' }} />
+          <span className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--sm-bg-alt)' }}>
+            <Building2 className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
           </span>
         )}
         <span className="min-w-0 flex-1">
           <span className="block text-[13.5px] font-semibold truncate" style={{ color: 'var(--sm-text-1)' }}>{client.company_name}</span>
-          <span className="block text-[11.5px] truncate" style={{ color: 'var(--sm-text-4)' }}>
+          <span className="block text-[11.5px] truncate" style={{ color: 'var(--sm-text-3)' }}>
             {hasReport ? client.niche : 'Sem relatório neste mês · clique para criar'}
           </span>
         </span>
-        <ChevronRight className="md:hidden w-4 h-4 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />
+        <ChevronRight className="md:hidden w-4 h-4 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }} />
       </span>
 
       {hasReport ? (
@@ -118,17 +118,17 @@ export function ReportsOverview() {
   // Quem tem relatório primeiro; o resto mantém a ordem da carteira.
   const ordenados = [...clients].sort((a, b) => Number(reportByClient.has(b.id)) - Number(reportByClient.has(a.id)))
 
-  const selectCls = 'h-10 text-[13px] font-medium rounded-xl px-3 outline-none border cursor-pointer [color-scheme:light_dark]'
-  const selectStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }
+  const selectCls = 'h-10 text-[13px] font-medium rounded-full pl-4 pr-3 outline-none border cursor-pointer [color-scheme:light_dark]'
+  const selectStyle = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }
 
   if (!subData?.plan.hasReports) {
     return (
-      <div className="min-h-full flex items-center justify-center p-6" style={{ background: 'var(--sm-bg-page)' }}>
-        <div className="flex flex-col items-center text-center gap-3 max-w-sm">
-          <BarChart3 className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
+      <div className="min-h-full flex items-center justify-center p-6">
+        <div className="sm-glass-tile rounded-[28px] flex flex-col items-center text-center gap-3 max-w-sm px-8 py-10">
+          <BarChart3 className="w-7 h-7" style={{ color: 'var(--sm-text-3)' }} />
           <p className="font-display text-[20px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Relatórios no Pro e Agency</p>
           <p className="text-[13px]" style={{ color: 'var(--sm-text-3)' }}>Faça upgrade para acompanhar os relatórios de todos os seus clientes num só lugar.</p>
-          <a href="/assinatura" className="h-10 px-4 inline-flex items-center rounded-xl text-white text-[13px] font-semibold hover:opacity-90 transition-opacity" style={{ background: 'var(--sm-primary)' }}>
+          <a href="/assinatura" className="h-10 px-5 inline-flex items-center rounded-full text-white text-[13px] font-semibold bg-[#2563EB] hover:opacity-90 transition-opacity">
             Ver planos
           </a>
         </div>
@@ -139,14 +139,14 @@ export function ReportsOverview() {
   const loading = clientsLoading || reportsLoading
 
   return (
-    <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
-      <div className="max-w-6xl mx-auto p-4 md:p-6">
+    <div className="min-h-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-7 pb-12">
 
         {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
-        <header className="mb-6 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <header className="mb-7 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Resultados</p>
-            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Resultados</p>
+            <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
               Relatórios
             </h1>
             <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
@@ -166,37 +166,48 @@ export function ReportsOverview() {
 
         {loading ? (
           <div className="space-y-3" aria-busy="true">
-            <div className="h-[88px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
-            <div className="h-[320px] rounded-2xl animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
+            <div className="grid grid-cols-3 gap-3">{[0, 1, 2].map(i => <div key={i} className="h-[104px] rounded-[22px] animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />)}</div>
+            <div className="h-[320px] rounded-[24px] animate-pulse" style={{ background: 'var(--sm-bg-card)' }} />
           </div>
         ) : clients.length === 0 ? (
-          <div className="text-center py-16 rounded-2xl border border-dashed" style={{ borderColor: 'var(--sm-border)' }}>
-            <Building2 className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-4)' }} />
+          <div className="sm-glass-tile text-center py-16 rounded-[28px]">
+            <Building2 className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--sm-text-3)' }} />
             <p className="text-[13.5px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Nenhum cliente cadastrado</p>
             <p className="text-[12.5px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Cadastre um cliente para começar a gerar relatórios.</p>
           </div>
         ) : (
           <>
             {/* ── Resumo do mês em uma faixa ── */}
-            <div className="rounded-2xl border grid grid-cols-3 overflow-hidden mb-6" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               {[
-                { label: `Relatórios de ${MONTHS[month - 1].toLowerCase()}`, value: comRelatorio, of: clients.length },
-                { label: 'Sincronizados com o Instagram', value: sincronizados, of: comRelatorio },
-                { label: 'Com análise pronta', value: comAnalise, of: comRelatorio },
-              ].map((k, i) => (
-                <div key={k.label} className={`px-4 md:px-5 py-4 ${i > 0 ? 'border-l' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
-                  <p className="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-[0.08em] leading-tight" style={{ color: 'var(--sm-text-4)' }}>{k.label}</p>
-                  <p className="font-display text-[22px] md:text-[26px] font-bold leading-tight mt-1 tabular-nums" style={{ color: 'var(--sm-text-1)' }}>
-                    {k.value}<span className="text-[14px] font-semibold" style={{ color: 'var(--sm-text-4)' }}> / {k.of}</span>
-                  </p>
-                </div>
-              ))}
+                { icon: FileBarChart, label: `Relatórios de ${MONTHS[month - 1].toLowerCase()}`, value: comRelatorio, of: clients.length },
+                { icon: Instagram,    label: 'Sincronizados com o Instagram', value: sincronizados, of: comRelatorio },
+                { icon: Sparkles,     label: 'Com análise pronta', value: comAnalise, of: comRelatorio },
+              ].map(k => {
+                const pct = k.of > 0 ? Math.round((k.value / k.of) * 100) : 0
+                return (
+                  <div key={k.label} className="sm-glass-tile rounded-[22px] px-5 py-4 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] leading-tight truncate" style={{ color: 'var(--sm-text-3)' }}>{k.label}</p>
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(37,99,235,0.12)' }}>
+                        <k.icon className="w-3.5 h-3.5" style={{ color: '#2563EB' }} />
+                      </span>
+                    </div>
+                    <p className="font-display text-[28px] font-bold leading-none mt-2 tabular-nums tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+                      {k.value}<span className="text-[15px] font-semibold" style={{ color: 'var(--sm-text-3)' }}> / {k.of}</span>
+                    </p>
+                    <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: 'var(--sm-bg-alt)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#2563EB' }} />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             {/* ── Lista de clientes ── */}
-            <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
-              <div className={`max-md:hidden px-5 py-2.5 border-b text-[10.5px] font-semibold uppercase tracking-[0.08em] ${COLS}`}
-                style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-4)', background: 'var(--sm-bg-alt)' }}>
+            <div className="sm-glass-tile rounded-[24px] overflow-hidden">
+              <div className={`max-md:hidden px-5 py-3 border-b text-[10.5px] font-semibold uppercase tracking-[0.08em] ${COLS}`}
+                style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)', background: 'var(--sm-bg-alt)' }}>
                 <span>Cliente</span>
                 <span>Instagram</span>
                 <span>Análise</span>
@@ -215,7 +226,7 @@ export function ReportsOverview() {
                 />
               ))}
             </div>
-            <p className="text-[11.5px] mt-2.5 flex flex-wrap gap-x-4 gap-y-1" style={{ color: 'var(--sm-text-4)' }}>
+            <p className="text-[11.5px] mt-2.5 flex flex-wrap gap-x-4 gap-y-1" style={{ color: 'var(--sm-text-3)' }}>
               <span className="inline-flex items-center gap-1.5"><span className="w-[3px] h-3 rounded" style={{ background: '#22C55E' }} /> relatório com análise</span>
               <span className="inline-flex items-center gap-1.5"><span className="w-[3px] h-3 rounded" style={{ background: '#F59E0B' }} /> falta a análise</span>
             </p>

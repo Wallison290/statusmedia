@@ -353,11 +353,10 @@ function Secao({ n, title, aside, accent, children }: {
   n: string; title: string; aside?: React.ReactNode; accent?: boolean; children: React.ReactNode
 }) {
   return (
-    <section className="relative rounded-2xl border overflow-hidden" style={cardStyle}>
+    <section className="sm-glass-tile relative rounded-[24px] overflow-hidden">
       {accent && <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r" style={{ background: '#2563EB' }} />}
       <div className="px-5 py-3.5 flex items-center justify-between gap-3 border-b" style={{ borderColor: 'var(--sm-border)' }}>
         <h3 className="flex items-baseline gap-2 min-w-0">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>
           <span className="font-display text-[15px] font-bold truncate" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
         </h3>
         {aside}
@@ -611,7 +610,7 @@ function ReportDetail({
       )}
 
       {/* ── Insights ricos do Instagram (interações, top posts, audiência) ── */}
-      <IgInsights report={report} isDark={isDark} numbers={igNumbers} showKpis={false} />
+      <IgInsights report={report} isDark={isDark} glass showKpis={false} />
 
       {/* ── Tráfego Pago ── */}
       {showPaid && (
