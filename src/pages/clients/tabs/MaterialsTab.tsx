@@ -94,7 +94,7 @@ function MaterialViewModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setConfirmDelete(false) } }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent glass className="max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3 pr-6">
             <div className={`w-10 h-10 ${iconBox}`}>
@@ -457,7 +457,7 @@ function MaterialFormModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-md">
+      <DialogContent glass className="max-w-md">
         <DialogHeader>
           <DialogTitle>{editing ? 'Editar material' : 'Adicionar material'}</DialogTitle>
         </DialogHeader>
@@ -613,7 +613,7 @@ function FolderNameModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent glass className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{mode === 'create' ? 'Nova pasta' : 'Renomear pasta'}</DialogTitle>
         </DialogHeader>

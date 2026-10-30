@@ -193,7 +193,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-6">
             <PenLine className="w-4 h-4" style={{ color: '#14b8a6' }} />
@@ -209,7 +209,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
         <div ref={topRef} className="-mt-4" />
 
         {signed && current && (
-          <div className="rounded-xl border p-3 text-[12.5px] space-y-1" style={{ borderColor: 'rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.06)' }}>
+          <div className="rounded-2xl border p-3 text-[12.5px] space-y-1" style={{ borderColor: 'rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.06)' }}>
             <p style={{ color: 'var(--sm-text-1)' }}>
               <strong>Assinado</strong> por {current.signer_name} ({current.signer_email})
               {current.signed_at && ` em ${fmtDateTime(current.signed_at)}`}
@@ -332,7 +332,7 @@ export function CrmContractEditor({ open, onClose, contract, leads, proposals, d
           </div>
 
           {/* Assinatura da agência */}
-          <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+          <div className="rounded-2xl border p-3 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
             <p className="text-[12.5px] font-medium" style={{ color: 'var(--sm-text-1)' }}>Assinatura da agência (opcional)</p>
             {signature && !resign ? (
               <div className="flex items-end gap-3 flex-wrap">

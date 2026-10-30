@@ -153,7 +153,7 @@ function ResponseViewModal({
   const respostas = RESPONSE_KEYS.filter(({ key }) => response[key])
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent glass className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-[18px] font-bold pr-6 text-[color:var(--sm-text-1)]">
             {response.respondent_name}
@@ -235,7 +235,7 @@ function FillFormModal({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent glass className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-[18px] font-bold text-[color:var(--sm-text-1)]">Preencher formulário semanal</DialogTitle>
         </DialogHeader>
@@ -612,7 +612,7 @@ export function WeeklyFormTab({ clientId, clientName }: WeeklyFormTabProps) {
 
       {/* ── Modal configuração inicial ── */}
       <Dialog open={configOpen && !config} onOpenChange={v => !v && setConfigOpen(false)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent glass className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-[18px] font-bold text-[color:var(--sm-text-1)]">Configurar formulário</DialogTitle>
           </DialogHeader>

@@ -122,7 +122,7 @@ function AssetViewDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="text-[14px] break-words">{asset.title}</DialogTitle>
           <p className="text-[11px] text-[color:var(--sm-text-4)] mt-0.5">
@@ -259,8 +259,7 @@ function FinancialCard({ client }: { client: import('@/types').Client }) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-xl border overflow-hidden shadow-2xl"
-                style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+              <div className="sm-glass-pop absolute right-0 top-full mt-1 z-20 w-56 rounded-2xl overflow-hidden shadow-2xl">
                 <button onClick={() => setStatus({ manual_status_override: false }, 'Situação no automático.')}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] text-left hover:bg-black/5" style={{ color: 'var(--sm-text-1)' }}>
                   <RefreshCw className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
@@ -727,11 +726,11 @@ function BotaoAba({
       className={`flex items-center gap-2 whitespace-nowrap transition-colors ${
         dentroDoMenu
           ? 'w-full px-3 h-9 rounded-lg text-left hover:bg-black/5'
-          : 'px-3 h-10 border-b-2 -mb-px flex-shrink-0'
+          : `sm-glass-segment ${active ? 'is-active' : ''} px-3 h-9 rounded-full flex-shrink-0`
       }`}
       style={dentroDoMenu
         ? (active ? { background: 'rgba(37,99,235,0.10)' } : undefined)
-        : { borderColor: active ? '#2563EB' : 'transparent' }}
+        : undefined}
     >
       <tab.Icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.8}
         style={{ color: active ? '#2563EB' : 'var(--sm-text-4)' }} />
@@ -775,17 +774,19 @@ function TabBar({
   )
 
   return (
-    // Sublinhado, igual ao Financeiro: sem caixa em volta, uma linha fina embaixo.
+    // Cápsula de vidro, como as abas do CRM. O ref fica no bloco de fora, que
+    // ocupa a largura toda: é ele que a conta de "quantos grupos cabem" mede.
     // flex-wrap: no celular as abas continuam na linha de baixo em vez de
     // empurrar a página para fora da tela.
-    <div ref={barraRef} className="flex flex-wrap items-end gap-x-1 border-b mb-6 max-w-full"
-      style={{ borderColor: 'var(--sm-border)' }}>
+    <div ref={barraRef} className="mb-6 max-w-full">
+    <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-[22px] border max-w-full"
+      style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
       {TABS_PRINCIPAIS.map(t => (
         <BotaoAba key={t.value} tab={t} active={activeTab === t.value} pending={pendencias[t.value]} onClick={() => onChange(t.value)} />
       ))}
 
       {gruposNaBarra.map(grupo => (
-        <span key={grupo.titulo} className="flex items-end gap-x-1">
+        <span key={grupo.titulo} className="flex items-center gap-x-0.5">
           <Divisor />
           {grupo.itens.map(t => (
             <BotaoAba key={t.value} tab={t} active={activeTab === t.value} pending={pendencias[t.value]} onClick={() => onChange(t.value)} />
@@ -797,8 +798,7 @@ function TabBar({
 
       <div className="relative">
         <button onClick={() => setMenuAberto(o => !o)} aria-expanded={menuAberto}
-          className="flex items-center gap-2 px-3 h-10 border-b-2 -mb-px whitespace-nowrap transition-colors"
-          style={{ borderColor: abaExtraAtiva ? '#2563EB' : 'transparent' }}>
+          className={`sm-glass-segment ${abaExtraAtiva ? 'is-active' : ''} flex items-center gap-2 px-3 h-9 rounded-full whitespace-nowrap transition-colors`}>
           {abaExtraAtiva
             ? <abaExtraAtiva.Icon className="w-4 h-4" strokeWidth={1.8} style={{ color: '#2563EB' }} />
             : <MoreHorizontal className="w-4 h-4" strokeWidth={1.8} style={{ color: 'var(--sm-text-4)' }} />}
@@ -813,8 +813,7 @@ function TabBar({
         {menuAberto && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuAberto(false)} />
-            <div className="absolute left-0 top-full mt-1.5 z-20 w-56 max-w-[calc(100vw-2.5rem)] rounded-xl border shadow-2xl p-1.5"
-              style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+            <div className="sm-glass-pop absolute left-0 top-full mt-1.5 z-20 w-56 max-w-[calc(100vw-2.5rem)] rounded-2xl shadow-2xl p-1.5">
               {gruposNoMenu.map((grupo, i) => (
                 <div key={grupo.titulo} className={i > 0 ? 'mt-1.5 pt-1.5 border-t' : ''}
                   style={i > 0 ? { borderColor: 'var(--sm-border)' } : undefined}>
@@ -831,6 +830,7 @@ function TabBar({
           </>
         )}
       </div>
+    </div>
     </div>
   )
 }
@@ -1118,7 +1118,7 @@ export function ClientProfile() {
           </Link>
           <div className="flex items-center gap-1.5">
             <Link to={`/clients/${id}/edit`}
-              className="h-9 px-3.5 rounded-xl text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
+              className="h-9 px-4 rounded-full text-[12.5px] font-semibold inline-flex items-center gap-1.5 text-white"
               style={{ background: 'var(--sm-primary)' }}>
               <Edit className="w-3.5 h-3.5" /> Editar
             </Link>
@@ -1127,7 +1127,7 @@ export function ClientProfile() {
 
         {/* ── Cabeçalho: capa do cliente + identidade ─────────────────────────── */}
         <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-2xl border overflow-hidden mb-4" style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+          className="sm-glass-tile rounded-[24px] overflow-hidden mb-4">
           <div className="h-20 md:h-24" style={getBannerStyle(clientBannerId(client))} />
           <div className="px-4 md:px-6 pb-5 flex flex-col md:flex-row md:items-end gap-x-6 gap-y-3">
             <div className="-mt-9 flex-shrink-0">
@@ -1471,7 +1471,7 @@ export function ClientProfile() {
 
       {/* ── Asset Create / Edit Modal ─────────────────────────────────────── */}
       <Dialog open={assetModalOpen} onOpenChange={v => { setAssetModalOpen(v); if (!v) resetAssetForm() }}>
-        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{editingAsset ? 'Editar conteúdo' : 'Adicionar ao Arsenal'}</DialogTitle>
           </DialogHeader>

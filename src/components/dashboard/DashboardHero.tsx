@@ -86,8 +86,10 @@ interface DashboardHeroProps {
   isLoading:  boolean
   onRefresh?: () => void
   /** Dashboard em vidro: sem fundo próprio (fica dentro do painel), sem
-   *  ilustração, e o sino/avatar vão para a coluna da direita no xl */
+   *  ilustração, e no xl o sino/avatar dão lugar ao cartão do perfil */
   glass?:     boolean
+  /** Cartão do perfil (nome, e-mail, notificações): canto superior direito, só no xl */
+  profile?:   React.ReactNode
 }
 
 // ── Banner ────────────────────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ export function DashboardHero({
   isLoading,
   onRefresh,
   glass = false,
+  profile,
 }: DashboardHeroProps) {
   const { isDark } = useTheme()
 
@@ -168,9 +171,10 @@ export function DashboardHero({
             <RefreshCw className="w-3.5 h-3.5 transition-transform duration-500" />
           </button>
         )}
-        <div className={`flex items-center gap-1 ${glass ? 'xl:hidden' : ''}`}>
+        <div className={`flex items-center gap-1 ${glass && profile ? 'xl:hidden' : ''}`}>
           <HeroControls />
         </div>
+        {glass && profile && <div className="hidden xl:block">{profile}</div>}
       </div>
 
       {/* ── Conteúdo ── */}

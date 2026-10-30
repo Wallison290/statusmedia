@@ -112,7 +112,7 @@ export function CrmAssistant({ open, onClose, leads, columns, memberOf }: Props)
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="w-[95vw] max-w-2xl h-[80vh] flex flex-col gap-3">
+      <DialogContent glass className="w-[95vw] max-w-2xl h-[80vh] flex flex-col gap-3">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" style={{ color: '#a78bfa' }} /> Assistente do funil

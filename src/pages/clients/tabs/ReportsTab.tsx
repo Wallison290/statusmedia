@@ -168,7 +168,7 @@ function AttachmentItem({
       {/* Image lightbox */}
       {isImg && imgOpen && att.file_url && (
         <Dialog open={imgOpen} onOpenChange={setImgOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent glass className="max-w-2xl">
             <DialogHeader><DialogTitle className="truncate">{att.title}</DialogTitle></DialogHeader>
             <img src={att.file_url} alt={att.title} className="w-full rounded-xl" />
             <DialogFooter>
@@ -239,7 +239,7 @@ function AddAttachmentModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); reset() } }}>
-      <DialogContent className="max-w-md">
+      <DialogContent glass className="max-w-md">
         <DialogHeader><DialogTitle>Adicionar anexo</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-1">
           <div>
@@ -313,7 +313,7 @@ function CreateReportModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent glass className="max-w-sm">
         <DialogHeader><DialogTitle>Novo relatório</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-1">
           <div>

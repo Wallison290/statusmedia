@@ -43,7 +43,7 @@ export function CrmTemplatePicker({ open, onClose, empty, offset }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { setSelected(null); onClose() } }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Escolha um modelo de funil</DialogTitle>
         </DialogHeader>

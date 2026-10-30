@@ -64,8 +64,7 @@ function StatusPill({ status, onChange }: { status: TaskStatus; onChange: (s: Ta
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -4 }}
               transition={{ duration: 0.12 }}
-              className="absolute left-0 top-full mt-1 z-40 border rounded-xl shadow-lg overflow-hidden p-1 min-w-[160px]"
-              style={cardStyle}
+              className="sm-glass-pop absolute left-0 top-full mt-1 z-40 rounded-xl shadow-lg overflow-hidden p-1 min-w-[160px]"
               onClick={e => e.stopPropagation()}
             >
               {(Object.entries(STATUS_CFG) as [TaskStatus, typeof STATUS_CFG[TaskStatus]][]).map(([s, c]) => (
@@ -153,7 +152,7 @@ function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent glass className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar tarefa' : 'Nova tarefa'}</DialogTitle>
         </DialogHeader>
@@ -273,7 +272,7 @@ function TaskViewModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent glass className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-[18px] font-bold leading-snug pr-6 text-[color:var(--sm-text-1)]">
             {task.title}

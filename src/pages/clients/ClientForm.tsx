@@ -17,6 +17,8 @@ import { checkStorageLimit } from '@/utils/storageGate'
 import { ApplyTemplateModal } from '@/components/tasks/ApplyTemplateModal'
 import { Field, TextInput, SelectInput, PrimaryButton, GhostButton, inputCls, inputStyle, parseMoney, moneyToInput } from '@/pages/financial/finUi'
 import type { Client } from '@/types'
+import { ServiceBillingPicker, splitInstallments, type ServiceBillingMode } from '@/components/ServiceBillingPicker'
+import { fmtBRL } from '@/utils/crm'
 
 // Mapeia o tipo de serviço escolhido no cadastro para a categoria do modelo
 const serviceToCategory: Record<string, string | null> = {
@@ -34,6 +36,10 @@ const emptyForm = {
   responsible_user_id: null as string | null,
   valor_mensal: null as number | null,
   dia_vencimento: null as number | null,
+  billing_mode: 'recorrente' as ServiceBillingMode,
+  parcelas: null as number | null,
+  billing_due_date: null as string | null,
+  installments_start: null as string | null,
   financial_status: null as Client['financial_status'],
   last_payment_date: null as string | null,
   manual_status_override: null as boolean | null,
@@ -75,6 +81,8 @@ export function ClientForm() {
   const updateClient = useUpdateClient()
   const [form, setForm] = useState(emptyForm)
   const [money, setMoney] = useState('')
+  const [totalMoney, setTotalMoney] = useState('')     // único / parcelado
+  const [entradaMoney, setEntradaMoney] = useState('') // parcelado
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const submittingRef = useRef(false)
@@ -83,8 +91,10 @@ export function ClientForm() {
 
   useEffect(() => {
     if (existingClient) {
-      setForm(existingClient as any)
+      setForm({ ...(existingClient as any), billing_mode: existingClient.billing_mode ?? 'recorrente' })
       setMoney(moneyToInput(existingClient.valor_mensal))
+      setTotalMoney(moneyToInput(existingClient.valor_total ?? null))
+      setEntradaMoney(moneyToInput(existingClient.entrada ?? null))
     }
   }, [existingClient])
 
@@ -98,6 +108,15 @@ export function ClientForm() {
       if (value) seeded[field] = value
     }
     if (Object.keys(seeded).length > 0) setForm(prev => ({ ...prev, ...seeded }))
+    const mode = searchParams.get('billing_mode') as ServiceBillingMode | null
+    const valor = searchParams.get('valor')
+    if (mode && ['unico', 'recorrente', 'parcelado'].includes(mode)) {
+      const parcelas = Number(searchParams.get('parcelas')) || null
+      setForm(prev => ({ ...prev, billing_mode: mode, parcelas: mode === 'parcelado' ? parcelas : prev.parcelas }))
+      if (valor) (mode === 'recorrente' ? setMoney : setTotalMoney)(moneyToInput(Number(valor)))
+      const entrada = searchParams.get('entrada')
+      if (mode === 'parcelado' && entrada) setEntradaMoney(moneyToInput(Number(entrada)))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit])
 
@@ -143,7 +162,26 @@ export function ClientForm() {
 
   const doSubmit = async () => {
     if (!user) return
-    const payload = { ...form, valor_mensal: money.trim() ? parseMoney(money) : null }
+    // Só os campos da forma escolhida vão preenchidos; os outros zeram (o banco
+    // gera a cobrança certa: mensalidade, lançamento único ou entrada + parcelas)
+    const mode = form.billing_mode ?? 'recorrente'
+    const total = totalMoney.trim() ? parseMoney(totalMoney) : null
+    const { plan_entry_id: _planEntry, ...rest } = form as typeof form & { plan_entry_id?: string | null }
+    const payload = {
+      ...rest,
+      billing_mode:       mode,
+      valor_mensal:       mode === 'recorrente' && money.trim() ? parseMoney(money) : null,
+      dia_vencimento:     mode === 'recorrente' ? form.dia_vencimento : null,
+      valor_total:        mode === 'recorrente' ? null : total,
+      entrada:            mode === 'parcelado' && entradaMoney.trim() ? parseMoney(entradaMoney) : null,
+      parcelas:           mode === 'parcelado' ? form.parcelas : null,
+      billing_due_date:   mode === 'recorrente' ? null : (form.billing_due_date || null),
+      installments_start: mode === 'parcelado' ? (form.installments_start || null) : null,
+    }
+    if (mode === 'parcelado' && total && payload.entrada && payload.entrada >= total) {
+      toast('A entrada precisa ser menor que o valor total.', 'error')
+      return
+    }
 
     // ── Gate: limite de clientes por plano (o banco também confere) ─────────
     if (!isEdit) {
@@ -309,21 +347,65 @@ export function ClientForm() {
             <Field label="Observações"><TextArea value={form.observations || ''} onChange={e => set('observations', e.target.value)} placeholder="Informações adicionais" /></Field>
           </Section>
 
-          {/* 04 · Mensalidade */}
-          <Section n="04" title="Mensalidade" text="Gera as cobranças do cliente no Financeiro automaticamente.">
-            <Field label="Valor mensal (R$)">
-              <TextInput inputMode="decimal" value={money} onChange={e => setMoney(e.target.value)} placeholder="Ex.: 1.500,00" />
-            </Field>
-            <Field label="Dia de vencimento">
-              <TextInput type="number" min={1} max={31} value={form.dia_vencimento ?? ''}
-                onChange={e => set('dia_vencimento', e.target.value ? Number(e.target.value) : null)} placeholder="Ex.: 10" />
-            </Field>
+          {/* 04 · Cobrança */}
+          <Section n="04" title="Cobrança" text="Como o serviço é pago. Gera as cobranças do cliente no Financeiro automaticamente.">
+            <ServiceBillingPicker className="md:col-span-2" value={form.billing_mode ?? 'recorrente'} onChange={m => set('billing_mode', m)} />
+
+            {(form.billing_mode ?? 'recorrente') === 'recorrente' && <>
+              <Field label="Valor mensal (R$)">
+                <TextInput inputMode="decimal" value={money} onChange={e => setMoney(e.target.value)} placeholder="Ex.: 1.500,00" />
+              </Field>
+              <Field label="Dia de vencimento">
+                <TextInput type="number" min={1} max={31} value={form.dia_vencimento ?? ''}
+                  onChange={e => set('dia_vencimento', e.target.value ? Number(e.target.value) : null)} placeholder="Ex.: 10" />
+              </Field>
+            </>}
+
+            {form.billing_mode === 'unico' && <>
+              <Field label="Valor do serviço (R$)">
+                <TextInput inputMode="decimal" value={totalMoney} onChange={e => setTotalMoney(e.target.value)} placeholder="Ex.: 3.000,00" />
+              </Field>
+              <Field label="Data do pagamento" hint="Vira uma conta a receber no Financeiro.">
+                <TextInput type="date" value={form.billing_due_date ?? ''} onChange={e => set('billing_due_date', e.target.value || null)} />
+              </Field>
+            </>}
+
+            {form.billing_mode === 'parcelado' && <>
+              <Field label="Valor total (R$)">
+                <TextInput inputMode="decimal" value={totalMoney} onChange={e => setTotalMoney(e.target.value)} placeholder="Ex.: 10.000,00" />
+              </Field>
+              <Field label="Entrada (R$)" hint="Deixe em branco se não tiver entrada.">
+                <TextInput inputMode="decimal" value={entradaMoney} onChange={e => setEntradaMoney(e.target.value)} placeholder="Ex.: 3.000,00" />
+              </Field>
+              <Field label="Quantidade de parcelas">
+                <TextInput type="number" min={1} max={120} value={form.parcelas ?? ''}
+                  onChange={e => set('parcelas', e.target.value ? Number(e.target.value) : null)} placeholder="Ex.: 8" />
+              </Field>
+              <Field label="Data da entrada">
+                <TextInput type="date" value={form.billing_due_date ?? ''} onChange={e => set('billing_due_date', e.target.value || null)} />
+              </Field>
+              <Field label="Vencimento da 1ª parcela" hint="As outras vencem no mesmo dia dos meses seguintes.">
+                <TextInput type="date" value={form.installments_start ?? ''} onChange={e => set('installments_start', e.target.value || null)} />
+              </Field>
+              {(() => {
+                const split = splitInstallments(totalMoney.trim() ? parseMoney(totalMoney) : 0,
+                  entradaMoney.trim() ? parseMoney(entradaMoney) : 0, form.parcelas ?? 0)
+                if (!split || !form.parcelas) return null
+                return (
+                  <p className="md:col-span-2 text-[12.5px] rounded-xl border px-3.5 py-2.5"
+                    style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)' }}>
+                    {split.entrada > 0 && <>Entrada de <strong style={{ color: 'var(--sm-text-1)' }}>{fmtBRL(split.entrada, true)}</strong> + </>}
+                    <strong style={{ color: 'var(--sm-text-1)' }}>{split.parcelas}x de {fmtBRL(split.parcela, true)}</strong>
+                  </p>
+                )
+              })()}
+            </>}
           </Section>
         </div>
 
         {/* ── Barra de salvar: gruda no rodapé enquanto a página rola ── */}
         <div className="sticky bottom-0 z-20 -mx-4 md:-mx-6 mt-4 px-4 md:px-6 py-3 border-t backdrop-blur flex items-center justify-end gap-2"
-          style={{ background: 'color-mix(in srgb, var(--sm-bg-page) 88%, transparent)', borderColor: 'var(--sm-border)' }}>
+          style={{ background: 'color-mix(in srgb, var(--sm-bg-card2) 92%, transparent)', borderColor: 'var(--sm-border)' }}>
           <GhostButton type="button" onClick={() => navigate(-1)}>Cancelar</GhostButton>
           <PrimaryButton type="submit" disabled={submitting || isUploadingLogo}>
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

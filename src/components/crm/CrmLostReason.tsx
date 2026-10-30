@@ -69,7 +69,7 @@ export function CrmLostReasonDialog({ open, leadName, saving, onCancel, onConfir
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onCancel() }}>
-      <DialogContent className="w-[95vw] max-w-md">
+      <DialogContent glass className="w-[95vw] max-w-md">
         <DialogHeader>
           <DialogTitle>Por que perdemos {leadName}?</DialogTitle>
         </DialogHeader>

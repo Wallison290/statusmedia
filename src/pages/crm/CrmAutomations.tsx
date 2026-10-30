@@ -188,7 +188,7 @@ export function CrmAutomations() {
 
       {/* Editor */}
       <Dialog open={!!draft} onOpenChange={v => { if (!v) setDraft(null) }}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent glass className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Zap className="w-4 h-4" style={{ color: '#818cf8' }} />

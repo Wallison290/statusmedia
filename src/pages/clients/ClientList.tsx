@@ -239,7 +239,7 @@ export function ClientList() {
             </p>
           </div>
           <Link to="/clients/new"
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-95 max-md:hidden"
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-[13px] font-semibold text-white transition-opacity hover:opacity-95 max-md:hidden"
             style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-4 h-4" /> Novo cliente
           </Link>
@@ -247,14 +247,14 @@ export function ClientList() {
 
         {/* ── Filtros, busca e ordenação ─────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-2 mb-5">
-          <div className="flex gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none max-w-full" style={{ background: 'var(--sm-bg-alt)' }}>
+          <div className="flex gap-0.5 p-1 rounded-full border overflow-x-auto scrollbar-none max-w-full" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
             {([
               { value: 'all', label: 'Todos' }, { value: 'ativo', label: 'Ativos' },
               { value: 'pausado', label: 'Pausados' }, { value: 'encerrado', label: 'Encerrados' },
             ] as const).map(f => (
               <button key={f.value} onClick={() => setFilter(f.value)} aria-pressed={filter === f.value}
-                className="h-8 px-3 rounded-lg text-[12.5px] font-medium whitespace-nowrap transition-colors"
-                style={filter === f.value ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)' } : { color: 'var(--sm-text-3)' }}>
+                className={`sm-glass-segment ${filter === f.value ? 'is-active font-semibold' : 'font-medium hover:text-[var(--sm-text-1)]'} h-8 px-3 rounded-full text-[12.5px] whitespace-nowrap transition-colors`}
+                style={{ color: filter === f.value ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
                 {f.label} <span className="tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{counts[f.value]}</span>
               </button>
             ))}
@@ -263,21 +263,20 @@ export function ClientList() {
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
             <input type="text" placeholder="Buscar por nome, @, segmento ou e-mail" value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 rounded-xl text-[13px] outline-none border transition-colors focus:border-[#2563EB]/60"
+              className="w-full h-10 pl-9 pr-3 rounded-full text-[13px] outline-none border transition-colors focus:border-[#2563EB]/60"
               style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }} />
           </div>
 
           <div className="relative">
             <button onClick={() => setShowSort(o => !o)}
-              className="h-10 px-3.5 rounded-xl border text-[13px] inline-flex items-center gap-2 transition-colors hover:border-[#2563EB]/50"
+              className="h-10 px-4 rounded-full border text-[13px] inline-flex items-center gap-2 transition-colors hover:border-[#2563EB]/50"
               style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
               {sortLabel} <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} />
             </button>
             {showSort && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowSort(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-xl border overflow-hidden py-1 shadow-2xl"
-                  style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
+                <div className="sm-glass-pop absolute right-0 top-full mt-1 z-20 w-44 rounded-2xl overflow-hidden py-1 shadow-2xl">
                   {SORT_OPTIONS.map(o => (
                     <button key={o.value} onClick={() => { setSort(o.value); setShowSort(false) }}
                       className="w-full text-left px-4 py-2 text-[13px] hover:bg-black/5"
@@ -291,7 +290,7 @@ export function ClientList() {
           </div>
 
           <Link to="/clients/new" aria-label="Novo cliente"
-            className="md:hidden inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl text-[13px] font-semibold text-white"
+            className="md:hidden inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full text-[13px] font-semibold text-white"
             style={{ background: 'var(--sm-primary)' }}>
             <Plus className="w-4 h-4" /> Novo
           </Link>
@@ -356,8 +355,7 @@ export function ClientList() {
                     exit={{ opacity: 0, scale: 0.98 }}
                     transition={{ delay: Math.min(i, 8) * 0.03, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                     onClick={() => navigate(`/clients/${client.id}`)}
-                    className="group relative rounded-2xl border overflow-hidden cursor-pointer transition-colors hover:border-[#2563EB]/50"
-                    style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
+                    className="sm-glass-tile group relative rounded-[22px] overflow-hidden cursor-pointer transition-colors hover:!border-[#2563EB]/50"
                   >
                     {/* Capa (cor ou imagem escolhida pela agência) */}
                     <div className="relative h-20" style={bannerStyle}>
@@ -381,8 +379,7 @@ export function ClientList() {
                       {isPickerOpen && (
                         <>
                           <div className="fixed inset-0 z-30" onClick={e => { e.stopPropagation(); setPickerOpen(null) }} />
-                          <div className="absolute top-12 left-2.5 z-40 rounded-2xl border shadow-2xl p-3.5 w-[228px]"
-                            style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
+                          <div className="sm-glass-pop absolute top-12 left-2.5 z-40 rounded-2xl shadow-2xl p-3.5 w-[228px]"
                             onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1 mb-3 rounded-lg p-0.5" style={{ background: 'var(--sm-bg-alt)' }}>
                               {(['cores', 'imagem'] as const).map(tab => (
@@ -401,7 +398,7 @@ export function ClientList() {
                                     style={{ background: `linear-gradient(135deg, ${g.preview[0]} 0%, ${g.preview[1]} 100%)` }}
                                     title={g.id} aria-label={`Capa ${g.id}`}>
                                     {gradientId === g.id && (
-                                      <span className="absolute inset-0 rounded-full" style={{ boxShadow: '0 0 0 2px var(--sm-bg-card), 0 0 0 4px #2563EB' }} />
+                                      <span className="absolute inset-0 rounded-full" style={{ boxShadow: '0 0 0 2px var(--sm-bg-card2), 0 0 0 4px #2563EB' }} />
                                     )}
                                   </button>
                                 ))}
@@ -434,10 +431,10 @@ export function ClientList() {
                       <div className="absolute -bottom-6 left-4 z-10">
                         {client.logo_url ? (
                           <img src={client.logo_url} alt="" className="w-12 h-12 rounded-xl object-cover"
-                            style={{ boxShadow: '0 0 0 3px var(--sm-bg-card)' }} />
+                            style={{ boxShadow: '0 0 0 3px var(--sm-bg-card2)' }} />
                         ) : (
                           <div className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-[15px] select-none"
-                            style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', boxShadow: '0 0 0 3px var(--sm-bg-card)' }}>
+                            style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-2)', boxShadow: '0 0 0 3px var(--sm-bg-card2)' }}>
                             {initials}
                           </div>
                         )}

@@ -58,6 +58,14 @@ export interface Client {
   entry_date: string
   valor_mensal: number | null
   dia_vencimento: number | null
+  // migration 114: forma de cobrança (único, mensal ou entrada + parcelas)
+  billing_mode?: 'recorrente' | 'unico' | 'parcelado'
+  valor_total?: number | null
+  entrada?: number | null
+  parcelas?: number | null
+  billing_due_date?: string | null     // data do pagamento único / da entrada
+  installments_start?: string | null   // vencimento da 1ª parcela
+  plan_entry_id?: string | null
   financial_status: FinancialStatus | null
   last_payment_date: string | null
   manual_status_override: boolean | null
@@ -532,6 +540,9 @@ export interface CrmLead {
   source:              string | null
   estimated_value:     number | null
   estimated_cost?:     number | null   // custos/taxas do serviço; líquido = valor - custo
+  /** migration 114: como o serviço é cobrado. recorrente → estimated_value é o
+   *  valor mensal; único/parcelado → é o total. null = único (como era antes) */
+  payment_plan?:       { mode: 'unico' | 'recorrente' | 'parcelado'; entrada?: number | null; parcelas?: number | null } | null
   awaiting_reply_since?: string | null  // o lead respondeu e espera a agência
   opted_out_at?:       string | null    // pediu para não receber mais mensagens
   meeting_at?:         string | null

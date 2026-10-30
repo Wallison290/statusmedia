@@ -203,7 +203,7 @@ export const CrmImportExport = forwardRef<CrmImportExportHandle, Props>(function
              onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = '' }} />
 
       <Dialog open={!!preview} onOpenChange={v => { if (!v && !importing) setPreview(null) }}>
-        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-md">
+        <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Importar leads</DialogTitle></DialogHeader>
           {preview && (
             <div className="space-y-3 text-[13px]" style={{ color: 'var(--sm-text-2)' }}>

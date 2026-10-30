@@ -518,6 +518,10 @@ function Column({
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
+// Seletores de filtro: no celular dividem a linha em partes iguais; do tablet
+// em diante ficam do tamanho do texto, alinhados à esquerda
+const FILTER_SELECT = 'h-8 rounded-full border pl-3 pr-2 text-[12px] [color-scheme:dark] max-md:flex-1 max-md:min-w-0 md:max-w-[220px] truncate'
+
 export function CrmBoard() {
   const money = useMoney()
   const navigate = useNavigate()
@@ -758,6 +762,11 @@ export function CrmBoard() {
       ...(lead.whatsapp  ? { whatsapp:  lead.whatsapp  } : {}),
       ...(lead.email     ? { email:     lead.email     } : {}),
       ...(lead.instagram ? { instagram: lead.instagram } : {}),
+      // Forma de cobrança do lead já entra no cadastro do cliente
+      billing_mode: lead.payment_plan?.mode ?? 'unico',
+      ...(lead.estimated_value ? { valor: String(lead.estimated_value) } : {}),
+      ...(lead.payment_plan?.entrada ? { entrada: String(lead.payment_plan.entrada) } : {}),
+      ...(lead.payment_plan?.parcelas ? { parcelas: String(lead.payment_plan.parcelas) } : {}),
     })
     setModalOpen(false)
     navigate(`/clients/new?${params.toString()}`)
@@ -788,7 +797,7 @@ export function CrmBoard() {
           : `${activeLeads.length} ${activeLeads.length === 1 ? 'lead' : 'leads'} · ${columns.length} ${columns.length === 1 ? 'etapa' : 'etapas'}`}
         actions={columns.length > 0 && (
           <>
-            <div className="max-md:flex-1 max-md:min-w-0 sm:w-60">
+            <div className="flex-1 min-w-0 max-w-[260px]">
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -797,8 +806,8 @@ export function CrmBoard() {
                 className="h-9 rounded-full"
               />
             </div>
-            <Button size="sm" onClick={() => openNewLead(columns[0].id)} className="h-9 rounded-full">
-              <Plus className="w-3.5 h-3.5" /> <span className="max-sm:hidden">Novo lead</span>
+            <Button size="sm" onClick={() => openNewLead(columns[0].id)} className="h-9 rounded-full flex-shrink-0" title="Novo lead" aria-label="Novo lead">
+              <Plus className="w-3.5 h-3.5" /> <span className="max-sm:hidden xl:max-2xl:hidden">Novo lead</span>
             </Button>
           </>
         )}
@@ -840,73 +849,34 @@ export function CrmBoard() {
           {/* Barra de números + filtros. No celular são só duas linhas: uma faixa
               que desliza para o lado (números e filtros rápidos) e a busca — o
               resto da altura fica para os cartões do funil. */}
-          <div className="px-4 sm:px-6 pt-1 pb-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">
-            <div className="max-md:w-[calc(100%+2rem)] max-md:-mx-4 max-md:px-4 max-md:overflow-x-auto scrollbar-none flex items-center gap-2 max-md:flex-nowrap md:flex-wrap">
-            <div className="flex items-center gap-2 max-md:flex-nowrap md:flex-wrap max-md:flex-shrink-0 [&>span]:whitespace-nowrap">
-              <span className="text-[11.5px] px-2 py-1 rounded-lg"
-                    style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
-                <strong style={{ color: 'var(--sm-text-1)' }}>{activeLeads.length}</strong> {activeLeads.length === 1 ? 'lead' : 'leads'} · {columns.length} {columns.length === 1 ? 'etapa' : 'etapas'}
-              </span>
-              <span className="text-[11.5px] px-2 py-1 rounded-lg"
-                    style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
-                <strong style={{ color: 'var(--sm-text-1)' }}>{stats.openCount}</strong> em aberto
-                {stats.openValue > 0 && <> · {money(stats.openValue)}</>}
-              </span>
-              <span className="text-[11.5px] px-2 py-1 rounded-lg"
-                    style={{ background: 'rgba(34,197,94,0.10)', color: '#22C55E' }}>
-                <strong>{stats.wonCount}</strong> ganhos
-                {stats.wonValue > 0 && <> · {money(stats.wonValue)}</>}
-                {stats.wonNet !== stats.wonValue && stats.wonValue > 0 && <> (líq. {money(stats.wonNet)})</>}
-              </span>
-              {stats.conversion !== null && (
-                <span className="text-[11.5px] px-2 py-1 rounded-lg"
-                      style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
-                  Conversão <strong style={{ color: 'var(--sm-text-1)' }}>{stats.conversion}%</strong>
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1 max-md:flex-nowrap md:flex-wrap max-md:flex-shrink-0 [&>button]:whitespace-nowrap">
-              {([
-                ['todos',    'Todos'],
-                ['responderam', `Responderam${stats.waiting ? ` (${stats.waiting})` : ''}`],
-                ['retornos', `Retornos de hoje${stats.followups ? ` (${stats.followups})` : ''}`],
-                ['quentes',  'Quentes'],
-              ] as const).map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => setQuick(id)}
-                  className="text-[11.5px] px-2 h-7 rounded-lg border transition-colors"
-                  style={{
-                    borderColor: quick === id ? '#2563EB' : 'var(--sm-border)',
-                    background:  quick === id ? 'rgba(37,99,235,0.12)' : 'transparent',
-                    color:       quick === id ? '#4F8EF7' : 'var(--sm-text-3)',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-              {archivedLeads.length > 0 && (
-                <button
-                  onClick={() => setArchivedOpen(true)}
-                  className="flex items-center gap-1 text-[11.5px] px-2 h-7 rounded-lg transition-colors hover:opacity-100 opacity-70"
-                  style={{ color: 'var(--sm-text-3)' }}
-                >
-                  <Archive className="w-3 h-3" /> Arquivados ({archivedLeads.length})
-                </button>
-              )}
-            </div>
-            </div>
-
-            <div className="flex-1 max-md:hidden" />
-
+          {/* Filtros: três seletores lado a lado. Os números do funil ficam em Relatórios */}
+          <div className="px-4 sm:px-6 pt-1 pb-2.5 flex items-center gap-2 flex-shrink-0">
+            <select
+              value={quick}
+              onChange={e => {
+                const v = e.target.value
+                // "Arquivados" abre a lista e não vira filtro do quadro
+                if (v === 'arquivados') { setArchivedOpen(true); return }
+                setQuick(v as typeof quick)
+              }}
+              className={FILTER_SELECT}
+              style={{ background: 'var(--sm-bg-input)', borderColor: quick !== 'todos' ? 'rgba(37,99,235,0.55)' : 'var(--sm-border)', color: quick !== 'todos' ? '#4F8EF7' : 'var(--sm-text-2)' }}
+              aria-label="Filtrar leads"
+            >
+              <option value="todos">Todos os leads</option>
+              <option value="responderam">Responderam{stats.waiting ? ` (${stats.waiting})` : ''}</option>
+              <option value="retornos">Retornos de hoje{stats.followups ? ` (${stats.followups})` : ''}</option>
+              <option value="quentes">Quentes</option>
+              {archivedLeads.length > 0 && <option value="arquivados">Arquivados ({archivedLeads.length})</option>}
+            </select>
 
             {allTags.length > 0 && (
               <select
                 value={filterTag}
                 onChange={e => setFilterTag(e.target.value)}
-                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark] max-md:w-24 max-md:flex-shrink-0"
-                style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: filterTag ? '#4F8EF7' : 'var(--sm-text-2)' }}
+                className={FILTER_SELECT}
+                style={{ background: 'var(--sm-bg-input)', borderColor: filterTag ? 'rgba(37,99,235,0.55)' : 'var(--sm-border)', color: filterTag ? '#4F8EF7' : 'var(--sm-text-2)' }}
+                aria-label="Filtrar por tag"
               >
                 <option value="">Todas as tags</option>
                 {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
@@ -917,8 +887,9 @@ export function CrmBoard() {
               <select
                 value={filterMember}
                 onChange={e => setFilterMember(e.target.value)}
-                className="h-8 rounded-md border px-2 text-[12px] [color-scheme:dark] max-md:w-24 max-md:flex-shrink-0"
-                style={{ background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}
+                className={FILTER_SELECT}
+                style={{ background: 'var(--sm-bg-input)', borderColor: filterMember ? 'rgba(37,99,235,0.55)' : 'var(--sm-border)', color: filterMember ? '#4F8EF7' : 'var(--sm-text-2)' }}
+                aria-label="Filtrar por responsável"
               >
                 <option value="">Todos os responsáveis</option>
                 {members.filter(m => m.is_active).map(m => (
@@ -926,7 +897,6 @@ export function CrmBoard() {
                 ))}
               </select>
             )}
-
           </div>
 
           {/* Board */}
@@ -1032,7 +1002,7 @@ export function CrmBoard() {
 
       {/* Arquivados */}
       <Dialog open={archivedOpen} onOpenChange={setArchivedOpen}>
-        <DialogContent className="w-[95vw] max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent glass className="w-[95vw] max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Leads arquivados</DialogTitle>
           </DialogHeader>
@@ -1077,10 +1047,10 @@ export function CrmBoard() {
 
       {/* Confirmação de exclusão de coluna */}
       {deleting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        <div className="sm-glass-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
              onClick={() => setDeleting(null)}>
           <div
-            className="w-full max-w-sm rounded-2xl border p-5"
+            className="sm-glass-modal w-full max-w-sm rounded-2xl border p-5"
             style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
             onClick={e => e.stopPropagation()}
           >

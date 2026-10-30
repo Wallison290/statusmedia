@@ -10,6 +10,7 @@ import {
   History, CheckSquare, FileText, XCircle, MessagesSquare, Video, RefreshCw,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ServiceBillingPicker, splitInstallments } from '@/components/ServiceBillingPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -122,7 +123,7 @@ function MoneyInput({ value, onChange, hidden }: { value: number | null | undefi
 }
 
 const selectClass =
-  'flex h-9 w-full min-w-0 max-w-full rounded-md border border-[#1e293b] bg-[#182233] px-3 text-[13px] text-[#E2E8F0] ' +
+  'flex h-9 w-full min-w-0 max-w-full rounded-lg border border-[var(--sm-field-border)] bg-[var(--sm-field-bg)] px-3 text-[13px] text-[var(--sm-text-1)] ' +
   'focus:outline-none focus:ring-1 focus:ring-[#2563EB]/30 focus:border-[#2563EB]/50 [color-scheme:dark]'
 
 export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert }: Props) {
@@ -139,6 +140,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
   const saving = createLead.isPending || updateLead.isPending
 
   const [form, setForm] = useState<CrmLeadInput>({ name: '', column_id: columnId })
+  const planMode = form.payment_plan?.mode ?? 'unico'
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [panel, setPanel] = useState<Panel>('conversa')
   // Starter: CRM só com o funil (sem propostas/contratos nem follow-up automático)
@@ -170,6 +172,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           source:              lead.source,
           estimated_value:     lead.estimated_value,
           estimated_cost:      lead.estimated_cost ?? null,
+          payment_plan:        lead.payment_plan ?? null,
           meeting_at:          lead.meeting_at ?? null,
           renewal_at:          lead.renewal_at ?? null,
           tags:                lead.tags ?? [],
@@ -251,6 +254,12 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
       responsible_user_id: form.responsible_user_id || null,
       estimated_value: form.estimated_value ?? null,
       estimated_cost:  form.estimated_cost ?? null,
+      // Só guarda entrada/parcelas no parcelado
+      payment_plan: !form.payment_plan || form.payment_plan.mode === 'unico'
+        ? (form.payment_plan ? { mode: 'unico' as const } : null)
+        : form.payment_plan.mode === 'recorrente'
+          ? { mode: 'recorrente' as const }
+          : { mode: 'parcelado' as const, entrada: form.payment_plan.entrada ?? null, parcelas: form.payment_plan.parcelas ?? null },
       lost_reason: isLostColumn ? (form.lost_reason?.trim() || null) : null,
     }
 
@@ -339,6 +348,14 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
         </Field>
       </div>
 
+      {/* Forma de cobrança: muda o que o "Valor" significa (mensal ou total) */}
+      <Field label="Forma de cobrança" icon={<Wallet className="w-3 h-3" />}>
+        <ServiceBillingPicker
+          value={form.payment_plan?.mode ?? 'unico'}
+          onChange={mode => set('payment_plan', { ...(form.payment_plan ?? {}), mode })}
+        />
+      </Field>
+
       {/* Negócio: origem, valor bruto e custos. O líquido é calculado embaixo. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="col-span-2 sm:col-span-1">
@@ -358,13 +375,36 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           </select>
         </Field>
         </div>
-        <Field label="Valor (bruto)" icon={<Wallet className="w-3 h-3" />}>
+        <Field label={planMode === 'recorrente' ? 'Valor mensal' : planMode === 'parcelado' ? 'Valor total' : 'Valor (bruto)'} icon={<Wallet className="w-3 h-3" />}>
           <MoneyInput hidden={hideValues} value={form.estimated_value} onChange={v => set('estimated_value', v)} />
         </Field>
         <Field label="Custos / taxas" icon={<Receipt className="w-3 h-3" />}>
           <MoneyInput hidden={hideValues} value={form.estimated_cost} onChange={v => set('estimated_cost', v)} />
         </Field>
       </div>
+      {planMode === 'parcelado' && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Entrada" icon={<Wallet className="w-3 h-3" />}>
+            <MoneyInput hidden={hideValues} value={form.payment_plan?.entrada ?? null}
+              onChange={v => set('payment_plan', { ...form.payment_plan!, entrada: v })} />
+          </Field>
+          <Field label="Parcelas" icon={<Receipt className="w-3 h-3" />}>
+            <Input type="number" inputMode="numeric" min={1} max={120} placeholder="Ex.: 8"
+              value={form.payment_plan?.parcelas ?? ''}
+              onChange={e => set('payment_plan', { ...form.payment_plan!, parcelas: e.target.value ? Number(e.target.value) : null })} />
+          </Field>
+        </div>
+      )}
+      {planMode === 'parcelado' && !hideValues && (() => {
+        const split = splitInstallments(form.estimated_value ?? 0, form.payment_plan?.entrada ?? 0, form.payment_plan?.parcelas ?? 0)
+        if (!split || !form.payment_plan?.parcelas) return null
+        return (
+          <p className="-mt-2 text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>
+            {split.entrada > 0 && <>Entrada de <strong style={{ color: 'var(--sm-text-1)' }}>{money(split.entrada, true)}</strong> + </>}
+            <strong style={{ color: 'var(--sm-text-1)' }}>{split.parcelas}x de {money(split.parcela, true)}</strong>
+          </p>
+        )
+      })()}
       {form.estimated_value != null && (
         <p className="-mt-2 text-[11.5px] flex flex-wrap gap-x-3" style={{ color: 'var(--sm-text-3)' }}>
           <span>
@@ -611,7 +651,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent
+      <DialogContent glass
         // Lead existente: não põe o cursor em campo nenhum. No celular isso abre o
         // teclado sozinho e cobre a tela antes de a pessoa decidir o que fazer.
         onOpenAutoFocus={e => { if (lead) e.preventDefault() }}
@@ -636,20 +676,21 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-6">
             {formBody}
 
-            <div className="flex flex-col gap-3 min-w-0 order-first lg:order-none lg:border-l lg:pl-6" style={{ borderColor: 'var(--sm-border)' }}>
+            <div className="sm-glass-tile rounded-[22px] p-3 sm:p-4 flex flex-col gap-3 min-w-0 order-first lg:order-none self-start w-full">
               <CrmWhatsappActions lead={lead} columns={columns} onSent={() => setSentFromCrm(true)} />
               {crmFull && <CrmLeadFollowup lead={lead} />}
 
-              <div className="flex gap-1 border-b" style={{ borderColor: 'var(--sm-border)' }}>
+              {/* Abas em cápsula, no mesmo desenho das abas do topo do CRM */}
+              <div className="flex gap-0.5 p-1 rounded-full border" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
                 {PANELS.map(p => (
                   <button
                     key={p.id}
                     onClick={() => setPanel(p.id)}
-                    className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-2.5 h-8 text-[12px] whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                      panel === p.id ? 'border-[#2563EB] font-semibold' : 'border-transparent'}`}
+                    className={`sm-glass-segment flex-1 flex items-center justify-center gap-1.5 px-2 h-8 rounded-full text-[12px] whitespace-nowrap transition-colors ${
+                      panel === p.id ? 'is-active font-semibold' : 'hover:text-[var(--sm-text-1)]'}`}
                     style={{ color: panel === p.id ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}
                   >
-                    <p.icon className="hidden sm:block w-3.5 h-3.5" /> {p.label}
+                    <p.icon className="hidden sm:block w-3.5 h-3.5" style={panel === p.id ? { color: '#2563EB' } : undefined} /> {p.label}
                   </button>
                 ))}
               </div>

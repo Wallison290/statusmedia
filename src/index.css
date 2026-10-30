@@ -808,3 +808,51 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
 }
 [data-theme="dark"] .sm-glass-rail-open { background: #E2E8F0 !important; }
+
+/* ── Janelas do CRM em vidro (lead, proposta, contrato…) ──────────────────────
+   O modal fica num vidro quase opaco (o texto precisa ler bem por cima do
+   quadro) e redefine os tokens: blocos internos, campos e bordas viram vidro
+   em cima dele. Popovers (--sm-bg-card2) seguem opacos. */
+.sm-glass-overlay {
+  background: rgba(5, 8, 22, 0.50) !important;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+[data-theme="light"] .sm-glass-overlay { background: rgba(15, 23, 42, 0.28) !important; }
+
+.sm-glass-modal {
+  background: linear-gradient(160deg, rgba(24, 34, 51, 0.95) 0%, rgba(11, 16, 32, 0.96) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-radius: 28px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 40px 100px -30px rgba(0, 0, 0, 0.8) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+  --sm-bg-card:      rgba(255, 255, 255, 0.045);
+  --sm-bg-alt:       rgba(255, 255, 255, 0.04);
+  --sm-bg-input:     rgba(255, 255, 255, 0.05);
+  --sm-bg-card2:     #101A2B;
+  --sm-border:       rgba(255, 255, 255, 0.09);
+  --sm-field-bg:     rgba(5, 8, 22, 0.45);
+  --sm-field-border: rgba(255, 255, 255, 0.16);
+}
+[data-theme="light"] .sm-glass-modal {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.97) 0%, rgba(241, 245, 249, 0.96) 100%) !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 40px 100px -30px rgba(15, 23, 42, 0.35) !important;
+  --sm-bg-card:      rgba(255, 255, 255, 0.80);
+  --sm-bg-alt:       rgba(15, 23, 42, 0.035);
+  --sm-bg-input:     #ffffff;
+  --sm-bg-card2:     #ffffff;
+  --sm-border:       #E2E8F0;
+  --sm-field-bg:     #ffffff;
+  --sm-field-border: #CBD5E1;
+}
+/* Blocos internos: no claro a borda branca sumiria no fundo gelo */
+[data-theme="light"] .sm-glass-modal .sm-glass-tile {
+  border-color: #E2E8F0;
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+/* Selects marcados como escuros: no tema claro a lista nativa abre clara */
+[data-theme="light"] .sm-glass-modal select { color-scheme: light; }
+/* Hover de linhas pensado para o escuro (white/5) fica invisível no claro */
+[data-theme="light"] .sm-glass-modal .hover\:bg-white\/5:hover { background: rgba(15, 23, 42, 0.05); }

@@ -368,7 +368,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[92vh] overflow-y-auto">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-6">
             <FileText className="w-4 h-4" style={{ color: '#8B5CF6' }} />
@@ -385,7 +385,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
 
         {/* Resposta do cliente */}
         {locked && current && (
-          <div className="rounded-xl border p-3 text-[12.5px] space-y-1"
+          <div className="rounded-2xl border p-3 text-[12.5px] space-y-1"
                style={{ borderColor: `${PROPOSAL_STATUS[current.status].color}55`, background: `${PROPOSAL_STATUS[current.status].color}10` }}>
             <p style={{ color: 'var(--sm-text-1)' }}>
               <strong>{current.status === 'aceita' ? 'Aceita' : 'Recusada'}</strong> por {current.responder_name ?? 'cliente'}
@@ -451,15 +451,15 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           </div>
 
           {/* Jeito de montar: no sistema ou PDF pronto */}
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl border" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-full border" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
             {([
               { id: 'sistema', icon: LayoutList, label: 'Montar no sistema' },
               { id: 'pdf',     icon: Paperclip,  label: 'Anexar PDF pronto' },
             ] as const).map(m => (
               <button key={m.id} type="button" onClick={() => setMode(m.id)}
-                className="h-9 rounded-lg text-[12.5px] inline-flex items-center justify-center gap-1.5 transition-colors"
+                className={`sm-glass-segment ${mode === m.id ? 'is-active' : ''} h-9 rounded-full text-[12.5px] inline-flex items-center justify-center gap-1.5 transition-colors`}
                 style={mode === m.id
-                  ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: '0 0 0 1px var(--sm-border)' }
+                  ? { color: 'var(--sm-text-1)', fontWeight: 600 }
                   : { color: 'var(--sm-text-3)' }}>
                 <m.icon className="w-3.5 h-3.5" /> {m.label}
               </button>
@@ -472,7 +472,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
                 <Label>Arquivo da proposta</Label>
                 <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => handlePdf(e.target.files?.[0])} />
                 {pdfUrl ? (
-                  <div className="rounded-xl border p-3 flex items-center gap-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+                  <div className="rounded-2xl border p-3 flex items-center gap-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.1)' }}>
                       <FileText className="w-4 h-4" style={{ color: '#EF4444' }} />
                     </div>
@@ -529,7 +529,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           </div>
 
           {/* Opções: o cliente escolhe uma no mesmo link */}
-          <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)' }}>
+          <div className="rounded-2xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)' }}>
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <p className="text-[12.5px] font-semibold flex items-center gap-1.5" style={{ color: 'var(--sm-text-1)' }}>
                 <Layers className="w-3.5 h-3.5" style={{ color: '#8B5CF6' }} />
@@ -582,7 +582,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
             <Label>{opt ? `Itens da ${opt.name || 'opção'}` : 'Itens'}</Label>
             <div className="space-y-2">
               {curItems.map((it, i) => (
-                <div key={i} className="rounded-xl border p-2.5 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+                <div key={i} className="rounded-2xl border p-2.5 space-y-2" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
                   <div className="flex gap-2">
                     <Input value={it.description} onChange={e => setItem(i, { description: e.target.value })}
                            placeholder="Serviço (ex: Gestão de Instagram)" className="flex-1" />
@@ -639,7 +639,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
           </>)}
 
           {/* Forma de pagamento */}
-          <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+          <div className="rounded-2xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <Label>Forma de pagamento</Label>
               <div className="inline-flex rounded-lg border p-0.5" style={{ borderColor: 'var(--sm-border)' }}>
@@ -699,7 +699,7 @@ export function CrmProposalEditor({ open, onClose, proposal, leads, defaultLeadI
 
         {/* Fechou por fora: marcar o aceite aqui */}
         {acceptOpen && !locked && (
-          <div ref={acceptRef} className="rounded-xl border p-4 space-y-3" style={{ borderColor: '#22C55E55', background: '#22C55E10' }}>
+          <div ref={acceptRef} className="rounded-2xl border p-4 space-y-3" style={{ borderColor: '#22C55E55', background: '#22C55E10' }}>
             <div>
               <p className="text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>Marcar como aceita</p>
               <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-2)' }}>

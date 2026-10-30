@@ -90,7 +90,7 @@ function CrmToolsDrawer({ tools }: { tools: CrmTool[] }) {
         }}
       >
         <SlidersHorizontal className="w-3.5 h-3.5" />
-        <span className="max-md:hidden">Ferramentas</span>
+        <span className="max-md:hidden xl:max-2xl:hidden">Ferramentas</span>
         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -131,8 +131,9 @@ function CrmToolsDrawer({ tools }: { tools: CrmTool[] }) {
 }
 
 // ── Cabeçalho ─────────────────────────────────────────────────────────────────
-// Uma linha só: "CRM" + olho, as abas numa cápsula de vidro ao lado, e as ações
-// à direita. Abaixo do lg as abas descem para uma faixa que desliza.
+// Do xl em diante, uma linha só: "CRM" + olho, as abas na cápsula de vidro e as
+// ações (busca, Novo lead, Ferramentas) à direita. Abaixo disso, o título e as
+// ações ficam na primeira linha e as abas descem para uma faixa que desliza.
 
 export function CrmHeader({ subtitle, actions, tools }: Props) {
   const hidden = useHideValues()
@@ -141,7 +142,7 @@ export function CrmHeader({ subtitle, actions, tools }: Props) {
     // No celular a página reserva 3.5rem no topo para o botão de menu flutuante
     // (sm-menu-gap). O cabeçalho sobe para essa faixa e o título fica ao lado do
     // botão, devolvendo esse espaço para o conteúdo (no CRM, os cartões do funil).
-    <div className="flex-shrink-0 max-md:-mt-14 flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 pt-4 max-md:pt-3 max-md:pl-14 pb-2">
+    <div className="flex-shrink-0 max-md:-mt-14 flex flex-wrap xl:flex-nowrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 pt-4 max-md:pt-3 max-md:pl-14 pb-2">
       <div className="flex items-center gap-1 flex-shrink-0">
         <h1
           className="font-display text-[22px] font-bold tracking-[-0.025em] leading-none"
@@ -166,7 +167,7 @@ export function CrmHeader({ subtitle, actions, tools }: Props) {
 
       <nav
         aria-label="Seções do CRM"
-        className="max-lg:order-last max-lg:w-full overflow-x-auto scrollbar-none"
+        className="max-xl:order-last max-xl:w-full max-md:-ml-10 max-md:w-[calc(100%+2.5rem)] xl:min-w-0 overflow-x-auto scrollbar-none"
       >
         <div className="inline-flex items-center gap-0.5 p-1 rounded-full border" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
           {TABS.map(t => (
@@ -194,7 +195,7 @@ export function CrmHeader({ subtitle, actions, tools }: Props) {
       </nav>
 
       {(actions || (tools && tools.length > 0)) && (
-        <div className="flex items-center gap-2 ml-auto max-md:w-[calc(100%+2.5rem)] max-md:-ml-10 max-md:order-last">
+        <div className="flex flex-1 min-w-0 items-center justify-end gap-2">
           {actions}
           {tools && tools.length > 0 && <CrmToolsDrawer tools={tools} />}
         </div>

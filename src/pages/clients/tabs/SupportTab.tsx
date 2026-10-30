@@ -217,7 +217,7 @@ export function SupportTab({ clientId }: { clientId: string }) {
 
       {/* Modal criar / editar */}
       <Dialog open={modalOpen} onOpenChange={v => { setModalOpen(v); if (!v) resetForm() }}>
-        <DialogContent className="max-w-md">
+        <DialogContent glass className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar contato' : 'Adicionar contato'}</DialogTitle>
           </DialogHeader>

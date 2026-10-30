@@ -26,8 +26,11 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, style, onPointerDownOutside, onInteractOutside, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /** Vidro (janelas do CRM): .sm-glass-modal e fundo mais leve (index.css) */
+    glass?: boolean
+  }
+>(({ className, children, style, glass = false, onPointerDownOutside, onInteractOutside, ...props }, ref) => {
   // Toque fantasma do celular: um modal que abre no lugar de outro (ex.: o lápis
   // de "editar" troca a visualização pela edição) recebia o mesmo toque no botão
   // de fechar que nasceu embaixo do dedo, e fechava na hora. Nos primeiros
@@ -44,7 +47,7 @@ const DialogContent = React.forwardRef<
 
   return (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay className={glass ? 'sm-glass-overlay' : undefined} />
     <DialogPrimitive.Content
       ref={setNode}
       style={{
@@ -68,6 +71,7 @@ const DialogContent = React.forwardRef<
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         'data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]',
         'data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
+        glass && 'sm-glass-modal',
         className
       )}
       onPointerDownOutside={e => { if (tooSoon()) e.preventDefault(); else onPointerDownOutside?.(e) }}

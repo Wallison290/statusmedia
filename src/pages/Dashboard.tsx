@@ -795,12 +795,25 @@ export function Dashboard() {
 
   return (
     <MotionConfig reducedMotion="user">
-      {/* Painel de vidro: conteúdo à esquerda, coluna da agenda à direita (xl).
-          Abaixo do xl a coluna desce para o fim, em duas colunas no md. */}
-      <div className="sm-glass-panel mx-3 mb-3 md:m-0 rounded-[28px] md:rounded-[32px] overflow-hidden md:min-h-full grid xl:grid-cols-[minmax(0,1fr)_340px]">
+      {/* Painel de vidro único, de ponta a ponta. O cartão do perfil fica no
+          canto superior direito (xl); abaixo disso, sino e avatar no topo. */}
+      <div className="sm-glass-panel mx-3 mb-3 md:m-0 rounded-[28px] md:rounded-[32px] overflow-hidden md:min-h-full">
         <div className="min-w-0 px-4 sm:px-6 lg:px-8 pb-10">
           <DashboardHero
             glass
+            profile={
+              <div className={`${CARD} sm-invert w-[300px] flex items-center gap-3 px-4 py-3`}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">
+                    {(agencyProfile as any)?.agency_name || userName}
+                  </p>
+                  <p className="text-[11px] text-[var(--sm-text-3)] truncate">{user?.email}</p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <HeroControls inverted />
+                </div>
+              </div>
+            }
             greeting={greeting}
             userName={userName}
             message={message}
@@ -860,9 +873,22 @@ export function Dashboard() {
             </Reveal>
           </section>
 
-          {/* ── 03 · Financeiro ────────────────────────────────────────────── */}
+          {/* ── 03 · Agenda e operação ─────────────────────────────────────── */}
           <section className="mt-12">
-            <SectionHead n="03" title="Financeiro" aside="ciclo atual">
+            <SectionHead n="03" title="Agenda e operação" aside="o mês e o dia a dia" />
+            <div className="grid md:grid-cols-2 gap-2.5 sm:gap-3 items-start">
+              <Reveal>
+                <AgendaWidget items={plannerCalItems} />
+              </Reveal>
+              <Reveal delay={0.08}>
+                <OpsWidget rows={opsRows} />
+              </Reveal>
+            </div>
+          </section>
+
+          {/* ── 04 · Financeiro ────────────────────────────────────────────── */}
+          <section className="mt-12">
+            <SectionHead n="04" title="Financeiro" aside="ciclo atual">
               <Link
                 to="/financial"
                 className="group flex items-center gap-1.5 text-[12px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-colors"
@@ -876,27 +902,6 @@ export function Dashboard() {
             </Reveal>
           </section>
         </div>
-
-        {/* ── Coluna da direita: conta, agenda e operação ─────────────────── */}
-        <aside className="sm-glass-side border-t xl:border-t-0 xl:border-l border-[var(--sm-border)] p-4 sm:p-5 grid md:grid-cols-2 xl:grid-cols-1 content-start gap-4">
-          <div className={`${CARD} sm-invert hidden xl:flex items-center gap-3 px-4 py-3`}>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">
-                {(agencyProfile as any)?.agency_name || userName}
-              </p>
-              <p className="text-[11px] text-[var(--sm-text-3)] truncate">{user?.email}</p>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <HeroControls inverted />
-            </div>
-          </div>
-          <Reveal delay={0.08} className="sm-invert">
-            <AgendaWidget items={plannerCalItems} />
-          </Reveal>
-          <Reveal delay={0.16} className="sm-invert">
-            <OpsWidget rows={opsRows} />
-          </Reveal>
-        </aside>
       </div>
     </MotionConfig>
   )
