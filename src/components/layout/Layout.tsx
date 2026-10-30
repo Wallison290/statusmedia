@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/hooks/useAuth'
+import { persistQueries } from '@/lib/queryPersist'
+import { preloadAllRoutes } from '@/lib/routePreload'
 import { GlassBackdrop } from '@/components/dashboard/GlassBackdrop'
 import { Menu, Clock, AlertTriangle } from 'lucide-react'
 import { Sidebar } from './Sidebar'
@@ -99,6 +103,20 @@ export function Layout() {
   const { pathname } = useLocation()
   const glassPanel = ['/crm', '/clients', '/feed', '/reports', '/planner', '/tasks', '/notes', '/instagram', '/financial', '/equipe', '/configuracoes', '/assinatura'].some(r => pathname === r || pathname.startsWith(r + '/'))
   const glass = pathname === '/dashboard' || glassPanel
+
+  // Agilidade: telas abrem com os últimos dados conhecidos (cópia local) e as
+  // outras abas são baixadas por trás com o navegador ocioso
+  const qc = useQueryClient()
+  const { user } = useAuth()
+  useEffect(() => {
+    if (!user?.id) return
+    return persistQueries(qc, user.id)
+  }, [qc, user?.id])
+  useEffect(() => {
+    if (!user?.id) return
+    const t = window.setTimeout(preloadAllRoutes, 3000)
+    return () => window.clearTimeout(t)
+  }, [user?.id])
 
   // Aplica o data-theme só enquanto o app autenticado estiver montado — páginas
   // públicas (landing, login, portal do cliente...) nunca herdam essa preferência.

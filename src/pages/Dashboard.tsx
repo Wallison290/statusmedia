@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { motion, MotionConfig } from 'framer-motion'
 import { CalendarDays, ArrowUpRight, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCrmPeriodStats } from '@/hooks/useCrmDashboard'
@@ -630,15 +631,22 @@ export function Dashboard() {
   const [finStats, setFinStats]               = useState<FinStats>({ mrr: 0, received: 0, pending: 0, overdueAmt: 0, overdueCount: 0, avgTicket: 0 })
 
   // ── Re-fetch whenever user or range changes ───────────────────────────────
+  // Números do período em cache: o Dashboard abre na hora com os últimos números
+  // conhecidos (cópia local, lib/queryPersist) e atualiza por trás. Trocar de
+  // período mantém os números anteriores na tela até os novos chegarem.
+  const dashQ = useQuery({
+    queryKey: ['dash_stats', agencyId, range.start.toISOString(), range.end.toISOString()],
+    enabled: !!user && !!agencyId,
+    placeholderData: keepPreviousData,
+    queryFn: () => fetchRaw(range),
+  })
   useEffect(() => {
-    if (!user) return
-    fetchStats(range)
-  }, [user, range.start.toISOString(), range.end.toISOString()])
+    if (dashQ.data) applyRaw(dashQ.data)
+    setLoading(!dashQ.data)
+  }, [dashQ.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
-  async function fetchStats({ start, end }: DateRange) {
-    const seq = ++fetchSeq.current
-    setLoading(true)
+  async function fetchRaw({ start, end }: DateRange) {
     const now       = new Date()
     const startDate = format(start, 'yyyy-MM-dd')
     const endDate   = format(end,   'yyyy-MM-dd')
@@ -670,9 +678,20 @@ export function Dashboard() {
         .select('status, scheduled_at')
         .eq('user_id', agencyId!),
     ])
+    // Só dados simples (o período vai junto, em texto): cabe na cópia local
+    return {
+      startISO: start.toISOString(), endISO: end.toISOString(),
+      clients: clientsRes.data ?? [], tasks: tasksRes.data ?? [], planner: plannerRes.data ?? [],
+      plannerCal: plannerCalRes.data ?? [], igPosts: igPostsRes.data ?? [],
+    }
+  }
 
-    if (seq !== fetchSeq.current) return   // o período mudou enquanto buscava
-    setLoading(false)
+  // Calcula os números a partir do resultado (do banco ou da cópia local)
+  function applyRaw(raw: Awaited<ReturnType<typeof fetchRaw>>) {
+    const start = new Date(raw.startISO), end = new Date(raw.endISO)
+    const now = new Date()
+    const clientsRes = { data: raw.clients }, tasksRes = { data: raw.tasks }, plannerRes = { data: raw.planner }
+    const plannerCalRes = { data: raw.plannerCal }, igPostsRes = { data: raw.igPosts }
 
     const clients  = clientsRes.data  || []
     const taskList = tasksRes.data    || []

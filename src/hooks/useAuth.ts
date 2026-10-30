@@ -3,6 +3,7 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 import type { Profile } from '@/types'
 import { clearLocalCache } from '@/lib/localQueryCache'
+import { clearPersistedQueries } from '@/lib/queryPersist'
 
 // ── Agência de quem está logado ──────────────────────────────────────────────
 // Todo dado da agência pertence ao user_id do dono. Um sócio (aba Equipe →
@@ -113,6 +114,7 @@ export function useAuth() {
 
   async function signOut() {
     clearLocalCache()
+    await clearPersistedQueries()
     await supabase.auth.signOut()
   }
 

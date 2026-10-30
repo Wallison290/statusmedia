@@ -12,6 +12,7 @@ import { cn } from '@/utils/formatters'
 import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useStorageUsage } from '@/hooks/useStorageUsage'
+import { preloadRoute } from '@/lib/routePreload'
 
 interface NavItem {
   href:       string
@@ -211,7 +212,7 @@ function NavEntry({ item, active, collapsed, rail = false, onInfo }: {
   // Item ativo
   if (active) {
     return (
-      <Link to={item.href}>
+      <Link to={item.href} onPointerEnter={() => preloadRoute(item.href)} onFocus={() => preloadRoute(item.href)} onTouchStart={() => preloadRoute(item.href)}>
         <div
           title={tooltip}
           className={`${shape} font-semibold transition-all duration-150 ${rail ? 'sm-rail-active' : ''}`}
@@ -234,7 +235,7 @@ function NavEntry({ item, active, collapsed, rail = false, onInfo }: {
 
   // Item normal inativo
   return (
-    <Link to={item.href}>
+    <Link to={item.href} onPointerEnter={() => preloadRoute(item.href)} onFocus={() => preloadRoute(item.href)} onTouchStart={() => preloadRoute(item.href)}>
       <div
         title={tooltip}
         className={`${shape} transition-all duration-150 group`}
