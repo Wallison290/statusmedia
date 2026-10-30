@@ -258,7 +258,7 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
       payment_plan: !form.payment_plan || form.payment_plan.mode === 'unico'
         ? (form.payment_plan ? { mode: 'unico' as const } : null)
         : form.payment_plan.mode === 'recorrente'
-          ? { mode: 'recorrente' as const }
+          ? { mode: 'recorrente' as const, dia: form.payment_plan.dia ?? null }
           : { mode: 'parcelado' as const, entrada: form.payment_plan.entrada ?? null, parcelas: form.payment_plan.parcelas ?? null },
       lost_reason: isLostColumn ? (form.lost_reason?.trim() || null) : null,
     }
@@ -382,27 +382,63 @@ export function CrmLeadModal({ open, onClose, lead, columns, columnId, onConvert
           <MoneyInput hidden={hideValues} value={form.estimated_cost} onChange={v => set('estimated_cost', v)} />
         </Field>
       </div>
-      {planMode === 'parcelado' && (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Entrada" icon={<Wallet className="w-3 h-3" />}>
-            <MoneyInput hidden={hideValues} value={form.payment_plan?.entrada ?? null}
-              onChange={v => set('payment_plan', { ...form.payment_plan!, entrada: v })} />
-          </Field>
-          <Field label="Parcelas" icon={<Receipt className="w-3 h-3" />}>
-            <Input type="number" inputMode="numeric" min={1} max={120} placeholder="Ex.: 8"
-              value={form.payment_plan?.parcelas ?? ''}
-              onChange={e => set('payment_plan', { ...form.payment_plan!, parcelas: e.target.value ? Number(e.target.value) : null })} />
-          </Field>
-        </div>
+      {/* Mensal: dia do mês em que o pagamento se repete */}
+      {planMode === 'recorrente' && (
+        <Field label="Dia do pagamento (todo mês)" icon={<CalendarClock className="w-3 h-3" />}>
+          <select
+            className={selectClass}
+            value={form.payment_plan?.dia ?? ''}
+            onChange={e => set('payment_plan', { ...form.payment_plan!, dia: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">Escolha o dia</option>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>Todo dia {d}</option>)}
+          </select>
+        </Field>
       )}
-      {planMode === 'parcelado' && !hideValues && (() => {
-        const split = splitInstallments(form.estimated_value ?? 0, form.payment_plan?.entrada ?? 0, form.payment_plan?.parcelas ?? 0)
-        if (!split || !form.payment_plan?.parcelas) return null
+
+      {/* Entrada + parcelas: a lista de parcelas já mostra quanto fica cada uma */}
+      {planMode === 'parcelado' && (() => {
+        const total    = form.estimated_value ?? 0
+        const entrada  = form.payment_plan?.entrada ?? 0
+        const parcelas = form.payment_plan?.parcelas ?? null
+        const split    = parcelas ? splitInstallments(total, entrada, parcelas) : null
+        const max      = Math.max(36, parcelas ?? 0)
         return (
-          <p className="-mt-2 text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>
-            {split.entrada > 0 && <>Entrada de <strong style={{ color: 'var(--sm-text-1)' }}>{money(split.entrada, true)}</strong> + </>}
-            <strong style={{ color: 'var(--sm-text-1)' }}>{split.parcelas}x de {money(split.parcela, true)}</strong>
-          </p>
+          <div className="rounded-2xl border p-3 space-y-3" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Entrada (opcional)" icon={<Wallet className="w-3 h-3" />}>
+                <MoneyInput hidden={hideValues} value={form.payment_plan?.entrada ?? null}
+                  onChange={v => set('payment_plan', { ...form.payment_plan!, entrada: v })} />
+              </Field>
+              <Field label={entrada > 0 ? 'Restante dividido em' : 'Dividido em'} icon={<Receipt className="w-3 h-3" />}>
+                <select
+                  className={selectClass}
+                  value={parcelas ?? ''}
+                  onChange={e => set('payment_plan', { ...form.payment_plan!, parcelas: e.target.value ? Number(e.target.value) : null })}
+                >
+                  <option value="">Quantas parcelas?</option>
+                  {Array.from({ length: max }, (_, i) => i + 1).map(n => {
+                    const s = splitInstallments(total, entrada, n)
+                    return <option key={n} value={n}>{s ? `${n}x de ${money(s.parcela, true)}` : `${n}x`}</option>
+                  })}
+                </select>
+              </Field>
+            </div>
+            <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-3)' }}>
+              {!(total > 0)
+                ? 'Preencha o valor total acima para ver quanto fica cada parcela.'
+                : entrada >= total
+                  ? <span style={{ color: '#f87171' }}>A entrada precisa ser menor que o valor total.</span>
+                  : !split
+                    ? <>Escolha em quantas vezes {entrada > 0 ? <>os <strong style={{ color: 'var(--sm-text-1)' }}>{money(total - entrada, true)}</strong> restantes vão</> : 'o valor vai'} ser divididos.</>
+                    : <>
+                        Total <strong style={{ color: 'var(--sm-text-1)' }}>{money(total, true)}</strong>
+                        {' = '}
+                        {split.entrada > 0 && <>entrada de <strong style={{ color: 'var(--sm-text-1)' }}>{money(split.entrada, true)}</strong> + </>}
+                        <strong style={{ color: 'var(--sm-text-1)' }}>{split.parcelas}x de {money(split.parcela, true)}</strong>
+                      </>}
+            </p>
+          </div>
         )
       })()}
       {form.estimated_value != null && (

@@ -767,6 +767,7 @@ export function CrmBoard() {
       ...(lead.estimated_value ? { valor: String(lead.estimated_value) } : {}),
       ...(lead.payment_plan?.entrada ? { entrada: String(lead.payment_plan.entrada) } : {}),
       ...(lead.payment_plan?.parcelas ? { parcelas: String(lead.payment_plan.parcelas) } : {}),
+      ...(lead.payment_plan?.dia ? { dia_vencimento: String(lead.payment_plan.dia) } : {}),
     })
     setModalOpen(false)
     navigate(`/clients/new?${params.toString()}`)

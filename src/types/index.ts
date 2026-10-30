@@ -542,7 +542,7 @@ export interface CrmLead {
   estimated_cost?:     number | null   // custos/taxas do serviço; líquido = valor - custo
   /** migration 114: como o serviço é cobrado. recorrente → estimated_value é o
    *  valor mensal; único/parcelado → é o total. null = único (como era antes) */
-  payment_plan?:       { mode: 'unico' | 'recorrente' | 'parcelado'; entrada?: number | null; parcelas?: number | null } | null
+  payment_plan?:       { mode: 'unico' | 'recorrente' | 'parcelado'; entrada?: number | null; parcelas?: number | null; dia?: number | null } | null
   awaiting_reply_since?: string | null  // o lead respondeu e espera a agência
   opted_out_at?:       string | null    // pediu para não receber mais mensagens
   meeting_at?:         string | null

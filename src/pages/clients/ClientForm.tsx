@@ -112,7 +112,13 @@ export function ClientForm() {
     const valor = searchParams.get('valor')
     if (mode && ['unico', 'recorrente', 'parcelado'].includes(mode)) {
       const parcelas = Number(searchParams.get('parcelas')) || null
-      setForm(prev => ({ ...prev, billing_mode: mode, parcelas: mode === 'parcelado' ? parcelas : prev.parcelas }))
+      const dia = Number(searchParams.get('dia_vencimento')) || null
+      setForm(prev => ({
+        ...prev,
+        billing_mode: mode,
+        parcelas: mode === 'parcelado' ? parcelas : prev.parcelas,
+        dia_vencimento: mode === 'recorrente' && dia ? dia : prev.dia_vencimento,
+      }))
       if (valor) (mode === 'recorrente' ? setMoney : setTotalMoney)(moneyToInput(Number(valor)))
       const entrada = searchParams.get('entrada')
       if (mode === 'parcelado' && entrada) setEntradaMoney(moneyToInput(Number(entrada)))
@@ -377,9 +383,15 @@ export function ClientForm() {
               <Field label="Entrada (R$)" hint="Deixe em branco se não tiver entrada.">
                 <TextInput inputMode="decimal" value={entradaMoney} onChange={e => setEntradaMoney(e.target.value)} placeholder="Ex.: 3.000,00" />
               </Field>
-              <Field label="Quantidade de parcelas">
-                <TextInput type="number" min={1} max={120} value={form.parcelas ?? ''}
-                  onChange={e => set('parcelas', e.target.value ? Number(e.target.value) : null)} placeholder="Ex.: 8" />
+              {/* A lista já mostra quanto fica cada parcela */}
+              <Field label={entradaMoney.trim() ? 'Restante dividido em' : 'Dividido em'}>
+                <SelectInput value={form.parcelas ?? ''} onChange={e => set('parcelas', e.target.value ? Number(e.target.value) : null)}>
+                  <option value="">Quantas parcelas?</option>
+                  {Array.from({ length: Math.max(36, form.parcelas ?? 0) }, (_, i) => i + 1).map(n => {
+                    const s = splitInstallments(totalMoney.trim() ? parseMoney(totalMoney) : 0, entradaMoney.trim() ? parseMoney(entradaMoney) : 0, n)
+                    return <option key={n} value={n}>{s ? `${n}x de ${fmtBRL(s.parcela, true)}` : `${n}x`}</option>
+                  })}
+                </SelectInput>
               </Field>
               <Field label="Data da entrada">
                 <TextInput type="date" value={form.billing_due_date ?? ''} onChange={e => set('billing_due_date', e.target.value || null)} />
