@@ -19,14 +19,14 @@ Deno.serve(async (req) => {
     const given = req.headers.get('x-thumb-secret') ?? ''
     const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(given))))
       .map(b => b.toString(16).padStart(2, '0')).join('')
-    if (digest !== '91626790239ce6478b5f4dac0d8f52367a265b30fc8e0e227b4317e887838b46') return json({ error: 'forbidden' }, 403)
+    if (digest !== '1c97e9cef1c77587fc7d5d6a89f19fe3a027c3010f9c6bfb6153f0729eb5fa7c') return json({ error: 'forbidden' }, 403)
 
     const accountId = Deno.env.get('R2_ACCOUNT_ID')!
     const accessKey = Deno.env.get('R2_ACCESS_KEY_ID')!
     const secretKey = Deno.env.get('R2_SECRET_KEY')!
     const bucket    = Deno.env.get('R2_BUCKET')!
 
-    const { key, data } = await req.json()
+    const { key, data, variant } = await req.json()
     if (typeof key !== 'string' || !key || key.startsWith('thumbs/') || key.includes('..') || typeof data !== 'string') {
       return json({ error: 'parâmetros inválidos' }, 400)
     }
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     if (bytes.length > 2 * 1024 * 1024) return json({ error: 'miniatura grande demais' }, 400)
 
     const aws = new AwsClient({ accessKeyId: accessKey, secretAccessKey: secretKey, service: 's3', region: 'auto' })
-    const res = await aws.fetch(`https://${accountId}.r2.cloudflarestorage.com/${bucket}/thumbs/${key}.webp`, {
+    const res = await aws.fetch(`https://${accountId}.r2.cloudflarestorage.com/${bucket}/thumbs/${variant === 'md' ? 'md/' : ''}${key}.webp`, {
       method: 'PUT', headers: { 'Content-Type': 'image/webp' }, body: bytes,
     })
     if (!res.ok) return json({ error: `R2 ${res.status}` }, 502)

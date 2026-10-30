@@ -14,15 +14,19 @@ import sharp from 'sharp'
 const run = promisify(execFile)
 const FN_URL = process.env.FN_URL
 const SECRET = process.env.THUMB_SECRET
-const list = JSON.parse(fs.readFileSync('list.json', 'utf8'))
+const list = JSON.parse(fs.readFileSync('list.json', 'utf8')).filter(i => !(process.env.VARIANT === 'md' && i.kind === 'video'))
 const CONCURRENCY = 3
+// VARIANT=md: versão média de 1080 px (thumbs/md/...), só imagens
+const VARIANT = process.env.VARIANT === 'md' ? 'md' : ''
+const SIZE    = VARIANT ? 1080 : 480
+const QUALITY = VARIANT ? 80 : 72
 
 const keyOf = url => decodeURIComponent(new URL(url).pathname.replace(/^\//, ''))
 
 async function thumbFor(item, i) {
   const key = keyOf(item.url)
   // Já existe? (segunda rodada não refaz)
-  const head = await fetch(`${new URL(item.url).origin}/thumbs/${key.split('/').map(encodeURIComponent).join('/')}.webp`, { method: 'HEAD' })
+  const head = await fetch(`${new URL(item.url).origin}/thumbs/${VARIANT ? 'md/' : ''}${key.split('/').map(encodeURIComponent).join('/')}.webp`, { method: 'HEAD' })
   if (head.ok) return 'existe'
 
   const res = await fetch(item.url)
@@ -42,13 +46,13 @@ async function thumbFor(item, i) {
   }
 
   const webp = await sharp(input, { failOn: 'none' }).rotate()
-    .resize(480, 480, { fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: 72 }).toBuffer()
+    .resize(SIZE, SIZE, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: QUALITY }).toBuffer()
 
   const up = await fetch(FN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-thumb-secret': SECRET },
-    body: JSON.stringify({ key, data: webp.toString('base64') }),
+    body: JSON.stringify({ key, data: webp.toString('base64'), ...(VARIANT ? { variant: VARIANT } : {}) }),
   })
   return up.ok ? `ok ${(buf.length / 1048576).toFixed(1)}MB→${Math.round(webp.length / 1024)}KB` : `enviar ${up.status} ${await up.text()}`
 }

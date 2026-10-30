@@ -2,9 +2,9 @@
 // ela ainda não existir, cai para o arquivo original. Para vídeo, `videoSrc`
 // mostra a miniatura do primeiro quadro e, sem ela, o <video> como antes.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Play } from 'lucide-react'
-import { thumbUrl } from '@/lib/thumbs'
+import { thumbUrl, mediumUrl } from '@/lib/thumbs'
 
 export function ThumbImg({ src, alt = '', className = '', draggable = false }: {
   src: string; alt?: string; className?: string; draggable?: boolean
@@ -22,6 +22,40 @@ export function ThumbImg({ src, alt = '', className = '', draggable = false }: {
       onError={() => { if (!useOriginal) setUseOriginal(true) }}
     />
   )
+}
+
+/**
+ * Imagem grande (janela do post, carrossel, aprovação): versão média de 1080 px
+ * em vez da arte original de vários MB. Enquanto carrega, a miniatura (que já
+ * costuma estar no navegador) aparece por trás; sem versão média, cai no original.
+ */
+export function MediumImg({ src, alt = '', className = '', fit = 'cover' }: {
+  src: string; alt?: string; className?: string; fit?: 'cover' | 'contain'
+}) {
+  const md = mediumUrl(src)
+  const th = thumbUrl(src)
+  const [useOriginal, setUseOriginal] = useState(!md)
+  // Trocou de slide: tenta de novo a versão média da nova imagem
+  useEffect(() => { setUseOriginal(!md) }, [src]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <img
+      src={useOriginal ? src : md!}
+      alt={alt}
+      decoding="async"
+      draggable={false}
+      className={className}
+      style={th ? { backgroundImage: `url("${th}")`, backgroundSize: fit, backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}
+      onError={() => { if (!useOriginal) setUseOriginal(true) }}
+    />
+  )
+}
+
+/** Baixa por trás a versão média de imagens (próximo/anterior do carrossel). */
+export function preloadMedium(urls: (string | null | undefined)[]) {
+  for (const u of urls) {
+    const md = mediumUrl(u)
+    if (md) { const img = new Image(); img.decoding = 'async'; img.src = md }
+  }
 }
 
 /** Capa de vídeo: miniatura WebP do primeiro quadro; sem ela, o próprio vídeo. */

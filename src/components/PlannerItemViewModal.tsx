@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ThumbImg } from '@/components/ThumbImg'
+import { ThumbImg, MediumImg, preloadMedium } from '@/components/ThumbImg'
 import {
   ImageIcon, Video, Music, FileText, File,
   ExternalLink, Link2, Building2, Pencil, Trash2, Check,
@@ -463,6 +463,12 @@ export function PlannerItemViewModal({
   )
 
   const [imgIdx, setImgIdx]           = useState(0)
+  // Próximo e anterior já baixados: a troca de slide fica imediata
+  useEffect(() => {
+    const near = [allMedia[imgIdx - 1], allMedia[imgIdx + 1]]
+      .filter(m => m && m.file_type.startsWith('image/')).map(m => m!.file_url)
+    preloadMedium(near)
+  }, [imgIdx, item.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const [editingStatus, setEditingStatus] = useState(false)
   const [newStatus, setNewStatus]     = useState<PlannerStatus>(item.status as PlannerStatus)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -534,11 +540,9 @@ export function PlannerItemViewModal({
               {allMedia.length > 0 ? (
                 <>
                   {allMedia[imgIdx].file_type.startsWith('image/') ? (
-                    <img
+                    <MediumImg
                       src={allMedia[imgIdx].file_url}
-                      alt=""
                       className="absolute inset-0 w-full h-full object-cover"
-                      draggable={false}
                     />
                   ) : (
                     <video
@@ -736,11 +740,11 @@ export function PlannerItemViewModal({
                     {/* Mídia atual */}
                     <div className="relative w-full aspect-[4/5] flex items-center justify-center bg-[color:var(--sm-bg-alt)]">
                       {allMedia[imgIdx].file_type.startsWith('image/') ? (
-                        <img
+                        <MediumImg
                           src={allMedia[imgIdx].file_url}
                           alt={allMedia[imgIdx].file_name}
                           className="w-full h-full object-contain"
-                          draggable={false}
+                          fit="contain"
                         />
                       ) : (
                         <video

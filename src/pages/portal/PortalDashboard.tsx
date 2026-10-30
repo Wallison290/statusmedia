@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { ThumbImg } from '@/components/ThumbImg'
+import { ThumbImg, MediumImg } from '@/components/ThumbImg'
 import { useWeeklyFormConfig } from '@/hooks/useWeeklyForm'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -597,7 +597,7 @@ function ItemDetailView({
               {/* Mídia principal — mobile: largura total natural; desktop: altura do modal, largura natural (sem corte) */}
               <div className="relative bg-black lg:h-full lg:min-h-0 lg:flex lg:items-center lg:justify-center">
                 {currentMedia?.kind === 'image' ? (
-                  <img src={currentMedia.file_url} alt={currentMedia.file_name}
+                  <MediumImg src={currentMedia.file_url} alt={currentMedia.file_name} fit="contain"
                     className="block w-full h-auto lg:w-auto lg:h-full lg:max-w-[62vw] lg:object-contain" />
                 ) : currentMedia?.kind === 'video' ? (
                   // Tela onde o cliente aprova o conteúdo. Antes começava mudo

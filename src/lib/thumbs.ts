@@ -19,6 +19,10 @@ import { supabase } from '@/integrations/supabase/client'
 const R2_PUBLIC_BASE = (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined)?.replace(/\/$/, '')
 const THUMB_MAX = 480
 const THUMB_QUALITY = 0.72
+// Versão média (thumbs/md/<chave>.webp): para ver na tela grande (janela do
+// post, carrossel, aprovação do cliente). O original segue para o Instagram.
+const MEDIUM_MAX = 1080
+const MEDIUM_QUALITY = 0.82
 
 /** Chave do arquivo no R2 a partir da URL pública (null se não for do R2). */
 export function r2KeyOf(url: string | null | undefined): string | null {
@@ -43,25 +47,41 @@ export function thumbUrl(url: string | null | undefined): string | null {
   return `${base}/thumbs/${key.split('/').map(encodeURIComponent).join('/')}.webp`
 }
 
-// ── Geração no aparelho de quem envia ───────────────────────────────────────
-
-function canvasToWebp(canvas: HTMLCanvasElement): Promise<Blob | null> {
-  return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/webp', THUMB_QUALITY))
+/** URL da versão média de 1080 px (ou null quando o arquivo não está no R2). */
+export function mediumUrl(url: string | null | undefined): string | null {
+  const key = r2KeyOf(url)
+  if (!key) return null
+  const base = new URL(url!).origin
+  return `${base}/thumbs/md/${key.split('/').map(encodeURIComponent).join('/')}.webp`
 }
 
-function fit(w: number, h: number) {
-  const scale = Math.min(1, THUMB_MAX / Math.max(w, h))
+// ── Geração no aparelho de quem envia ───────────────────────────────────────
+
+function canvasToWebp(canvas: HTMLCanvasElement, quality = THUMB_QUALITY): Promise<Blob | null> {
+  return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/webp', quality))
+}
+
+function fit(w: number, h: number, max = THUMB_MAX) {
+  const scale = Math.min(1, max / Math.max(w, h))
   return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) }
 }
 
-async function imageThumb(file: File): Promise<Blob | null> {
+async function imageThumb(file: File, max = THUMB_MAX, quality = THUMB_QUALITY): Promise<Blob | null> {
   const bmp = await createImageBitmap(file)
-  const { w, h } = fit(bmp.width, bmp.height)
+  const { w, h } = fit(bmp.width, bmp.height, max)
   const canvas = document.createElement('canvas')
   canvas.width = w; canvas.height = h
   canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h)
   bmp.close?.()
-  return canvasToWebp(canvas)
+  return canvasToWebp(canvas, quality)
+}
+
+async function enviarVariante(key: string, blob: Blob, variant?: 'md') {
+  const { data, error } = await supabase.functions.invoke('r2-upload-url', {
+    body: { fileName: 'thumb.webp', contentType: 'image/webp', sizeBytes: blob.size, thumbFor: key, ...(variant ? { variant } : {}) },
+  })
+  if (error || !data?.uploadUrl) return
+  await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/webp' }, body: blob })
 }
 
 function videoThumb(file: File): Promise<Blob | null> {
@@ -98,11 +118,11 @@ export async function gerarMiniatura(file: File, publicUrl: string): Promise<voi
     const isVid = file.type.startsWith('video/')
     if (!isImg && !isVid) return
     const blob = isImg ? await imageThumb(file) : await videoThumb(file)
-    if (!blob) return
-    const { data, error } = await supabase.functions.invoke('r2-upload-url', {
-      body: { fileName: 'thumb.webp', contentType: 'image/webp', sizeBytes: blob.size, thumbFor: key },
-    })
-    if (error || !data?.uploadUrl) return
-    await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/webp' }, body: blob })
+    if (blob) await enviarVariante(key, blob)
+    // Imagem: também a versão média para a tela grande
+    if (isImg) {
+      const md = await imageThumb(file, MEDIUM_MAX, MEDIUM_QUALITY)
+      if (md) await enviarVariante(key, md, 'md')
+    }
   } catch { /* miniatura é só otimização */ }
 }

@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     const agencyId = await agencyIdFor(user.id)
 
     // ── Validação do pedido ────────────────────────────────────────────────
-    const { fileName, contentType, sizeBytes, thumbFor } = await req.json()
+    const { fileName, contentType, sizeBytes, thumbFor, variant } = await req.json()
 
     // ── Miniatura de um arquivo já enviado (lib/thumbs.ts no front) ─────────
     // Vai para thumbs/<chave original>.webp; só da própria agência e pequena.
@@ -73,7 +73,8 @@ Deno.serve(async (req) => {
           || (typeof sizeBytes === 'number' && sizeBytes > 2 * 1024 * 1024)) {
         return json({ error: 'Miniatura inválida.' }, 400)
       }
-      const thumbKey = `thumbs/${alvoKey}.webp`
+      // variant 'md': versão média de 1080 px (thumbs/md/...)
+      const thumbKey = variant === 'md' ? `thumbs/md/${alvoKey}.webp` : `thumbs/${alvoKey}.webp`
       const aws = new AwsClient({ accessKeyId: accessKey, secretAccessKey: secretKey, service: 's3', region: 'auto' })
       const destino = new URL(`https://${accountId}.r2.cloudflarestorage.com/${bucket}/${thumbKey}`)
       destino.searchParams.set('X-Amz-Expires', '600')
