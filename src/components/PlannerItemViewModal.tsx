@@ -518,7 +518,7 @@ export function PlannerItemViewModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent
+      <DialogContent glass
         className="p-0 overflow-hidden [&>button.absolute]:hidden gap-0 rounded-2xl shadow-2xl border-0 flex flex-col"
         style={{ width: '96vw', maxWidth: '64rem', height: '92vh' }}
       >

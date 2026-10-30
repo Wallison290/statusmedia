@@ -50,10 +50,10 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = { urgente: 0, alta: 1, medi
 
 const OVERDUE = '#EF4444'
 const card = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
-const primaryBtn = 'inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90 whitespace-nowrap'
-const ghostBtn = 'inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border text-[13px] font-medium hover:bg-black/5 transition-colors whitespace-nowrap'
+const primaryBtn = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-full text-[13px] font-semibold text-white transition-opacity hover:opacity-90 whitespace-nowrap'
+const ghostBtn = 'inline-flex items-center gap-1.5 h-10 px-4 rounded-full border text-[13px] font-medium hover:bg-[var(--sm-bg-alt)] transition-colors whitespace-nowrap'
 const ghostStyle = { borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' } as const
-const iconBtn = 'w-9 h-9 flex items-center justify-center hover:bg-black/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed'
+const iconBtn = 'w-9 h-9 flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed'
 const eyebrow = 'text-[10.5px] font-semibold uppercase tracking-[0.08em]'
 
 function Dot({ color, children, strong }: { color: string; children: React.ReactNode; strong?: boolean }) {
@@ -74,7 +74,7 @@ function StatusPill({ status, onChange, up = true }: { status: TaskStatus; onCha
   return (
     <div className="relative flex-shrink-0">
       <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }} title="Mudar status"
-        className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1.5 -ml-2 rounded-lg text-[11.5px] font-medium hover:bg-black/5 transition-colors"
+        className="inline-flex items-center gap-1.5 h-7 pl-2 pr-1.5 -ml-2 rounded-lg text-[11.5px] font-medium hover:bg-[var(--sm-bg-alt)] transition-colors"
         style={{ color: 'var(--sm-text-2)' }}>
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
         {cfg.label}
@@ -86,11 +86,10 @@ function StatusPill({ status, onChange, up = true }: { status: TaskStatus; onCha
             <div className="fixed inset-0 z-10" onClick={e => { e.stopPropagation(); setOpen(false) }} />
             <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.12 }}
-              className={`absolute ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 z-20 w-44 border rounded-xl shadow-xl overflow-hidden p-1`}
-              style={card}>
+              className={`absolute ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} left-0 z-20 w-44 rounded-2xl shadow-xl overflow-hidden p-1 sm-glass-pop`}>
               {(Object.entries(STATUS_CFG) as [TaskStatus, typeof STATUS_CFG[TaskStatus]][]).map(([s, c]) => (
                 <button key={s} onClick={e => { e.stopPropagation(); onChange(s); setOpen(false) }}
-                  className={`w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-black/5 text-left ${s === status ? 'font-semibold' : ''}`}
+                  className={`w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-[var(--sm-bg-alt)] text-left ${s === status ? 'font-semibold' : ''}`}
                   style={{ color: 'var(--sm-text-1)' }}>
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
                   {c.label}
@@ -125,7 +124,7 @@ function MoreMenu({ onEdit, onDelete, up = true }: { onEdit: () => void; onDelet
   return (
     <div className="relative flex-shrink-0">
       <button onClick={e => { e.stopPropagation(); setOpen(o => !o) }} aria-label="Mais ações"
-        className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors" style={{ color: 'var(--sm-text-3)' }}>
+        className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors" style={{ color: 'var(--sm-text-3)' }}>
         <MoreHorizontal className="w-4 h-4" />
       </button>
       <AnimatePresence>
@@ -134,10 +133,9 @@ function MoreMenu({ onEdit, onDelete, up = true }: { onEdit: () => void; onDelet
             <div className="fixed inset-0 z-10" onClick={e => { e.stopPropagation(); setOpen(false) }} />
             <motion.div initial={{ opacity: 0, y: 4, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 4, scale: 0.95 }} transition={{ duration: 0.1 }}
-              className={`absolute right-0 ${up ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 w-36 rounded-xl border shadow-xl overflow-hidden p-1`}
-              style={card}>
+              className={`absolute right-0 ${up ? 'bottom-full mb-1' : 'top-full mt-1'} z-20 w-36 rounded-2xl shadow-xl overflow-hidden p-1 sm-glass-pop`}>
               <button onClick={e => { e.stopPropagation(); onEdit(); setOpen(false) }}
-                className="w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-black/5" style={{ color: 'var(--sm-text-1)' }}>
+                className="w-full flex items-center gap-2 px-2.5 h-8 rounded-lg text-[12.5px] hover:bg-[var(--sm-bg-alt)]" style={{ color: 'var(--sm-text-1)' }}>
                 <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-4)' }} /> Editar
               </button>
               <button onClick={e => { e.stopPropagation(); onDelete(); setOpen(false) }}
@@ -174,7 +172,7 @@ function TaskCard({
       }}
       onDragEnd={() => { setTimeout(() => { dragStarted.current = false }, 50); onDragEnd() }}
       onClick={() => { if (!dragStarted.current) onView(task) }}
-      className={['relative w-full min-w-0 rounded-xl border pl-4 pr-3 py-3 overflow-hidden',
+      className={['sm-glass-tile relative w-full min-w-0 rounded-2xl pl-4 pr-3 py-3 overflow-hidden',
         'cursor-pointer hover:border-[#2563EB]/50 transition-all duration-150 select-none',
         dragging ? 'opacity-40 scale-95' : ''].join(' ')}
       style={card}>
@@ -230,7 +228,7 @@ function DayColumn({
 
   return (
     <div
-      className="w-full min-w-0 self-start flex flex-col rounded-2xl border p-2.5 transition-colors min-h-[440px]"
+      className="w-full min-w-0 self-start flex flex-col rounded-[22px] border p-2.5 transition-colors min-h-[440px]"
       style={isDragOver
         ? { background: 'rgba(37,99,235,0.05)', borderColor: 'rgba(37,99,235,0.5)' }
         : { background: 'var(--sm-bg-alt)', borderColor: today ? 'rgba(37,99,235,0.45)' : 'var(--sm-border)' }}
@@ -256,7 +254,7 @@ function DayColumn({
             <span className="text-[12px] font-semibold tabular-nums px-1.5" style={{ color: 'var(--sm-text-3)' }}>{tasks.length}</span>
           )}
           <button onClick={() => onAddTask(day)} aria-label={`Nova tarefa em ${format(day, 'dd/MM')}`}
-            className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-black/5 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center border hover:bg-[var(--sm-bg-alt)] transition-colors"
             style={{ ...card, color: 'var(--sm-text-2)' }}
             title={`Nova tarefa — ${format(day, 'dd/MM')}`}>
             <Plus className="w-3.5 h-3.5" />
@@ -374,8 +372,8 @@ function TimelineView({ tasks, days, onView }: {
 
   return (
     <div className="flex-1 overflow-auto px-4 md:px-6 pb-4">
-      <div className="rounded-2xl border overflow-hidden min-w-[560px]" style={card}>
-        <div className="flex sticky top-0 z-10 border-b" style={{ ...border, background: 'var(--sm-bg-alt)' }}>
+      <div className="sm-glass-tile rounded-[22px] overflow-hidden min-w-[560px]">
+        <div className="flex sticky top-0 z-10 border-b" style={{ ...border, background: 'var(--sm-bg-card2)' }}>
           <div className="w-44 lg:w-72 flex-shrink-0 px-4 py-2.5">
             <span className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>Tarefa</span>
           </div>
@@ -476,7 +474,7 @@ function DayTasksModal({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-md">
+      <DialogContent glass className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-[19px] font-bold text-[color:var(--sm-text-1)]">{dateLabel}</DialogTitle>
           <p className="text-[12.5px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
@@ -508,7 +506,7 @@ function DayTasksModal({
                 </div>
                 <div className="flex items-center gap-0.5 flex-shrink-0" style={{ color: 'var(--sm-text-3)' }}>
                   <button onClick={() => { onClose(); onEdit(task) }} title="Editar" aria-label="Editar"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors">
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => onDelete(task.id)} title="Excluir" aria-label="Excluir"
@@ -581,11 +579,11 @@ function MonthView({ tasks, onView, onEdit, onDelete, onStatusChange, onAddTask 
       <div className="flex-1 overflow-auto px-4 md:px-6 pb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-[20px] font-bold capitalize" style={{ color: 'var(--sm-text-1)' }}>{monthLabel}</h2>
-          <div className="flex items-center rounded-xl border overflow-hidden" style={card}>
+          <div className="flex items-center rounded-full border overflow-hidden" style={card}>
             <button onClick={() => setMonthBase(m => subMonths(m, 1))} aria-label="Mês anterior" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={() => setMonthBase(new Date())} className="h-9 px-3 text-[12.5px] font-semibold border-x hover:bg-black/5"
+            <button onClick={() => setMonthBase(new Date())} className="h-9 px-3 text-[12.5px] font-semibold border-x hover:bg-[var(--sm-bg-alt)]"
               style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
               Hoje
             </button>
@@ -596,7 +594,7 @@ function MonthView({ tasks, onView, onEdit, onDelete, onStatusChange, onAddTask 
         </div>
 
         {/* Grade do mês: folha única com linhas finas (seg → dom) */}
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-border)' }}>
+        <div className="rounded-[22px] border overflow-hidden" style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-border)' }}>
           <div className="grid grid-cols-7 gap-px">
             {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => (
               <div key={d} className={`text-center py-2 ${eyebrow}`} style={{ background: 'var(--sm-bg-alt)', color: 'var(--sm-text-4)' }}>{d}</div>
@@ -709,7 +707,7 @@ function ListView({ tasks, onView, onEdit, onDelete, onStatusChange }: {
           const ativo = filterStatus === s
           return (
             <button key={s} onClick={() => setFilterStatus(s)} aria-pressed={ativo}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] whitespace-nowrap transition-colors hover:bg-black/5"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] whitespace-nowrap transition-colors hover:bg-[var(--sm-bg-alt)]"
               style={ativo
                 ? { background: 'var(--sm-bg-card)', color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: 'inset 0 0 0 1px var(--sm-border)' }
                 : { color: 'var(--sm-text-3)', fontWeight: 500 }}>
@@ -721,9 +719,9 @@ function ListView({ tasks, onView, onEdit, onDelete, onStatusChange }: {
         })}
       </div>
 
-      <div className="flex-1 overflow-auto rounded-2xl border mb-4" style={card}>
+      <div className="sm-glass-tile flex-1 overflow-auto rounded-[22px] mb-4">
         <div className={`max-md:hidden sticky top-0 z-10 px-4 py-2.5 border-b ${LIST_COLS}`}
-          style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-alt)' }}>
+          style={{ borderColor: 'var(--sm-border)', background: 'var(--sm-bg-card2)' }}>
           <SortBtn k="title" label="Tarefa" />
           <SortBtn k="due_date" label="Prazo" />
           <SortBtn k="priority" label="Prioridade" />
@@ -810,7 +808,7 @@ function TaskViewModal({ task, members, open, onClose, onEdit, onDelete, onStatu
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent glass className="max-w-lg">
         <DialogHeader>
           <div className="pr-6">
             {clientName && <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--sm-text-4)' }}>{clientName}</p>}
@@ -965,7 +963,7 @@ function TaskDialog({ open, onClose, prefillDate, clients, members, editingTask,
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent glass className="max-w-lg">
         <DialogHeader><DialogTitle className="font-display text-[19px] font-bold">{isEdit ? 'Editar tarefa' : 'Nova tarefa'}</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-1">
           <Input label="Título *" value={form.title} onChange={e => set('title', e.target.value)} placeholder="Descrição da tarefa..." />
@@ -1164,11 +1162,11 @@ export function Tasks() {
     <div className="flex flex-col h-full overflow-x-hidden" style={{ background: 'var(--sm-bg-page)' }}>
 
       {/* ── Cabeçalho (no celular, ao lado do menu) ───────────────────────── */}
-      <div className="px-4 md:px-6 pt-4 md:pt-6 flex-shrink-0">
+      <div className="px-4 md:px-6 pt-4 md:pt-7 flex-shrink-0">
         <header className="mb-5 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Operação</p>
-            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Operação</p>
+            <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
               Tarefas
             </h1>
           </div>
@@ -1183,12 +1181,11 @@ export function Tasks() {
         </header>
 
         {/* ── Números em uma faixa com divisórias ── */}
-        <div className="rounded-2xl border grid grid-cols-2 lg:grid-cols-4 gap-px overflow-hidden mb-5"
-          style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           {kpis.map(k => (
-            <div key={k.label} className="relative px-4 md:px-5 py-3.5" style={{ background: 'var(--sm-bg-card)' }}>
+            <div key={k.label} className="sm-glass-tile relative rounded-[22px] overflow-hidden px-4 md:px-5 py-3.5">
               {k.alert && <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: OVERDUE }} />}
-              <p className={eyebrow} style={{ color: 'var(--sm-text-4)' }}>{k.label}</p>
+              <p className={eyebrow} style={{ color: 'var(--sm-text-3)' }}>{k.label}</p>
               <p className="font-display text-[26px] font-bold leading-tight tabular-nums mt-0.5"
                 style={{ color: k.alert ? OVERDUE : 'var(--sm-text-1)' }}>{k.value}</p>
               {k.bar != null ? (
@@ -1196,22 +1193,23 @@ export function Tasks() {
                   <div className="h-full rounded-full transition-all duration-500" style={{ width: `${k.bar}%`, background: '#10B981' }} />
                 </div>
               ) : (
-                <p className="text-[11.5px]" style={{ color: 'var(--sm-text-4)' }}>{k.hint}</p>
+                <p className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>{k.hint}</p>
               )}
             </div>
           ))}
         </div>
 
         {/* ── Abas de visão + navegação da semana ── */}
-        <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b mb-4" style={{ borderColor: 'var(--sm-border)' }}>
-          <div className="flex items-center overflow-x-auto [&::-webkit-scrollbar]:hidden -mb-px">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-4">
+          <div className="flex items-center gap-0.5 p-1 rounded-full border max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
             {TABS.map(({ id, label, short, Icon }) => {
               const ativo = activeTab === id
               return (
                 <button key={id} onClick={() => setActiveTab(id)} aria-current={ativo ? 'page' : undefined}
-                  className="flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 px-3 h-10 text-[13px] transition-colors border-b-2"
-                  style={{ borderColor: ativo ? '#2563EB' : 'transparent', color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
-                  <Icon className="hidden sm:block w-4 h-4" style={{ color: ativo ? '#2563EB' : 'var(--sm-text-4)' }} />
+                  className={`sm-glass-segment ${ativo ? 'is-active' : 'hover:text-[var(--sm-text-1)]'} flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 px-3.5 h-8 rounded-full text-[12.5px] transition-colors`}
+                  style={{ color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
+                  <Icon className="hidden sm:block w-3.5 h-3.5" style={{ color: ativo ? '#2563EB' : undefined }} />
                   <span className="sm:hidden">{short}</span>
                   <span className="hidden sm:inline">{label}</span>
                 </button>
@@ -1219,9 +1217,9 @@ export function Tasks() {
             })}
           </div>
 
-          <div className="flex items-center gap-2 pb-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {(activeTab === 'semanal' || activeTab === 'timeline') && (
-              <div className="flex items-center rounded-xl border overflow-hidden" style={card}>
+              <div className="flex items-center rounded-full border overflow-hidden" style={card}>
                 <button onClick={() => setWeekBase(d => subWeeks(d, 1))} aria-label="Semana anterior" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1240,7 +1238,7 @@ export function Tasks() {
 
             {/* Janela de dias (só na visão semanal, no computador) */}
             {activeTab === 'semanal' && (
-              <div className="hidden lg:flex items-center rounded-xl border overflow-hidden" style={card}>
+              <div className="hidden lg:flex items-center rounded-full border overflow-hidden" style={card}>
                 <button onClick={() => setDayWindow(w => Math.max(0, w - 1))} disabled={dayWindow === 0}
                   title="Dias anteriores" aria-label="Dias anteriores" className={iconBtn} style={{ color: 'var(--sm-text-2)' }}>
                   <ChevronLeft className="w-4 h-4" />
@@ -1265,13 +1263,13 @@ export function Tasks() {
                 {noDateOpen && (
                   <>
                     <div className="fixed inset-0 z-30" onClick={() => setNoDateOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 z-40 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto border rounded-xl shadow-2xl p-1.5" style={card}>
+                    <div className="sm-glass-pop absolute right-0 top-full mt-1.5 z-40 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto rounded-2xl shadow-2xl p-1.5">
                       <p className={`${eyebrow} px-2 pt-1 pb-1.5`} style={{ color: 'var(--sm-text-4)' }}>Tarefas sem data</p>
                       {tasksWithoutDate.map(task => {
                         const priCfg = PRIORITY_CFG[task.priority]
                         return (
                           <div key={task.id} onClick={() => { setViewingTask(task); setNoDateOpen(false) }}
-                            className="flex items-center gap-2 pl-2.5 pr-1 py-1.5 rounded-lg cursor-pointer hover:bg-black/5 transition-colors">
+                            className="flex items-center gap-2 pl-2.5 pr-1 py-1.5 rounded-lg cursor-pointer hover:bg-[var(--sm-bg-alt)] transition-colors">
                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: priCfg.color }} title={priCfg.label} />
                             <span className="text-[12.5px] font-medium flex-1 min-w-0 truncate" style={{ color: 'var(--sm-text-1)' }}>{task.title}</span>
                             <div onClick={e => e.stopPropagation()}>

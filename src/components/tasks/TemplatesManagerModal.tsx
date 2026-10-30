@@ -160,7 +160,7 @@ export function TemplatesManagerModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { setDraft(null); onClose() } }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           {draft && (
             <button onClick={() => setDraft(null)} className="inline-flex items-center gap-1 text-[12.5px] font-medium mb-1 hover:underline w-fit" style={{ color: 'var(--sm-text-3)' }}>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
-import { ThumbImg } from '@/components/ThumbImg'
+import { ThumbImg, VideoCover } from '@/components/ThumbImg'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDroppable, useDraggable,
@@ -327,7 +327,7 @@ function ContentPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[80vh] flex flex-col overflow-x-hidden">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[80vh] flex flex-col overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Selecionar conteúdo do arsenal</DialogTitle>
         </DialogHeader>
@@ -405,7 +405,7 @@ function DayTooltip({ state }: { state: HoverState }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 4 }}
         transition={{ duration: 0.13 }}
-        className="bg-[var(--sm-bg-alt)] border border-[var(--sm-border)] rounded-xl shadow-xl w-[260px] p-3 text-xs text-[var(--sm-text-1)]"
+        className="sm-glass-pop rounded-2xl shadow-xl w-[260px] p-3 text-xs text-[var(--sm-text-1)]"
       >
         {state.items.map((item, i) => (
           <div key={item.id} className={i > 0 ? 'mt-2.5 pt-2.5 border-t border-[var(--sm-border)]' : ''}>
@@ -808,7 +808,7 @@ function PlannerItemView({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       {/* Modal estilo Instagram — altura fixa para scroll funcionar */}
-      <DialogContent
+      <DialogContent glass
         ref={scrollRef}
         onOpenAutoFocus={e => { e.preventDefault(); if (scrollRef.current) scrollRef.current.scrollTop = 0; if (bodyScrollRef.current) bodyScrollRef.current.scrollTop = 0 }}
         className="w-[96vw] max-w-[96vw] lg:w-auto lg:max-w-[94vw] p-0 gap-0 [&>button.absolute]:hidden flex flex-col max-h-[90vh] overflow-y-auto lg:h-[90vh] lg:overflow-hidden"
@@ -1479,7 +1479,7 @@ function DroppableDay({
       onMouseEnter={e => isCurrentMonth && !dragging && onMouseEnter(e)}
       onMouseLeave={() => !dragging && onMouseLeave()}
       className={`
-        min-h-[64px] sm:min-h-[112px] overflow-hidden p-1 sm:p-2 rounded-lg border transition-colors
+        min-h-[64px] sm:min-h-[112px] overflow-hidden p-1 sm:p-2 rounded-xl border transition-colors
         ${isCurrentMonth
           ? `cursor-pointer ${isOver
               ? 'border-[#2563EB]/60 bg-[#2563EB]/10'
@@ -2192,15 +2192,16 @@ export function Planner() {
     .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
 
   return (
-    <div className="min-h-full bg-[var(--sm-bg-page)]">
-      <div className="p-4 md:p-6">
+    <div className="min-h-full">
+      <div className="px-4 sm:px-6 lg:px-8 pt-4 md:pt-7 pb-12">
         {/* ── Cabeçalho ─────────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-3 mb-5 min-h-[36px]">
+        <div className="flex items-end justify-between gap-3 mb-6 min-h-[36px] max-md:pl-12 max-md:-mt-[3.25rem]">
           <div className="min-w-0">
-            <h1 className="font-display text-[22px] sm:text-[26px] font-bold tracking-[-0.02em] leading-tight text-[var(--sm-text-1)]">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--sm-text-3)]">Produção</p>
+            <h1 className="font-display text-[30px] md:text-[38px] font-bold tracking-[-0.03em] leading-[1.02] text-[var(--sm-text-1)]">
               Planejamento
             </h1>
-            <p className="text-[12.5px] text-[var(--sm-text-3)] mt-0.5">
+            <p className="text-[13px] text-[var(--sm-text-3)] mt-1.5">
               {monthTitle} · {monthItems.length} {monthItems.length === 1 ? 'post' : 'posts'}
               {waitingCount > 0 && <> · <span className="text-[#CA8A04] font-medium">{waitingCount} com o cliente</span></>}
             </p>
@@ -2216,7 +2217,7 @@ export function Planner() {
               setOpen(true)
             }}
             size="sm"
-            className="bg-[#2563EB] !text-white !border-0 !shadow-none flex-shrink-0"
+            className="bg-[#2563EB] !text-white !border-0 !shadow-none flex-shrink-0 !h-10 !px-5 !rounded-full"
           >
             <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Novo post</span><span className="sm:hidden">Novo</span>
           </Button>
@@ -2224,13 +2225,13 @@ export function Planner() {
 
         {/* ── Barra de ferramentas: visão, filtros e aviso ao cliente ─────────── */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <div className="flex items-center gap-1 p-1 bg-[var(--sm-bg-alt)] rounded-xl w-fit">
+        <div className="flex items-center gap-0.5 p-1 bg-[var(--sm-bg-alt)] border border-[var(--sm-border)] rounded-full w-fit">
           <button
             onClick={() => setViewMode('mensal')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 h-8 rounded-full text-[12.5px] transition-all ${
               viewMode === 'mensal'
-                ? 'bg-[#2563EB] text-white shadow-sm'
-                : 'text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)]'
+                ? 'sm-glass-segment is-active font-semibold text-[var(--sm-text-1)]'
+                : 'font-medium text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)]'
             }`}
           >
             <CalendarDays className="w-3.5 h-3.5" />
@@ -2238,10 +2239,10 @@ export function Planner() {
           </button>
           <button
             onClick={() => setViewMode('feed')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 h-8 rounded-full text-[12.5px] transition-all ${
               viewMode === 'feed'
-                ? 'bg-[#2563EB] text-white shadow-sm'
-                : 'text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)]'
+                ? 'sm-glass-segment is-active font-semibold text-[var(--sm-text-1)]'
+                : 'font-medium text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)]'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
@@ -2256,7 +2257,7 @@ export function Planner() {
               <div className="relative">
                 <button
                   onClick={() => { setClientDropOpen(o => !o); setStatusDropOpen(false) }}
-                  className={`flex items-center gap-2 h-9 pl-3 pr-2.5 rounded-xl text-[12px] font-medium border transition-all ${
+                  className={`flex items-center gap-2 h-9 pl-3.5 pr-3 rounded-full text-[12px] font-medium border transition-all ${
                     selectedClientFilter
                       ? 'bg-[#2563EB] text-white border-[#2563EB]'
                       : 'bg-[var(--sm-bg-card)] text-[var(--sm-text-2)] border-[var(--sm-border)] hover:border-[#2f3b52] hover:bg-[var(--sm-bg-alt)]'
@@ -2288,7 +2289,7 @@ export function Planner() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.97 }}
                         transition={{ duration: 0.12 }}
-                        className="absolute left-0 top-full mt-1.5 z-30 bg-[var(--sm-bg-alt)] border border-[var(--sm-border)] rounded-2xl shadow-xl overflow-hidden py-1.5 min-w-[200px]"
+                        className="absolute left-0 top-full mt-1.5 z-30 sm-glass-pop rounded-2xl shadow-xl overflow-hidden py-1.5 min-w-[200px]"
                       >
                         {/* Opção Todos */}
                         <button
@@ -2350,7 +2351,7 @@ export function Planner() {
               <div className="relative">
                 <button
                   onClick={() => { setStatusDropOpen(o => !o); setClientDropOpen(false) }}
-                  className={`flex items-center gap-2 h-9 pl-3 pr-2.5 rounded-xl text-[12px] font-medium border transition-all ${
+                  className={`flex items-center gap-2 h-9 pl-3.5 pr-3 rounded-full text-[12px] font-medium border transition-all ${
                     isFiltered
                       ? 'bg-[#2563EB] text-white border-[#2563EB]'
                       : 'bg-[var(--sm-bg-card)] text-[var(--sm-text-2)] border-[var(--sm-border)] hover:border-[#2f3b52] hover:bg-[var(--sm-bg-alt)]'
@@ -2370,7 +2371,7 @@ export function Planner() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.97 }}
                         transition={{ duration: 0.12 }}
-                        className="absolute left-0 top-full mt-1.5 z-30 bg-[var(--sm-bg-alt)] border border-[var(--sm-border)] rounded-2xl shadow-xl overflow-hidden py-1.5 min-w-[190px]"
+                        className="absolute left-0 top-full mt-1.5 z-30 sm-glass-pop rounded-2xl shadow-xl overflow-hidden py-1.5 min-w-[190px]"
                       >
                         {STATUS_OPTIONS.map(({ key, label, dot }) => (
                           <button
@@ -2396,14 +2397,14 @@ export function Planner() {
           {/* Notificador WhatsApp manual */}
           <button
             onClick={() => { openWaDrop(); setClientDropOpen(false); setStatusDropOpen(false) }}
-            className="sm:ml-auto flex items-center gap-2 h-9 pl-3 pr-3 rounded-xl text-[12px] font-medium border transition-all bg-[var(--sm-bg-card)] text-[#25D366] border-[var(--sm-border)] hover:border-[#25D366]/30 hover:bg-[var(--sm-bg-alt)]"
+            className="sm:ml-auto flex items-center gap-2 h-9 pl-3.5 pr-4 rounded-full text-[12px] font-medium border transition-all bg-[var(--sm-bg-card)] text-[#25D366] border-[var(--sm-border)] hover:border-[#25D366]/30 hover:bg-[var(--sm-bg-alt)]"
           >
             <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" />
             <span>Notificar cliente</span>
           </button>
 
           <Dialog open={waDropOpen} onOpenChange={setWaDropOpen}>
-            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogContent glass className="max-w-lg max-h-[85vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-start gap-3 pr-6">
                 <div
@@ -2596,7 +2597,7 @@ export function Planner() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-0.5 max-w-2xl">
+                <div className="grid grid-cols-3 gap-0.5 max-w-2xl rounded-[20px] overflow-hidden">
                   {feedItems.map(item => {
                     // Capa: prioriza imagem IG marcada → qualquer imagem → vídeo IG → qualquer vídeo
                     const igImages  = (item.attachments ?? []).filter(a => a.is_ig_media && a.file_type.startsWith('image/'))
@@ -2629,7 +2630,7 @@ export function Planner() {
                         {coverImg ? (
                           // Tem imagem → exibe imagem
                           <>
-                            <img
+                            <ThumbImg
                               src={coverImg.file_url}
                               alt={item.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -2647,14 +2648,8 @@ export function Planner() {
                         ) : coverVid ? (
                           // Tem vídeo → exibe preview do vídeo (autoplay mudo, como Instagram)
                           <>
-                            <video
-                              src={coverVid.file_url}
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              className="w-full h-full object-cover"
-                            />
+                            {/* Capa (primeiro quadro): vídeo tocando em loop em cada quadrado travava o tablet */}
+                            <VideoCover src={coverVid.file_url} title={item.title} />
                             {/* Overlay hover */}
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-200 flex items-center justify-center">
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity text-center px-2">
@@ -2725,19 +2720,19 @@ export function Planner() {
         {viewMode === 'mensal' && <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-3">
           <div className="flex items-center gap-1">
             <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} aria-label="Mês anterior"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--sm-text-2)] hover:bg-[var(--sm-bg-alt)] transition-colors">
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--sm-text-2)] hover:bg-[var(--sm-bg-alt)] transition-colors">
               <ChevronLeft className="w-4 h-4" />
             </button>
             <h2 className="font-display text-[17px] font-semibold text-[var(--sm-text-1)] min-w-[150px] text-center tabular-nums">
               {monthTitle}
             </h2>
             <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} aria-label="Próximo mês"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--sm-text-2)] hover:bg-[var(--sm-bg-alt)] transition-colors">
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--sm-text-2)] hover:bg-[var(--sm-bg-alt)] transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
             {!isSameMonth(currentMonth, new Date()) && (
               <button onClick={() => setCurrentMonth(new Date())}
-                      className="ml-1 h-7 px-2.5 rounded-lg text-[11.5px] font-medium border border-[var(--sm-border)] text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] hover:bg-[var(--sm-bg-alt)] transition-colors">
+                      className="ml-1 h-7 px-3 rounded-full text-[11.5px] font-medium border border-[var(--sm-border)] text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] hover:bg-[var(--sm-bg-alt)] transition-colors">
                 Hoje
               </button>
             )}
@@ -2776,7 +2771,7 @@ export function Planner() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-        <div className="rounded-lg border border-[var(--sm-border)] bg-[var(--sm-bg-card)]">
+        <div className="sm-glass-tile rounded-[24px]">
           <div className="p-2 sm:p-4">
             <div className="w-full max-w-full min-w-0">
             <div className="grid grid-cols-7 mb-1 sm:mb-2">
@@ -2858,7 +2853,7 @@ export function Planner() {
             {agendaItems.length === 0 ? (
               <p className="text-[13px] text-[var(--sm-text-3)] py-6 text-center">Nenhum post neste mês.</p>
             ) : (
-              <div className="rounded-xl border border-[var(--sm-border)] bg-[var(--sm-bg-card)] divide-y divide-[var(--sm-border)] overflow-hidden">
+              <div className="sm-glass-tile rounded-[22px] divide-y divide-[var(--sm-border)] overflow-hidden">
                 {agendaItems.map(item => {
                   const d = parseISO(item.scheduled_date)
                   const k = PLAN_KEYS.find(p => p.key === planKey(item))
@@ -2894,7 +2889,7 @@ export function Planner() {
 
       {/* ── Modal: Detalhes do Dia ── */}
       <Dialog open={dayDetailsOpen} onOpenChange={setDayDetailsOpen}>
-        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4" style={{ color: 'var(--sm-text-3)' }} />
@@ -2986,7 +2981,7 @@ export function Planner() {
 
       {/* ── Modal: Criar / Editar Post ── */}
       <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) resetForm() }}>
-        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="pr-8 font-display text-[19px] font-bold">{editingItem ? 'Editar post' : 'Adicionar ao planejamento'}</DialogTitle>
           </DialogHeader>

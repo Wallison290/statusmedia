@@ -79,7 +79,7 @@ export function ApplyTemplateModal({ clientId, open, onClose, onApplied, initial
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { reset(); onClose() } }}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent glass className="w-[95vw] max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-[19px] font-bold">Criar tarefas a partir de um modelo</DialogTitle>
           <p className="text-[12.5px]" style={{ color: 'var(--sm-text-3)' }}>Escolha o modelo, como as tarefas serão criadas e a data de início.</p>
