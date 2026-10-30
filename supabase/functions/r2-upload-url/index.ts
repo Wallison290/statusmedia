@@ -63,7 +63,25 @@ Deno.serve(async (req) => {
     const agencyId = await agencyIdFor(user.id)
 
     // ── Validação do pedido ────────────────────────────────────────────────
-    const { fileName, contentType, sizeBytes } = await req.json()
+    const { fileName, contentType, sizeBytes, thumbFor } = await req.json()
+
+    // ── Miniatura de um arquivo já enviado (lib/thumbs.ts no front) ─────────
+    // Vai para thumbs/<chave original>.webp; só da própria agência e pequena.
+    if (thumbFor != null) {
+      const alvoKey = String(thumbFor)
+      if (!alvoKey.startsWith(`${agencyId}/`) || alvoKey.includes('..') || contentType !== 'image/webp'
+          || (typeof sizeBytes === 'number' && sizeBytes > 2 * 1024 * 1024)) {
+        return json({ error: 'Miniatura inválida.' }, 400)
+      }
+      const thumbKey = `thumbs/${alvoKey}.webp`
+      const aws = new AwsClient({ accessKeyId: accessKey, secretAccessKey: secretKey, service: 's3', region: 'auto' })
+      const destino = new URL(`https://${accountId}.r2.cloudflarestorage.com/${bucket}/${thumbKey}`)
+      destino.searchParams.set('X-Amz-Expires', '600')
+      const assinadaThumb = await aws.sign(destino.toString(), {
+        method: 'PUT', headers: { 'Content-Type': 'image/webp' }, aws: { signQuery: true },
+      })
+      return json({ uploadUrl: assinadaThumb.url, publicUrl: `${publicUrl}/${thumbKey}`, key: thumbKey })
+    }
 
     if (!fileName || !contentType) {
       return json({ error: 'fileName e contentType são obrigatórios.' }, 400)

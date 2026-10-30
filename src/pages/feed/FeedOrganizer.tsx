@@ -26,6 +26,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
+import { ThumbImg, VideoCover } from '@/components/ThumbImg'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useClients } from '@/hooks/useClients'
 import { useContentAssets } from '@/hooks/useContentAssets'
@@ -80,6 +81,26 @@ const STATUS_DOT: Record<string, { label: string; color: string }> = {
   revisao:   { label: 'Revisão',   color: '#8B5CF6' },
   aprovado:  { label: 'Aprovado',  color: '#2563EB' },
   publicado: { label: 'Publicado', color: '#22C55E' },
+}
+
+/** Planejamento enxuto para o feed: só as colunas que a grade usa, sem stories,
+ *  sem tempo real e sem repetir a cada 30 s (o usePlanner completo fazia tudo
+ *  isso para todos os clientes e pesava no tablet). */
+function useFeedPlanner() {
+  return useQuery({
+    queryKey: ['feed_planner'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('planner')
+        .select('id, client_id, title, content_type, scheduled_date, scheduled_time, status, attachments:planner_attachments(file_type, file_url, sort_order)')
+        .neq('content_type', 'story')
+        .not('client_id', 'is', null)
+        .order('sort_order', { referencedTable: 'planner_attachments', ascending: true })
+      if (error) throw error
+      return (data ?? []) as PlannerItem[]
+    },
+  })
 }
 
 /** Perfil + posts no ar do Instagram conectado (null = sem conta conectada). */
@@ -223,35 +244,13 @@ function NoArt({ title, small = false }: { title?: string; small?: boolean }) {
   )
 }
 
-/** Primeiro quadro do vídeo como capa. Se o navegador não abrir o formato
- *  (ex.: .mov HEVC do iPhone no Windows), mostra o ícone de vídeo e o título. */
-function VideoThumb({ src, title, small = false }: { src: string; title?: string; small?: boolean }) {
-  const [failed, setFailed] = useState(false)
-  if (failed) {
-    return (
-      <div className={`w-full h-full flex flex-col items-center justify-center text-center ${small ? 'p-1' : 'p-2'}`}>
-        <Play className={small ? 'w-3 h-3' : 'w-4 h-4'} style={{ color: 'var(--sm-text-3)' }} />
-        {!small && title && <span className="mt-1 text-[10.5px] leading-tight line-clamp-3" style={{ color: 'var(--sm-text-3)' }}>{title}</span>}
-      </div>
-    )
-  }
-  return (
-    <span className="relative block w-full h-full">
-      <video src={`${src}#t=0.5`} muted playsInline preload="metadata" onError={() => setFailed(true)}
-        className="w-full h-full object-cover pointer-events-none" />
-      <span className={`absolute ${small ? 'top-0.5 right-0.5' : 'top-1.5 right-1.5'} text-white drop-shadow`}>
-        <Play className={small ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} fill="currentColor" />
-      </span>
-    </span>
-  )
-}
-
 function Thumb({ item, small = false, hover = false }: { item: GridItem; small?: boolean; hover?: boolean }) {
+  // Miniatura do R2 (até 480 px) no lugar da arte original de vários MB
   if (item.image) {
-    return <img src={item.image} alt={item.title ?? ''} loading="lazy" draggable={false}
+    return <ThumbImg src={item.image} alt={item.title ?? ''}
       className={`w-full h-full object-cover ${hover ? 'transition-transform duration-300 group-hover:scale-[1.03]' : ''}`} />
   }
-  if (item.video) return <VideoThumb src={item.video} title={item.title} small={small} />
+  if (item.video) return <VideoCover src={item.video} title={item.title} small={small} />
   return <NoArt title={item.title} small={small} />
 }
 
@@ -472,8 +471,8 @@ function DraggableCard({ post, index, onRemove, isActive }: {
       style={{ touchAction: 'none', background: 'var(--sm-bg-alt)' }}
       {...listeners} {...attributes}
     >
-      <img src={post.image_url} alt={post.caption || `Post ${index + 1}`}
-        className="w-full h-full object-cover pointer-events-none transition-transform duration-300 group-hover:scale-[1.03]" draggable={false} />
+      <ThumbImg src={post.image_url} alt={post.caption || `Post ${index + 1}`}
+        className="w-full h-full object-cover pointer-events-none transition-transform duration-300 group-hover:scale-[1.03]" />
       {/* Sobre a foto: preto translúcido fixo, legível em qualquer tema */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-1.5">
         <button
@@ -609,7 +608,7 @@ function PickerTile({ url, title, onPick }: { url: string; title: string; onPick
     <button onClick={onPick}
       className="aspect-square rounded-2xl overflow-hidden border-2 border-transparent hover:border-[#2563EB] transition-all group relative"
       style={{ background: 'var(--sm-bg-alt)' }}>
-      <img src={url} alt={title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+      <ThumbImg src={url} alt={title} className="w-full h-full object-cover" />
       <span onClick={(e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener') }}
         title="Ver em resolução original"
         className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-black/55 text-white opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-all">
@@ -750,7 +749,7 @@ export function FeedOrganizer() {
   const deleteVersionMut = useDeleteFeedVersion()
   const upsertMetaMut    = useUpsertFeedMeta()
   const navigate = useNavigate()
-  const { data: allPlanner } = usePlanner()
+  const { data: allPlanner } = useFeedPlanner()
 
   // Versão automática de cada cliente, montada do Planejamento
   const autoByClient = useMemo(() => {
@@ -1304,7 +1303,7 @@ export function FeedOrganizer() {
                     <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
                       {activeDragPost ? (
                         <div className="overflow-hidden rounded-xl shadow-2xl ring-2 ring-[#2563EB] opacity-95 rotate-2" style={{ width: 160, height: 160 }}>
-                          <img src={activeDragPost.image_url} alt="" className="w-full h-full object-cover" draggable={false} />
+                          <ThumbImg src={activeDragPost.image_url} className="w-full h-full object-cover" />
                         </div>
                       ) : null}
                     </DragOverlay>
@@ -1322,11 +1321,11 @@ export function FeedOrganizer() {
         )}
       </div>
 
-      <AssetPickerDialog
+      {pickerOpen && <AssetPickerDialog
         open={pickerOpen} onClose={() => setPickerOpen(false)}
         clientId={selectedClientId} onSelect={addPostFromAsset} onUpload={addPostFromUpload}
         onSelectMedia={addPostFromMedia}
-      />
+      />}
     </div>
   )
 }

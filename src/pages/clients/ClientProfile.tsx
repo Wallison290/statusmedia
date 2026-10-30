@@ -1,4 +1,5 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { ThumbImg } from '@/components/ThumbImg'
 import { motion } from 'framer-motion'
 import {
   Edit, Instagram, Mail, Globe, Phone, ArrowLeft, Save, Brain,
@@ -69,7 +70,7 @@ function AssetCard({
       style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
       <button className="block w-full aspect-square overflow-hidden" style={{ background: 'var(--sm-bg-alt)' }} onClick={onView} aria-label={`Ver ${asset.title}`}>
         {isImage ? (
-          <img src={asset.media_url!} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
+          <ThumbImg src={asset.media_url!} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
         ) : (
           <span className="w-full h-full flex flex-col items-center justify-center gap-1.5">
             <ImageIcon className="w-7 h-7" style={{ color: 'var(--sm-text-4)' }} />
@@ -1387,7 +1388,7 @@ export function ClientProfile() {
                                   style={{ background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}>
                                   <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: accent }} />
                                   <div className="pl-4 pr-3 py-3">
-                                    {thumb && <img src={thumb.file_url} alt="" className="w-full h-28 object-cover rounded-lg mb-2.5" />}
+                                    {thumb && <ThumbImg src={thumb.file_url} alt="" className="w-full h-28 object-cover rounded-lg mb-2.5" />}
                                     <p className="text-[11px] font-medium mb-1" style={{ color: 'var(--sm-text-4)' }}>
                                       {format(parseISO(item.scheduled_date), 'dd MMM', { locale: ptBR }).replace('.', '')}
                                       {item.scheduled_time ? ` · ${item.scheduled_time.slice(0, 5)}` : ''}

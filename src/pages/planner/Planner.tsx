@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
+import { ThumbImg } from '@/components/ThumbImg'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDroppable, useDraggable,
@@ -458,7 +459,7 @@ function DayTooltip({ state }: { state: HoverState }) {
             {(() => {
               const img = item.attachments?.find(a => isImageAttachment(a))
               const vid = item.attachments?.find(a => isVideoAttachment(a))
-              if (img) return <img src={img.file_url} alt="" className="w-full h-20 object-cover rounded-lg mb-1.5" />
+              if (img) return <ThumbImg src={img.file_url} alt="" className="w-full h-20 object-cover rounded-lg mb-1.5" />
               if (vid) return (
                 <div className="w-full h-20 rounded-lg mb-1.5 bg-black overflow-hidden">
                   <video
@@ -692,7 +693,7 @@ function InstagramScheduleSection({ item }: { item: PlannerItem; userId: string 
             <div key={att.id} className="w-8 h-8 rounded overflow-hidden border border-[var(--sm-border)] flex-shrink-0">
               {isVideoAttachment(att)
                 ? <video src={att.file_url} className="w-full h-full object-cover" muted />
-                : <img src={att.file_url} alt="" className="w-full h-full object-cover" />
+                : <ThumbImg src={att.file_url} alt="" className="w-full h-full object-cover" />
               }
             </div>
           ))}
@@ -879,7 +880,7 @@ function PlannerItemView({
                       className={`relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${i === mediaIdx ? 'border-white shadow-md' : 'border-white/25 opacity-70'}`}
                     >
                       {m.kind === 'image'
-                        ? <img src={m.file_url} alt="" className="w-full h-full object-cover" />
+                        ? <ThumbImg src={m.file_url} alt="" className="w-full h-full object-cover" />
                         : <div className="w-full h-full bg-[#182233] flex items-center justify-center"><Film className="w-4 h-4 text-[#64748b]" /></div>}
                     </button>
                   ))}
@@ -966,7 +967,7 @@ function PlannerItemView({
                       className={`relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${i === mediaIdx ? 'border-[#2563EB] shadow-md' : 'border-[color:var(--sm-border)] opacity-70 hover:opacity-100'}`}
                     >
                       {m.kind === 'image'
-                        ? <img src={m.file_url} alt="" className="w-full h-full object-cover" />
+                        ? <ThumbImg src={m.file_url} alt="" className="w-full h-full object-cover" />
                         : <div className="w-full h-full bg-[#182233] flex items-center justify-center"><Film className="w-4 h-4 text-[#64748b]" /></div>}
                     </button>
                   ))}
@@ -1265,7 +1266,7 @@ function DayItemCard({
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >
         {imageThumbnail && (
-          <img src={imageThumbnail.file_url} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0" />
+          <ThumbImg src={imageThumbnail.file_url} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0" />
         )}
         {!imageThumbnail && videoThumbnail && (
           <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-black overflow-hidden">
@@ -3202,7 +3203,7 @@ export function Planner() {
                             >
                               {isVideoAttachment(att)
                                 ? <video src={att.file_url} className="w-full h-full object-cover pointer-events-none" />
-                                : <img src={att.file_url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
+                                : <ThumbImg src={att.file_url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
                               }
                               <div className={`absolute top-0.5 left-0.5 text-[8px] font-bold px-1 py-0.5 rounded leading-none ${
                                 i === 0 ? 'bg-[#2563EB] text-white' : 'bg-black/60 text-white'
@@ -3235,7 +3236,7 @@ export function Planner() {
                         <div className="relative w-full h-28 rounded-xl overflow-hidden border border-[color:var(--sm-border)]">
                           {isVideoAttachment(existingIgMedia[0])
                             ? <video src={existingIgMedia[0].file_url} className="w-full h-full object-cover" controls />
-                            : <img src={existingIgMedia[0].file_url} alt="" className="w-full h-full object-cover" />
+                            : <ThumbImg src={existingIgMedia[0].file_url} alt="" className="w-full h-full object-cover" />
                           }
                           <button
                             type="button"

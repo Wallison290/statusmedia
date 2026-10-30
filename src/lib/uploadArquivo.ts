@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client'
 import { resolveAgencyId } from '@/hooks/useAuth'
+import { gerarMiniatura } from '@/lib/thumbs'
 
 /**
  * Envia um arquivo e devolve a URL pública dele.
@@ -166,6 +167,8 @@ export async function uploadArquivo(
   if (precisaDoR2(file)) {
     try {
       const url = await enviarParaR2(file, onProgress)
+      // Miniatura leve para as grades (feed, planejamento): em segundo plano
+      void gerarMiniatura(file, url)
       return { url, destino: 'r2' }
     } catch (err: any) {
       // Sem espaço no plano: não é falha de rede, a reserva não entra

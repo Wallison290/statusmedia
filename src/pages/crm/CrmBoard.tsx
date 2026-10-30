@@ -482,9 +482,10 @@ function Column({
         <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
           <AnimatePresence initial={false}>
             {leads.map(lead => (
+              // Sem 'layout': com ~90 cards ele remedia todos a cada tecla na busca
+              // e a cada mudança de estado, o que travava tablet e notebook
               <motion.div
                 key={lead.id}
-                layout
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96 }}
@@ -981,14 +982,16 @@ export function CrmBoard() {
       )}
 
       {/* Modal do lead */}
-      <CrmLeadModal
+      {/* Só monta quando abre: o card do lead busca equipe, configurações e
+          WhatsApp, e isso não precisa rodar com o quadro fechado */}
+      {modalOpen && <CrmLeadModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         lead={modalLead}
         columns={columns}
         columnId={modalColumn ?? columns[0]?.id ?? ''}
         onConvert={handleConvert}
-      />
+      />}
 
       {/* Motivo de perda */}
       <CrmLostReasonDialog

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ThumbImg } from '@/components/ThumbImg'
 import {
   ImageIcon, Video, Music, FileText, File,
   ExternalLink, Link2, Building2, Pencil, Trash2, Check,
@@ -589,7 +590,7 @@ export function PlannerItemViewModal({
                           }`}
                         >
                           {m.file_type.startsWith('image/') ? (
-                            <img src={m.file_url} alt="" className="w-full h-full object-cover" />
+                            <ThumbImg src={m.file_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-[#182233] flex items-center justify-center">
                               <Video className="w-4 h-4 text-[color:var(--sm-text-4)]" />
@@ -812,7 +813,7 @@ export function PlannerItemViewModal({
                             }`}
                           >
                             {m.file_type.startsWith('image/') ? (
-                              <img src={m.file_url} alt="" className="w-full h-full object-cover" />
+                              <ThumbImg src={m.file_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full bg-[color:var(--sm-bg-alt)] flex items-center justify-center">
                                 <Video className="w-4 h-4 text-[color:var(--sm-text-3)]" />

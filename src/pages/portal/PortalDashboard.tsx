@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { ThumbImg } from '@/components/ThumbImg'
 import { useWeeklyFormConfig } from '@/hooks/useWeeklyForm'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -137,7 +138,7 @@ function DayTooltip({ state }: { state: HoverState }) {
             )}
             {(() => {
               const img = item.attachments?.find(a => a.file_type.startsWith('image/'))
-              return img ? <img src={img.file_url} alt="" className="w-full h-20 object-cover rounded-lg mb-1.5" /> : null
+              return img ? <ThumbImg src={img.file_url} alt="" className="w-full h-20 object-cover rounded-lg mb-1.5" /> : null
             })()}
             <div className="flex items-center gap-3 flex-wrap">
               {item.attachments && item.attachments.length > 0 && (
@@ -649,7 +650,7 @@ function ItemDetailView({
                         className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all
                           ${i === mediaIdx ? 'border-indigo-500 shadow-sm' : ss === 'aprovado' ? 'border-green-400' : ss === 'ajuste_solicitado' ? 'border-orange-400' : ss === 'reprovado' ? 'border-red-400' : 'border-gray-200 opacity-60'}`}>
                         {m.kind === 'image'
-                          ? <img src={m.file_url} className="w-full h-full object-cover" />
+                          ? <ThumbImg src={m.file_url} className="w-full h-full object-cover" />
                           : <div className="w-full h-full bg-gray-100 flex items-center justify-center"><Video className="w-4 h-4 text-gray-400" /></div>}
                         {ss === 'aprovado'          && <div className="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-green-500 rounded-full flex items-center justify-center"><CheckCircle2 className="w-2.5 h-2.5" style={{ color: '#fff' }} /></div>}
                         {ss === 'ajuste_solicitado' && <div className="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-orange-500 rounded-full flex items-center justify-center"><AlertCircle className="w-2.5 h-2.5" style={{ color: '#fff' }} /></div>}
@@ -710,7 +711,7 @@ function ItemDetailView({
                         className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all
                           ${i === mediaIdx ? 'border-indigo-500 shadow-sm' : ss === 'aprovado' ? 'border-green-400' : ss === 'ajuste_solicitado' ? 'border-orange-400' : ss === 'reprovado' ? 'border-red-400' : 'border-gray-200 opacity-60 hover:opacity-100'}`}>
                         {m.kind === 'image'
-                          ? <img src={m.file_url} className="w-full h-full object-cover" />
+                          ? <ThumbImg src={m.file_url} className="w-full h-full object-cover" />
                           : <div className="w-full h-full bg-gray-100 flex items-center justify-center"><Video className="w-4 h-4 text-gray-400" /></div>}
                         {ss === 'aprovado'          && <div className="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-green-500 rounded-full flex items-center justify-center"><CheckCircle2 className="w-2.5 h-2.5" style={{ color: '#fff' }} /></div>}
                         {ss === 'ajuste_solicitado' && <div className="absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-orange-500 rounded-full flex items-center justify-center"><AlertCircle className="w-2.5 h-2.5" style={{ color: '#fff' }} /></div>}
@@ -1422,7 +1423,7 @@ function PortalPlannerView({
                   className="flex items-start gap-3 p-3 bg-white border border-[#e8e8e8] rounded-xl cursor-pointer hover:bg-[#f5f5f5] hover:border-[#d0d0d0] transition-colors group"
                 >
                   {thumb && (
-                    <img src={thumb.file_url} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0 border border-[#e8e8e8]" />
+                    <ThumbImg src={thumb.file_url} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0 border border-[#e8e8e8]" />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -1751,7 +1752,7 @@ function ClientDashboardTab({
                     >
                       <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-[#EAB308]" />
                       {thumb ? (
-                        <img src={thumb.file_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#E4E7EC] flex-shrink-0" />
+                        <ThumbImg src={thumb.file_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#E4E7EC] flex-shrink-0" />
                       ) : (
                         <div className="w-12 h-12 rounded-xl bg-[#F6F7F9] border border-[#E4E7EC] flex items-center justify-center flex-shrink-0">
                           <div className={`w-2 h-2 rounded-full ${statusColors[item.status as PlannerStatus]}`} />

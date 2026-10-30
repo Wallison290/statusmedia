@@ -632,13 +632,16 @@
 [data-theme="light"] .sm-glass-backdrop {
   background: radial-gradient(120% 90% at 0% 0%, #FFFFFF 0%, #F1F5F9 50%, #E2E8F0 100%);
 }
-.sm-glass-orb { position: absolute; border-radius: 9999px; filter: blur(90px); }
-.sm-glass-orb-a { width: 46vw; height: 46vw; left: -12vw; top: -16vw; background: rgba(41, 69, 122, 0.60); }
-.sm-glass-orb-b { width: 34vw; height: 34vw; right: -6vw;  top: 6vh;    background: rgba(37, 99, 235, 0.30); }
-.sm-glass-orb-c { width: 36vw; height: 36vw; left: 28vw;   bottom: -18vw; background: rgba(22, 40, 77, 0.75); }
-[data-theme="light"] .sm-glass-orb-a { background: rgba(37, 99, 235, 0.16); }
-[data-theme="light"] .sm-glass-orb-b { background: rgba(96, 165, 250, 0.20); }
-[data-theme="light"] .sm-glass-orb-c { background: rgba(41, 69, 122, 0.14); }
+/* Brilhos: gradiente radial em vez de filter: blur(90px). O desfoque em
+   elementos do tamanho da tela custava caro para a placa de vídeo (tablet
+   travava); o gradiente dá o mesmo esfumado sem esse custo. */
+.sm-glass-orb { position: absolute; border-radius: 9999px; }
+.sm-glass-orb-a { width: 62vw; height: 62vw; left: -20vw; top: -24vw; background: radial-gradient(closest-side, rgba(41, 69, 122, 0.60), rgba(41, 69, 122, 0.25) 55%, transparent); }
+.sm-glass-orb-b { width: 48vw; height: 48vw; right: -13vw; top: -1vh;  background: radial-gradient(closest-side, rgba(37, 99, 235, 0.30), rgba(37, 99, 235, 0.12) 55%, transparent); }
+.sm-glass-orb-c { width: 52vw; height: 52vw; left: 20vw;   bottom: -26vw; background: radial-gradient(closest-side, rgba(22, 40, 77, 0.75), rgba(22, 40, 77, 0.30) 55%, transparent); }
+[data-theme="light"] .sm-glass-orb-a { background: radial-gradient(closest-side, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.06) 55%, transparent); }
+[data-theme="light"] .sm-glass-orb-b { background: radial-gradient(closest-side, rgba(96, 165, 250, 0.20), rgba(96, 165, 250, 0.08) 55%, transparent); }
+[data-theme="light"] .sm-glass-orb-c { background: radial-gradient(closest-side, rgba(41, 69, 122, 0.14), rgba(41, 69, 122, 0.05) 55%, transparent); }
 .sm-glass-ring {
   position: absolute; width: min(640px, 54vw); right: -7vw; bottom: -14vh;
   opacity: 0.75; transform: rotate(-10deg); user-select: none;
@@ -885,4 +888,35 @@
   --sm-text-3: #94a3b8;
   --sm-text-4: #64748b;
   --sm-border: #1e293b;
+}
+
+/* ── Aparelhos mais leves: tablet, celular, tela de toque ─────────────────────
+   O desfoque de fundo (backdrop-filter) é o efeito mais caro do vidro. Em
+   toque e telas até 1024 px ele sai, e os painéis ficam mais opacos para
+   manter a leitura. O visual continua o mesmo; muda o custo. Vale também
+   para quem pede menos transparência no sistema. */
+@media (hover: none), (max-width: 1024px), (prefers-reduced-transparency: reduce) {
+  .sm-glass-panel, .sm-glass-drawer, .sm-glass-rail, .sm-glass-modal,
+  .sm-glass-pop, .sm-glass-overlay {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .sm-glass-panel {
+    background: linear-gradient(160deg, rgba(20, 30, 47, 0.94) 0%, rgba(11, 16, 32, 0.92) 100%);
+  }
+  [data-theme="light"] .sm-glass-panel {
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.90) 0%, rgba(241, 245, 249, 0.86) 100%);
+  }
+  .sm-glass-ring-sm { filter: none; }
+  /* Desfoques do Tailwind (fundos de janelas, botões sobre fotos) também saem */
+  [class*="backdrop-blur"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+/* Menos movimento pedido no sistema: transições e animações quase instantâneas */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
