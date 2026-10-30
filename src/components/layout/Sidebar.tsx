@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -189,12 +189,18 @@ function GroupHeading({ title, collapsed }: { title: string | null; collapsed: b
 
 // ── Item de navegação ─────────────────────────────────────────────────────────
 
-function NavEntry({ item, active, collapsed, onInfo }: {
+function NavEntry({ item, active, collapsed, rail = false, onInfo }: {
   item:      NavItem
   active:    boolean
   collapsed: boolean
+  /** Menu em vidro do Dashboard: alvo de 40px e ícone sempre na mesma posição,
+   *  para não pular quando o menu abre no hover */
+  rail?:     boolean
   onInfo:    (pos: { x: number; y: number } | null) => void
 }) {
+  const shape = rail
+    ? 'flex items-center gap-3 h-10 pl-[15.5px] pr-3 rounded-2xl text-[13px]'
+    : 'flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-[13px]'
   // Recolhido, só o ícone aparece: o tooltip precisa dizer que item é esse.
   // Expandido, o rótulo já está visível: sobra espaço para a explicação em
   // inglês, que existe para quem não lê português — inclusive o revisor da Meta.
@@ -208,10 +214,13 @@ function NavEntry({ item, active, collapsed, onInfo }: {
       <Link to={item.href}>
         <div
           title={tooltip}
-          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150"
-          style={{ background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)' }}
+          className={`${shape} font-semibold transition-all duration-150 ${rail ? 'sm-rail-active' : ''}`}
+          style={{
+            background: 'linear-gradient(135deg, #29457a 0%, #16284d 100%)',
+            ...(rail ? { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 20px -8px rgba(22,40,77,0.8)' } : {}),
+          }}
         >
-          <item.icon className="w-[15px] h-[15px] flex-shrink-0 text-white" />
+          <item.icon className={`${rail ? 'w-[17px] h-[17px]' : 'w-[15px] h-[15px]'} flex-shrink-0 text-white`} />
           {!collapsed && (
             <>
               <span className="whitespace-nowrap text-white flex-1">{item.label}</span>
@@ -228,7 +237,7 @@ function NavEntry({ item, active, collapsed, onInfo }: {
     <Link to={item.href}>
       <div
         title={tooltip}
-        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-[13px] transition-all duration-150 group"
+        className={`${shape} transition-all duration-150 group`}
         style={{ color: 'var(--sm-sidebar-text)' }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLDivElement).style.background = 'var(--sm-sidebar-hover)'
@@ -239,7 +248,7 @@ function NavEntry({ item, active, collapsed, onInfo }: {
           ;(e.currentTarget as HTMLDivElement).style.color = 'var(--sm-sidebar-text)'
         }}
       >
-        <item.icon className="w-[15px] h-[15px] flex-shrink-0 transition-colors" style={{ color: 'var(--sm-sidebar-icon)' }} />
+        <item.icon className={`${rail ? 'w-[17px] h-[17px]' : 'w-[15px] h-[15px]'} flex-shrink-0 transition-colors`} style={{ color: rail ? 'var(--sm-sidebar-text)' : 'var(--sm-sidebar-icon)' }} />
         {!collapsed && (
           <>
             <span className="whitespace-nowrap flex-1">{item.label}</span>
@@ -255,12 +264,39 @@ function NavEntry({ item, active, collapsed, onInfo }: {
 
 interface SidebarProps {
   onMobileClose?: () => void
+  /** Dashboard em vidro: no desktop o menu fica recolhido e flutua em vidro */
+  glass?: boolean
 }
 
-export function Sidebar({ onMobileClose }: SidebarProps) {
+function useIsDesktop() {
+  const query = '(min-width: 768px)'
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setMatch(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return match
+}
+
+export function Sidebar({ onMobileClose, glass = false }: SidebarProps) {
   const location  = useLocation()
   const { signOut, profile, user } = useAuth()
-  const [collapsed, setCollapsed]  = useState(false)
+  const [collapsedPref, setCollapsed] = useState(false)
+  const isDesktop = useIsDesktop()
+  const rail      = glass && isDesktop
+  // Trilho de vidro: abre sozinho com o mouse (ou foco do teclado) e o painel
+  // do Dashboard se ajusta ao lado, sem um ficar por cima do outro. Pequena espera para não abrir só de o cursor atravessar a tela.
+  const [railOpen, setRailOpen] = useState(false)
+  const railTimer = useRef<number>()
+  const openRail  = (v: boolean) => {
+    window.clearTimeout(railTimer.current)
+    railTimer.current = window.setTimeout(() => setRailOpen(v), v ? 90 : 160)
+  }
+  useEffect(() => () => window.clearTimeout(railTimer.current), [])
+  useEffect(() => { if (!rail) setRailOpen(false) }, [rail])
+  const collapsed = rail ? !railOpen : collapsedPref
   const [igTooltip, setIgTooltip] = useState<{ x: number; y: number } | null>(null)
   const { data: subData }          = useSubscription()
   const { data: storage }          = useStorageUsage()
@@ -283,21 +319,38 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
     onMobileClose?.()
   }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
+  const aside = (
     <motion.aside
-      animate={{ width: collapsed ? 56 : 220 }}
-      transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="relative flex flex-col h-full overflow-hidden flex-shrink-0"
+      animate={{ width: rail ? (railOpen ? 236 : 68) : collapsed ? 56 : 220 }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+      onMouseEnter={rail ? () => openRail(true)  : undefined}
+      onMouseLeave={rail ? () => openRail(false) : undefined}
+      onFocusCapture={rail ? () => openRail(true) : undefined}
+      onBlurCapture={rail ? e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) openRail(false) } : undefined}
+      className={rail
+        ? `relative h-full flex-shrink-0 flex flex-col overflow-hidden sm-glass-rail ${railOpen ? 'sm-glass-rail-open' : ''}`
+        : 'relative flex flex-col h-full overflow-hidden flex-shrink-0'}
       style={{ background: 'var(--sm-sidebar-bg)', borderRight: '1px solid var(--sm-sidebar-border)' }}
     >
       {/* ── Brand header ── */}
-      <div className="flex items-center h-14 px-3.5" style={{ borderBottom: '1px solid var(--sm-sidebar-border)' }}>
-        <BrandMark collapsed={collapsed} />
-      </div>
+      {rail ? (
+        <div className="flex items-center gap-2.5 h-16 pl-[17px] flex-shrink-0">
+          <img src="/logo-icon.png" alt="StatusMedia" className="w-8 h-8 flex-shrink-0 object-contain select-none" draggable={false} />
+          {!collapsed && (
+            <span className="text-[15px] font-bold leading-none tracking-tight whitespace-nowrap" style={{ color: 'var(--sm-text-1)' }}>
+              Status<span style={{ color: 'var(--sm-brand-media, #2563EB)' }}>Media</span>
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center h-14 px-3.5" style={{ borderBottom: '1px solid var(--sm-sidebar-border)' }}>
+          <BrandMark collapsed={collapsed} />
+        </div>
+      )}
 
       {/* ── Nav ── */}
       <nav
-        className="flex-1 py-1.5 px-2 overflow-y-auto"
+        className={`flex-1 overflow-y-auto ${rail ? 'py-1 px-2.5' : 'py-1.5 px-2'}`}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {groups.map((group, gi) => (
@@ -314,6 +367,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                     (item.href !== '/' && location.pathname.startsWith(item.href))
                   }
                   collapsed={collapsed}
+                  rail={rail}
                   onInfo={setIgTooltip}
                 />
               ))}
@@ -371,10 +425,11 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       </nav>
 
       {/* ── Sair ── */}
-      <div className="px-2 pb-2 pt-1 flex-shrink-0" style={{ borderTop: '1px solid var(--sm-sidebar-border)' }}>
+      <div className={`flex-shrink-0 ${rail ? 'px-2.5 pb-3 pt-2' : 'px-2 pb-2 pt-1'}`} style={{ borderTop: '1px solid var(--sm-sidebar-border)' }}>
         <button
           onClick={() => signOut()}
-          className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-[13px] transition-colors duration-150"
+          title={collapsed ? 'Sair' : undefined}
+          className={`w-full flex items-center transition-colors duration-150 ${rail ? 'gap-3 h-10 pl-[15.5px] pr-3 rounded-2xl text-[13px]' : 'gap-2.5 px-2.5 py-1.5 rounded-xl text-[13px]'}`}
           style={{ color: 'var(--sm-sidebar-text)' }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'var(--sm-sidebar-hover)'
@@ -385,8 +440,8 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
             ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--sm-sidebar-text)'
           }}
         >
-          <LogOut className="w-[15px] h-[15px] flex-shrink-0" style={{ color: 'var(--sm-sidebar-icon)' }} />
-          {!collapsed && <span>Sair</span>}
+          <LogOut className={`${rail ? 'w-[17px] h-[17px]' : 'w-[15px] h-[15px]'} flex-shrink-0`} style={{ color: rail ? 'var(--sm-sidebar-text)' : 'var(--sm-sidebar-icon)' }} />
+          {!collapsed && <span className="whitespace-nowrap">Sair</span>}
         </button>
       </div>
 
@@ -395,7 +450,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         onClick={() => setCollapsed(!collapsed)}
         title={collapsed ? 'Expandir menu' : 'Recolher menu'}
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        className="absolute -right-3 top-16 z-10 w-6 h-6 rounded-full hidden md:flex items-center justify-center transition-colors shadow-lg"
+        className={`absolute -right-3 top-16 z-10 w-6 h-6 rounded-full hidden items-center justify-center transition-colors shadow-lg ${rail ? '' : 'md:flex'}`}
         style={{ background: 'var(--sm-sidebar-card)', border: '1px solid rgba(37,99,235,0.55)', color: '#60A5FA' }}
         onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = '#2563EB'; b.style.color = '#ffffff' }}
         onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'var(--sm-sidebar-card)'; b.style.color = '#60A5FA' }}
@@ -426,4 +481,6 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       )}
     </motion.aside>
   )
+
+  return aside
 }

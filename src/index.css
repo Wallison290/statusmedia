@@ -620,3 +620,191 @@
     padding-top: 0;
   }
 }
+
+/* ── Dashboard em vidro (teste local) ──────────────────────────────────────────
+   Fundo com profundidade (brilhos azul-marinho + o anel da marca grande), um
+   painel de vidro por cima e o menu lateral recolhido flutuando. Os tokens
+   --sm-bg-* são trocados só dentro do painel, então os cartões do Dashboard
+   viram vidro sem mexer no resto do sistema. */
+.sm-glass-backdrop {
+  background: radial-gradient(120% 90% at 0% 0%, #101A2B 0%, #0B1020 55%, #050816 100%);
+}
+[data-theme="light"] .sm-glass-backdrop {
+  background: radial-gradient(120% 90% at 0% 0%, #FFFFFF 0%, #F1F5F9 50%, #E2E8F0 100%);
+}
+.sm-glass-orb { position: absolute; border-radius: 9999px; filter: blur(90px); }
+.sm-glass-orb-a { width: 46vw; height: 46vw; left: -12vw; top: -16vw; background: rgba(41, 69, 122, 0.60); }
+.sm-glass-orb-b { width: 34vw; height: 34vw; right: -6vw;  top: 6vh;    background: rgba(37, 99, 235, 0.30); }
+.sm-glass-orb-c { width: 36vw; height: 36vw; left: 28vw;   bottom: -18vw; background: rgba(22, 40, 77, 0.75); }
+[data-theme="light"] .sm-glass-orb-a { background: rgba(37, 99, 235, 0.16); }
+[data-theme="light"] .sm-glass-orb-b { background: rgba(96, 165, 250, 0.20); }
+[data-theme="light"] .sm-glass-orb-c { background: rgba(41, 69, 122, 0.14); }
+.sm-glass-ring {
+  position: absolute; width: min(640px, 54vw); right: -7vw; bottom: -14vh;
+  opacity: 0.75; transform: rotate(-10deg); user-select: none;
+}
+.sm-glass-ring-sm {
+  position: absolute; width: min(260px, 22vw); left: 24vw; top: -6vh;
+  opacity: 0.35; transform: rotate(160deg); filter: blur(6px); user-select: none;
+}
+[data-theme="light"] .sm-glass-ring    { opacity: 0.38; }
+[data-theme="light"] .sm-glass-ring-sm { opacity: 0.18; }
+
+.sm-glass-panel {
+  --sm-bg-page:  transparent;
+  --sm-bg-card2: rgba(16, 26, 43, 0.94);   /* menus e popovers: quase opacos */
+  --sm-bg-card:  rgba(255, 255, 255, 0.045);
+  --sm-bg-alt:   rgba(255, 255, 255, 0.06);
+  --sm-bg-input: rgba(255, 255, 255, 0.09);
+  --sm-border:   rgba(255, 255, 255, 0.09);
+  background: linear-gradient(160deg, rgba(24, 34, 51, 0.62) 0%, rgba(11, 16, 32, 0.52) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 30px 80px -30px rgba(0, 0, 0, 0.65);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+}
+[data-theme="light"] .sm-glass-panel {
+  --sm-bg-card2: rgba(255, 255, 255, 0.96);
+  --sm-bg-card:  rgba(255, 255, 255, 0.62);
+  --sm-bg-alt:   rgba(15, 23, 42, 0.045);
+  --sm-bg-input: rgba(255, 255, 255, 0.88);
+  --sm-border:   rgba(15, 23, 42, 0.08);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.58) 0%, rgba(241, 245, 249, 0.40) 100%);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 0 #ffffff, 0 30px 80px -30px rgba(15, 23, 42, 0.28);
+}
+/* Cartão de vidro dentro do painel: fio de 1px + reflexo no topo */
+.sm-glass-tile {
+  background: var(--sm-bg-card);
+  border: 1px solid var(--sm-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+[data-theme="light"] .sm-glass-tile {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+/* Popover dentro do painel: quase opaco, para ler por cima dos números */
+.sm-glass-pop {
+  background: rgba(16, 26, 43, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+[data-theme="light"] .sm-glass-pop { background: rgba(255, 255, 255, 0.94); border-color: #E2E8F0; }
+/* Coluna da direita, um tom mais funda que o painel */
+.sm-glass-side { background: rgba(5, 8, 22, 0.30); }
+[data-theme="light"] .sm-glass-side { background: rgba(255, 255, 255, 0.35); }
+
+
+
+/* Gaveta de notificações em vidro (aberta pelo sino do Dashboard) */
+.sm-glass-drawer {
+  background: linear-gradient(160deg, rgba(24, 34, 51, 0.78) 0%, rgba(11, 16, 32, 0.72) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 30px 80px -24px rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+}
+.sm-glass-drawer .bg-\[\#182233\]             { background-color: rgba(255, 255, 255, 0.06) !important; }
+.sm-glass-drawer .bg-\[\#0d1424\]             { background-color: rgba(0, 0, 0, 0.25) !important; }
+.sm-glass-drawer .border-\[\#1e293b\]         { border-color: rgba(255, 255, 255, 0.09) !important; }
+.sm-glass-drawer .border-\[\#1e293b\]\/60     { border-color: rgba(255, 255, 255, 0.06) !important; }
+.sm-glass-drawer .hover\:bg-\[\#1e293b\]:hover { background-color: rgba(255, 255, 255, 0.08) !important; }
+[data-theme="light"] .sm-glass-drawer {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.80) 0%, rgba(241, 245, 249, 0.70) 100%);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 #ffffff, 0 30px 80px -24px rgba(15, 23, 42, 0.30);
+}
+[data-theme="light"] .sm-glass-drawer .bg-\[\#182233\]             { background-color: rgba(255, 255, 255, 0.75) !important; }
+[data-theme="light"] .sm-glass-drawer .bg-\[\#0d1424\]             { background-color: rgba(15, 23, 42, 0.06) !important; }
+[data-theme="light"] .sm-glass-drawer .border-\[\#1e293b\]         { border-color: rgba(15, 23, 42, 0.08) !important; }
+[data-theme="light"] .sm-glass-drawer .border-\[\#1e293b\]\/60     { border-color: rgba(15, 23, 42, 0.06) !important; }
+[data-theme="light"] .sm-glass-drawer .hover\:bg-\[\#1e293b\]:hover { background-color: rgba(15, 23, 42, 0.05) !important; }
+
+/* Abas do CRM numa cápsula de vidro: a ativa vira um cartão com reflexo */
+.sm-glass-segment.is-active {
+  background: var(--sm-bg-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.5);
+}
+[data-theme="light"] .sm-glass-segment.is-active {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 4px 14px -8px rgba(15, 23, 42, 0.25);
+}
+
+/* ── Contraste invertido (teste) ───────────────────────────────────────────────
+   Menu lateral e os 3 cartões da direita do Dashboard ficam no tema oposto:
+   no claro, azul-escuro; no escuro, claros. O fundo segue o tema. */
+
+/* Tokens do tema escuro, para usar dentro do tema claro */
+[data-theme="light"] .sm-invert,
+[data-theme="light"] .sm-glass-rail {
+  --sm-text-1: #F8FAFC;
+  --sm-text-2: #CBD5E1;
+  --sm-text-3: #94A3B8;
+  --sm-text-4: #64748B;
+  --sm-border: rgba(255, 255, 255, 0.10);
+  --sm-bg-alt: rgba(255, 255, 255, 0.07);
+  --sm-bg-input: rgba(255, 255, 255, 0.11);
+  --sm-brand-media: #5B8DEF;
+}
+/* Tokens do tema claro, para usar dentro do tema escuro */
+[data-theme="dark"] .sm-invert,
+[data-theme="dark"] .sm-glass-rail {
+  --sm-text-1: #0F172A;
+  --sm-text-2: #475569;
+  --sm-text-3: #475569;
+  --sm-text-4: #64748B;
+  --sm-border: rgba(15, 23, 42, 0.10);
+  --sm-bg-alt: rgba(15, 23, 42, 0.06);
+  --sm-bg-input: rgba(15, 23, 42, 0.08);
+  --sm-brand-media: #2563EB;
+}
+
+/* Cartões invertidos */
+[data-theme="light"] .sm-invert { --sm-bg-card: rgba(18, 31, 62, 0.94); }
+[data-theme="dark"]  .sm-invert { --sm-bg-card: #E2E8F0; }
+[data-theme="light"] .sm-invert .sm-glass-tile,
+[data-theme="light"] .sm-glass-tile.sm-invert {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 32px -18px rgba(11, 16, 32, 0.65);
+}
+[data-theme="dark"] .sm-invert .sm-glass-tile,
+[data-theme="dark"] .sm-glass-tile.sm-invert {
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 14px 32px -18px rgba(0, 0, 0, 0.7);
+}
+/* Azul do "hoje" na agenda: mais claro sobre o azul-escuro */
+[data-theme="light"] .sm-invert .text-\[\#2563EB\] { color: #60A5FA; }
+
+/* Menu lateral em vidro */
+.sm-glass-rail {
+  border-radius: 28px;
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+  --sm-sidebar-border: var(--sm-border);
+  --sm-sidebar-hover: var(--sm-bg-alt);
+  --sm-sidebar-card: var(--sm-bg-alt);
+  --sm-sidebar-text: var(--sm-text-2);
+  --sm-sidebar-icon: var(--sm-text-3);
+}
+/* Tema claro: azul-escuro */
+[data-theme="light"] .sm-glass-rail {
+  background: linear-gradient(180deg, rgba(22, 40, 77, 0.94) 0%, rgba(11, 16, 32, 0.94) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 24px 60px -24px rgba(11, 16, 32, 0.55);
+}
+[data-theme="light"] .sm-glass-rail-open {
+  background: linear-gradient(180deg, rgba(22, 40, 77, 0.98) 0%, rgba(11, 16, 32, 0.98) 100%) !important;
+}
+/* Item ativo sobre o azul-escuro: vidro claro, não o gradiente marinho (sumiria) */
+[data-theme="light"] .sm-glass-rail .sm-rail-active {
+  background: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+/* Tema escuro: claro */
+[data-theme="dark"] .sm-glass-rail {
+  background: #E2E8F0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+}
+[data-theme="dark"] .sm-glass-rail-open { background: #E2E8F0 !important; }

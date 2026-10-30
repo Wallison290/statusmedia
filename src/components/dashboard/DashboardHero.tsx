@@ -33,6 +33,49 @@ function Pill({ label, variant, href }: HeroPill) {
   return inner
 }
 
+// ── Sino + avatar ─────────────────────────────────────────────────────────────
+// Separado do banner para o Dashboard em vidro poder levar para a coluna da
+// direita (como o perfil na referência) em telas largas.
+
+/** `inverted`: dentro de um cartão .sm-invert (escuro no tema claro e vice-versa) */
+export function HeroControls({ inverted = false }: { inverted?: boolean }) {
+  const { isDark } = useTheme()
+  const navigate = useNavigate()
+  const { data: notifications = [] } = useNotifications()
+  const [showNotifications, setShowNotifications] = useState(false)
+  const unreadCount = notifications.filter((n: { is_read: boolean }) => !n.is_read).length
+
+  return (
+    <>
+      <button
+        onClick={() => setShowNotifications(true)}
+        title={unreadCount > 0 ? `${unreadCount} notificação${unreadCount === 1 ? '' : 'ões'} não lida${unreadCount === 1 ? '' : 's'}` : 'Notificações'}
+        className="relative flex items-center justify-center w-8 h-8 rounded-lg text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] hover:bg-[var(--sm-bg-alt)] transition-colors"
+      >
+        <Bell className="w-4 h-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] rounded-full bg-red-500 text-[8px] font-bold flex items-center justify-center px-0.5 leading-none text-white">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+      <UserMenu dark={inverted ? !isDark : isDark} />
+
+      <NotificationsModal
+        glass
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onView={(notification) => {
+          setShowNotifications(false)
+          if (notification.type === 'NOTE_REQUEST') navigate(notification.link || '/notes')
+          else if (notification.link) navigate(`/planner?item=${notification.link}`)
+          else navigate('/planner')
+        }}
+      />
+    </>
+  )
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface DashboardHeroProps {
@@ -42,6 +85,9 @@ interface DashboardHeroProps {
   pills:      HeroPill[]
   isLoading:  boolean
   onRefresh?: () => void
+  /** Dashboard em vidro: sem fundo próprio (fica dentro do painel), sem
+   *  ilustração, e o sino/avatar vão para a coluna da direita no xl */
+  glass?:     boolean
 }
 
 // ── Banner ────────────────────────────────────────────────────────────────────
@@ -54,12 +100,9 @@ export function DashboardHero({
   pills,
   isLoading,
   onRefresh,
+  glass = false,
 }: DashboardHeroProps) {
   const { isDark } = useTheme()
-  const navigate = useNavigate()
-  const { data: notifications = [] } = useNotifications()
-  const [showNotifications, setShowNotifications] = useState(false)
-  const unreadCount = notifications.filter((n: { is_read: boolean }) => !n.is_read).length
 
   // Relógio em tempo real
   const [now, setNow] = useState(new Date())
@@ -80,8 +123,9 @@ export function DashboardHero({
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-b-[28px] border-x border-b border-[var(--sm-border)] bg-[var(--sm-bg-card)]"
+      className={glass ? 'relative' : 'relative overflow-hidden rounded-b-[28px] border-x border-b border-[var(--sm-border)] bg-[var(--sm-bg-card)]'}
     >
+      {!glass && <>
       {/* ── Trama de linhas finas, visível só do lado da ilustração ── */}
       <div
         aria-hidden
@@ -111,9 +155,10 @@ export function DashboardHero({
         className="absolute top-0 left-0 right-0 h-px pointer-events-none"
         style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(37,99,235,0.45) 40%, rgba(96,165,250,0.25) 70%, transparent 100%)' }}
       />
+      </>}
 
       {/* ── Canto superior direito: atualizar + sino + avatar ── */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+      <div className={`absolute z-10 flex items-center gap-1 ${glass ? 'top-4 right-0' : 'top-3 right-3'}`}>
         {onRefresh && !isLoading && (
           <button
             onClick={onRefresh}
@@ -123,24 +168,16 @@ export function DashboardHero({
             <RefreshCw className="w-3.5 h-3.5 transition-transform duration-500" />
           </button>
         )}
-        <button
-          onClick={() => setShowNotifications(true)}
-          title={unreadCount > 0 ? `${unreadCount} notificação${unreadCount === 1 ? '' : 'ões'} não lida${unreadCount === 1 ? '' : 's'}` : 'Notificações'}
-          className="relative flex items-center justify-center w-8 h-8 rounded-lg text-[var(--sm-text-3)] hover:text-[var(--sm-text-1)] hover:bg-[var(--sm-bg-alt)] transition-colors"
-        >
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] rounded-full bg-red-500 text-[8px] font-bold flex items-center justify-center px-0.5 leading-none text-white">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </button>
-        <UserMenu dark={isDark} />
+        <div className={`flex items-center gap-1 ${glass ? 'xl:hidden' : ''}`}>
+          <HeroControls />
+        </div>
       </div>
 
       {/* ── Conteúdo ── */}
       {/* pt-16 no celular: o botão do menu fica fixo no canto superior esquerdo */}
-      <div className="relative max-w-[1320px] mx-auto px-5 sm:px-6 md:px-8 lg:px-10 pt-16 md:pt-10 pb-8 md:pb-10 flex items-end justify-between gap-8 min-h-[260px]">
+      <div className={glass
+        ? 'relative pt-5 md:pt-9 pb-2 flex items-end justify-between gap-8'
+        : 'relative max-w-[1320px] mx-auto px-5 sm:px-6 md:px-8 lg:px-10 pt-16 md:pt-10 pb-8 md:pb-10 flex items-end justify-between gap-8 min-h-[260px]'}>
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--sm-text-3)]">
             <span className="capitalize">{dateStr}</span>
@@ -154,7 +191,7 @@ export function DashboardHero({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
             className="font-display font-bold text-[var(--sm-text-1)] mt-4 sm:mt-5 leading-[0.95] tracking-[-0.035em]"
-            style={{ fontSize: 'clamp(38px, 5.8vw, 72px)' }}
+            style={{ fontSize: glass ? 'clamp(34px, 4.4vw, 60px)' : 'clamp(38px, 5.8vw, 72px)' }}
           >
             {greetingBase}
             {greetingName && (
@@ -205,21 +242,13 @@ export function DashboardHero({
         </div>
 
         {/* Ilustração */}
-        <div className="hidden lg:block flex-shrink-0 -mb-2" style={{ width: 290, height: 206 }}>
-          <DashboardHeroArt dark={isDark} />
-        </div>
+        {!glass && (
+          <div className="hidden lg:block flex-shrink-0 -mb-2" style={{ width: 290, height: 206 }}>
+            <DashboardHeroArt dark={isDark} />
+          </div>
+        )}
       </div>
 
-      <NotificationsModal
-        open={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        onView={(notification) => {
-          setShowNotifications(false)
-          if (notification.type === 'NOTE_REQUEST') navigate(notification.link || '/notes')
-          else if (notification.link) navigate(`/planner?item=${notification.link}`)
-          else navigate('/planner')
-        }}
-      />
     </motion.header>
   )
 }

@@ -5,7 +5,7 @@
 // (nome, whatsapp/telefone, e-mail, empresa, instagram, origem, valor,
 // observações, tags). Quem já está no CRM (mesmo WhatsApp ou e-mail) é pulado.
 
-import { useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -81,9 +81,16 @@ const csvCell = (v: unknown) => {
 interface Props {
   leads:   CrmLead[]
   columns: CrmColumn[]
+  /** Sem os botões: quem chama dispara pela ref (gaveta de ferramentas do CRM) */
+  hideButtons?: boolean
 }
 
-export function CrmImportExport({ leads, columns }: Props) {
+export interface CrmImportExportHandle {
+  exportCsv:  () => void
+  openImport: () => void
+}
+
+export const CrmImportExport = forwardRef<CrmImportExportHandle, Props>(function CrmImportExport({ leads, columns, hideButtons = false }, ref) {
   const { toast } = useToast()
   const { user, agencyId } = useAuth()
   const qc = useQueryClient()
@@ -177,14 +184,21 @@ export function CrmImportExport({ leads, columns }: Props) {
     }
   }
 
+  useImperativeHandle(ref, () => ({
+    exportCsv,
+    openImport: () => fileRef.current?.click(),
+  }))
+
   return (
     <>
+      {!hideButtons && <>
       <Button size="sm" variant="outline" onClick={exportCsv} disabled={!leads.length} title="Baixar planilha com os leads" aria-label="Exportar leads">
         <Download className="w-3.5 h-3.5" /> <span className="max-md:hidden">Exportar</span>
       </Button>
       <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} title="Subir planilha de leads (CSV)" aria-label="Importar leads">
         <Upload className="w-3.5 h-3.5" /> <span className="max-md:hidden">Importar</span>
       </Button>
+      </>}
       <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
              onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = '' }} />
 
@@ -226,4 +240,4 @@ export function CrmImportExport({ leads, columns }: Props) {
       </Dialog>
     </>
   )
-}
+})

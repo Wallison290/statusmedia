@@ -112,11 +112,13 @@ interface NotificationsModalProps {
   open: boolean
   onClose: () => void
   onView: (notification: Notification) => void
+  /** Visual de vidro do Dashboard: gaveta flutuante translúcida (index.css) */
+  glass?: boolean
 }
 
 // ─── Componente (drawer lateral) ──────────────────────────────────────────────
 
-export function NotificationsModal({ open, onClose, onView }: NotificationsModalProps) {
+export function NotificationsModal({ open, onClose, onView, glass = false }: NotificationsModalProps) {
   const { data: notifications = [], isLoading } = useNotifications()
   const markRead    = useMarkNotificationRead()
   const markAllRead = useMarkAllNotificationsRead()
@@ -178,15 +180,17 @@ export function NotificationsModal({ open, onClose, onView }: NotificationsModal
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px]"
+            className={`fixed inset-0 z-50 ${glass ? 'bg-[#050816]/30 backdrop-blur-[3px]' : 'bg-black/50 backdrop-blur-[2px]'}`}
             onClick={onClose}
           />
 
           {/* Drawer */}
           <motion.aside
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+            initial={{ x: glass ? 'calc(100% + 24px)' : '100%' }} animate={{ x: 0 }} exit={{ x: glass ? 'calc(100% + 24px)' : '100%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            className="fixed top-0 right-0 z-50 h-full w-full sm:w-[390px] bg-[#0B1020] border-l border-[#1e293b] shadow-2xl flex flex-col"
+            className={glass
+              ? 'sm-glass-drawer fixed top-0 right-0 bottom-0 sm:top-4 sm:right-4 sm:bottom-4 z-50 w-full sm:w-[400px] sm:rounded-[28px] overflow-hidden flex flex-col'
+              : 'fixed top-0 right-0 z-50 h-full w-full sm:w-[390px] bg-[#0B1020] border-l border-[#1e293b] shadow-2xl flex flex-col'}
           >
             {/* ── Cabeçalho ── */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e293b] flex-shrink-0">
@@ -329,7 +333,7 @@ export function NotificationsModal({ open, onClose, onView }: NotificationsModal
 
             {/* ── Rodapé ── */}
             {filtered.length > 0 && (
-              <div className="px-5 py-2.5 border-t border-[#1e293b] bg-[#0B1020] flex-shrink-0">
+              <div className={`px-5 py-2.5 border-t border-[#1e293b] flex-shrink-0 ${glass ? '' : 'bg-[#0B1020]'}`}>
                 <p className="text-[10px] text-[#64748b] text-center">
                   {filtered.length} notificaç{filtered.length === 1 ? 'ão' : 'ões'}
                   {onlyUnread ? ' não lida' + (filtered.length === 1 ? '' : 's') : ''}

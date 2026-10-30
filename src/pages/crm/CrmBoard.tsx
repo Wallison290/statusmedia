@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Search, MoreVertical, Pencil, Trash2, Check, ChevronLeft, ChevronRight,
   LayoutTemplate, MessageCircle, Building2, CalendarClock, Flame, Loader2, Target,
-  GripVertical, Archive, ArchiveRestore, Sparkles, Hourglass,
+  GripVertical, Archive, ArchiveRestore, Sparkles, Hourglass, Download, Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +27,7 @@ import {
 import { useArchiveCrmLead } from '@/hooks/useCrmActivities'
 import { CrmLeadModal } from '@/components/crm/CrmLeadModal'
 import { CrmTemplatePicker } from '@/components/crm/CrmTemplatePicker'
-import { CrmHeader } from '@/components/crm/CrmHeader'
+import { CrmHeader, type CrmTool } from '@/components/crm/CrmHeader'
 import { usePlanFeature } from '@/components/plan/PlanLocked'
 import { CrmLostReasonDialog } from '@/components/crm/CrmLostReason'
 import { CrmAssistant } from '@/components/crm/CrmAssistant'
@@ -36,7 +36,7 @@ import { netValue, todayISO, fmtShortDate, onlyDigits } from '@/utils/crm'
 import { CRM_COLUMN_COLORS } from '@/data/crmTemplates'
 import type { CrmColumn, CrmLead, CrmStageType } from '@/types'
 import { useMoney } from '@/hooks/useHideValues'
-import { CrmImportExport } from '@/components/crm/CrmImportExport'
+import { CrmImportExport, type CrmImportExportHandle } from '@/components/crm/CrmImportExport'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
       // Sem touch-action: none, o dedo deslizando rola a coluna. O card só é
       // pego depois de segurar (ver sensores na página).
       style={{ WebkitTouchCallout: 'none', background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' }}
-      className={`relative rounded-xl border p-3 select-none transition-opacity
+      className={`sm-glass-tile relative rounded-2xl border px-3 py-2.5 select-none transition-opacity
         ${isDragging ? 'opacity-30' : 'hover:border-[#2563EB]/40'}`}
     >
       {/* A área de arrasto é só o corpo do card; os botões ficam fora dela para
@@ -131,7 +131,7 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
             hora de bater o olho no funil. */}
         {lead.notes && (
           <p
-            className="mt-2 text-[11px] leading-snug line-clamp-2 rounded-md px-2 py-1.5"
+            className="mt-1.5 text-[11px] leading-snug line-clamp-1 rounded-md px-2 py-1"
             style={{ color: 'var(--sm-text-2)', background: 'var(--sm-bg-alt)' }}
           >
             {lead.notes}
@@ -140,7 +140,7 @@ function LeadCard({ lead, columns, memberName, onOpen, onMoveTo, onArchive }: Le
 
         {/* Rodapé: valor, próximo contato, responsável */}
         {(waiting || meeting || (lead.tags ?? []).length > 0 || lead.estimated_value != null || lead.next_contact_at || memberName || lead.source || idle >= STALE_DAYS) && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          <div className="flex flex-wrap items-center gap-1 mt-1.5">
             {(lead.tags ?? []).slice(0, 3).map(t => (
               <span key={t} className="text-[10.5px] px-1.5 py-0.5 rounded-md leading-none"
                     style={{ color: 'var(--sm-text-3)', background: 'var(--sm-bg-alt)' }}>
@@ -322,7 +322,7 @@ function Column({
   return (
     <div className={`flex flex-col w-[280px] flex-shrink-0 h-full transition-opacity ${colDragging ? 'opacity-40' : ''}`}>
       {/* Cabeçalho */}
-      <div className="flex items-center gap-2 px-1 pb-2">
+      <div className="flex items-center gap-2 px-1 pb-2 h-[38px]">
         {/* Alça de arrasto da coluna */}
         <button
           ref={setHandleRef}
@@ -357,9 +357,12 @@ function Column({
             className="flex-1 min-w-0 text-left"
             title="Duplo clique para renomear"
           >
-            <span className="text-[12.5px] font-semibold truncate block" style={{ color: 'var(--sm-text-1)' }}>
+            <span className="text-[12.5px] font-semibold truncate block leading-tight" style={{ color: 'var(--sm-text-1)' }}>
               {column.name}
             </span>
+            {total > 0 && (
+              <span className="text-[10.5px] font-medium leading-tight block" style={{ color: 'var(--sm-text-3)' }}>{money(total)}</span>
+            )}
           </button>
         )}
 
@@ -367,6 +370,15 @@ function Column({
               style={{ color: 'var(--sm-text-3)', background: 'var(--sm-bg-alt)' }}>
           {leads.length}
         </span>
+
+        <button
+          onClick={onAddLead}
+          className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-colors hover:bg-[var(--sm-bg-alt)]"
+          title={`Novo lead em ${column.name}`}
+          aria-label={`Novo lead em ${column.name}`}
+        >
+          <Plus className="w-3.5 h-3.5" style={{ color: 'var(--sm-text-3)' }} />
+        </button>
 
         <div className="relative flex-shrink-0">
           <button
@@ -456,33 +468,17 @@ function Column({
         </div>
       </div>
 
-      {/* Barra de cor + total. Altura fixa: com ou sem valor, todas as colunas
-          começam os cards na mesma linha */}
-      <div className="px-1 mb-2 h-4 flex items-center justify-between">
-        <div className="h-[3px] rounded-full flex-1 mr-2" style={{ background: column.color, opacity: 0.5 }} />
-        {total > 0 && (
-          <span className="text-[10.5px] font-medium leading-none" style={{ color: 'var(--sm-text-3)' }}>{money(total)}</span>
-        )}
-      </div>
 
       {/* Área dos cards — o botão fica fora da parte que rola, para continuar
           alcançável quando a coluna enche. A zona de drop é o bloco inteiro. */}
       <div
         ref={setNodeRef}
-        className="flex-1 min-h-0 flex flex-col gap-2 rounded-xl p-2 transition-colors border border-dashed"
+        className="flex-1 min-h-0 flex flex-col gap-2 rounded-[22px] p-2 transition-colors border border-dashed"
         style={{
           background:  isOver ? 'rgba(37,99,235,0.06)' : 'var(--sm-bg-alt)',
           borderColor: isOver ? 'rgba(37,99,235,0.5)'  : 'transparent',
         }}
       >
-        <button
-          onClick={onAddLead}
-          className="flex-shrink-0 w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-[12px] border border-dashed transition-colors hover:border-[#2563EB]/50"
-          style={{ color: 'var(--sm-text-3)', borderColor: 'var(--sm-border)' }}
-        >
-          <Plus className="w-3 h-3" /> Lead
-        </button>
-
         <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
           <AnimatePresence initial={false}>
             {leads.map(lead => (
@@ -506,9 +502,13 @@ function Column({
           </AnimatePresence>
 
           {leads.length === 0 && (
-            <p className="text-[11px] text-center py-6" style={{ color: 'var(--sm-text-4)' }}>
-              Nenhum lead aqui
-            </p>
+            <button
+              onClick={onAddLead}
+              className="w-full flex items-center justify-center gap-1.5 h-10 rounded-xl text-[11.5px] border border-dashed transition-colors hover:border-[#2563EB]/50"
+              style={{ color: 'var(--sm-text-4)', borderColor: 'var(--sm-border)' }}
+            >
+              <Plus className="w-3 h-3" /> Adicionar lead
+            </button>
           )}
         </div>
       </div>
@@ -551,6 +551,7 @@ export function CrmBoard() {
   const [assistantOpen, setAssistantOpen] = useState(false)
   // Assistente de IA do funil: plano Agency (migration 093)
   const { allowed: canAssistant } = usePlanFeature('aiAssistant')
+  const ioRef = useRef<CrmImportExportHandle>(null)
   // Movimento para etapa de perda fica em espera até a pessoa dizer o motivo
   const [pendingLost, setPendingLost] = useState<{ lead: CrmLead; toColumnId: string } | null>(null)
 
@@ -787,22 +788,30 @@ export function CrmBoard() {
           : `${activeLeads.length} ${activeLeads.length === 1 ? 'lead' : 'leads'} · ${columns.length} ${columns.length === 1 ? 'etapa' : 'etapas'}`}
         actions={columns.length > 0 && (
           <>
-            {/* No celular as ações secundárias viram só ícone, para caberem numa linha */}
-            {canAssistant && (
-              <Button size="sm" variant="outline" onClick={() => setAssistantOpen(true)} title="Perguntar à IA" aria-label="Perguntar à IA">
-                <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} /> <span className="max-md:hidden">Perguntar à IA</span>
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)} title="Modelos" aria-label="Modelos">
-              <LayoutTemplate className="w-3.5 h-3.5" /> <span className="max-md:hidden">Modelos</span>
-            </Button>
-            <CrmImportExport leads={leads} columns={columns} />
-            <Button size="sm" onClick={() => openNewLead(columns[0].id)} className="max-md:ml-auto">
-              <Plus className="w-3.5 h-3.5" /> Novo lead
+            <div className="max-md:flex-1 max-md:min-w-0 sm:w-60">
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar lead, empresa, observação..."
+                icon={<Search className="w-3.5 h-3.5" />}
+                className="h-9 rounded-full"
+              />
+            </div>
+            <Button size="sm" onClick={() => openNewLead(columns[0].id)} className="h-9 rounded-full">
+              <Plus className="w-3.5 h-3.5" /> <span className="max-sm:hidden">Novo lead</span>
             </Button>
           </>
         )}
+        tools={columns.length > 0 ? ([
+          ...(canAssistant ? [{ icon: Sparkles, label: 'Perguntar à IA', hint: 'Pergunte sobre os seus leads', iconColor: '#a78bfa', onClick: () => setAssistantOpen(true) }] : []),
+          { icon: LayoutTemplate, label: 'Modelos de funil', hint: 'Trocar ou montar as etapas', onClick: () => setPickerOpen(true) },
+          { icon: Download, label: 'Exportar leads', hint: 'Baixar planilha (CSV)', onClick: () => ioRef.current?.exportCsv(), disabled: !leads.length },
+          { icon: Upload, label: 'Importar leads', hint: 'Subir planilha (CSV)', onClick: () => ioRef.current?.openImport() },
+        ] as CrmTool[]) : undefined}
       />
+
+      {/* Sem botões: Exportar/Importar ficam na gaveta de ferramentas */}
+      <CrmImportExport ref={ioRef} hideButtons leads={leads} columns={columns} />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -831,9 +840,13 @@ export function CrmBoard() {
           {/* Barra de números + filtros. No celular são só duas linhas: uma faixa
               que desliza para o lado (números e filtros rápidos) e a busca — o
               resto da altura fica para os cartões do funil. */}
-          <div className="px-4 sm:px-6 pt-3 max-md:pt-2 pb-2 flex flex-wrap items-center gap-2 flex-shrink-0">
+          <div className="px-4 sm:px-6 pt-1 pb-2.5 flex flex-wrap items-center gap-2 flex-shrink-0">
             <div className="max-md:w-[calc(100%+2rem)] max-md:-mx-4 max-md:px-4 max-md:overflow-x-auto scrollbar-none flex items-center gap-2 max-md:flex-nowrap md:flex-wrap">
             <div className="flex items-center gap-2 max-md:flex-nowrap md:flex-wrap max-md:flex-shrink-0 [&>span]:whitespace-nowrap">
+              <span className="text-[11.5px] px-2 py-1 rounded-lg"
+                    style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
+                <strong style={{ color: 'var(--sm-text-1)' }}>{activeLeads.length}</strong> {activeLeads.length === 1 ? 'lead' : 'leads'} · {columns.length} {columns.length === 1 ? 'etapa' : 'etapas'}
+              </span>
               <span className="text-[11.5px] px-2 py-1 rounded-lg"
                     style={{ background: 'var(--sm-bg-card)', color: 'var(--sm-text-2)' }}>
                 <strong style={{ color: 'var(--sm-text-1)' }}>{stats.openCount}</strong> em aberto
@@ -887,15 +900,6 @@ export function CrmBoard() {
 
             <div className="flex-1 max-md:hidden" />
 
-            <div className="max-md:flex-1 max-md:min-w-0 sm:w-56">
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar lead, empresa, observação..."
-                icon={<Search className="w-3.5 h-3.5" />}
-                className="h-8"
-              />
-            </div>
 
             {allTags.length > 0 && (
               <select
@@ -927,7 +931,7 @@ export function CrmBoard() {
 
           {/* Board */}
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-4 sm:px-6 pb-5">
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-4 sm:px-6 pb-3">
               <div className="flex gap-3 h-full min-h-0 items-stretch">
                 {columns.map((col, i) => (
                   <Column

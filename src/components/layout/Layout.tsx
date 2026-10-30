@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import { GlassBackdrop } from '@/components/dashboard/GlassBackdrop'
 import { Menu, Clock, AlertTriangle } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -92,6 +93,12 @@ function AgencyWhatsappPopup() {
 export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { isDark } = useTheme()
+  // Dashboard em vidro (teste): fundo com profundidade e menu recolhido flutuando
+  // O Dashboard monta o próprio painel; as outras telas em vidro (CRM) ganham o
+  // painel aqui, em volta da página, que passa a rolar dentro dele.
+  const { pathname } = useLocation()
+  const glassPanel = pathname === '/crm' || pathname.startsWith('/crm/')
+  const glass = pathname === '/dashboard' || glassPanel
 
   // Aplica o data-theme só enquanto o app autenticado estiver montado — páginas
   // públicas (landing, login, portal do cliente...) nunca herdam essa preferência.
@@ -101,7 +108,8 @@ export function Layout() {
   }, [isDark])
 
   return (
-    <div className="flex h-screen h-[100dvh] overflow-hidden" style={{ background: 'var(--sm-bg-page)' }}>
+    <div className="relative flex h-screen h-[100dvh] overflow-hidden" style={{ background: 'var(--sm-bg-page)' }}>
+      {glass && <GlassBackdrop />}
 
       {/* Mobile backdrop */}
       {mobileOpen && (
@@ -117,9 +125,10 @@ export function Layout() {
           fixed md:relative inset-y-0 left-0 z-40 md:z-auto h-full
           transition-transform duration-200 ease-in-out
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${glass ? 'md:py-4 md:pl-4 md:pr-3' : ''}
         `}
       >
-        <Sidebar onMobileClose={() => setMobileOpen(false)} />
+        <Sidebar onMobileClose={() => setMobileOpen(false)} glass={glass} />
       </div>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
@@ -138,8 +147,14 @@ export function Layout() {
         <TrialBanner />
         {/* sm-menu-gap: no celular a página começa abaixo do botão de menu
             flutuante, que senão cobre o título e os primeiros controles */}
-        <div className="sm-menu-gap flex-1 overflow-y-auto overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
-          <Outlet />
+        <div className={`sm-menu-gap flex-1 overflow-y-auto overflow-x-hidden pb-[env(safe-area-inset-bottom)] ${glass ? 'md:py-4 md:pr-4' : ''}`}>
+          {glassPanel ? (
+            <div className="sm-glass-panel h-full overflow-y-auto overflow-x-hidden md:rounded-[32px]">
+              <Outlet />
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
       </main>
     </div>

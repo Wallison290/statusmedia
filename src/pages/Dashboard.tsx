@@ -4,7 +4,7 @@ import { motion, MotionConfig } from 'framer-motion'
 import { CalendarDays, ArrowUpRight, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCrmPeriodStats } from '@/hooks/useCrmDashboard'
 import { useMoney } from '@/hooks/useHideValues'
-import { DashboardHero } from '@/components/dashboard/DashboardHero'
+import { DashboardHero, HeroControls } from '@/components/dashboard/DashboardHero'
 import { useDashboardGreeting } from '@/hooks/useDashboardGreeting'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -105,7 +105,8 @@ function rangeLabel(mode: PeriodMode, range: DateRange): string {
 
 // ─── Blocos base ──────────────────────────────────────────────────────────────
 
-const CARD = 'rounded-2xl border border-[var(--sm-border)] bg-[var(--sm-bg-card)]'
+// Cartão de vidro: os tokens --sm-bg-* são translúcidos dentro de .sm-glass-panel (index.css)
+const CARD = 'sm-glass-tile rounded-[22px]'
 
 /** Entra ao rolar: sobe 16px e aparece. Respeita "reduzir movimento" via MotionConfig. */
 function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -223,7 +224,7 @@ function PeriodPicker({ mode, range, customRange, onMode, onCustomRange }: Perio
         </button>
 
         {open && (
-          <div className={`absolute right-0 top-full mt-2 z-50 p-4 w-[260px] shadow-2xl ${CARD}`}>
+          <div className="sm-glass-pop absolute right-0 top-full mt-2 z-50 p-4 w-[260px] shadow-2xl rounded-[18px]">
             <p className="text-[12px] font-semibold mb-3 text-[var(--sm-text-1)]">Período personalizado</p>
             <div className="space-y-2.5">
               <div>
@@ -275,16 +276,16 @@ interface Kpi {
 // baixo em 3 colunas — sem célula sobrando. No lg: os quatro lado a lado.
 function KpiStrip({ items, loading }: { items: Kpi[]; loading: boolean }) {
   return (
-    <div className={`grid grid-cols-3 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-px bg-[var(--sm-border)] rounded-2xl overflow-hidden border border-[var(--sm-border)] transition-opacity duration-300 ${loading ? 'opacity-50' : ''}`}>
+    <div className={`grid grid-cols-3 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-2.5 sm:gap-3 transition-opacity duration-300 ${loading ? 'opacity-50' : ''}`}>
       {items.map((k, i) => {
         const lead = i === 0
         return (
           <Link
             key={k.label}
             to={k.href}
-            className={`group relative flex flex-col justify-between bg-[var(--sm-bg-card)] hover:bg-[var(--sm-bg-input)] transition-colors ${
+            className={`${CARD} group relative overflow-hidden flex flex-col justify-between hover:bg-[var(--sm-bg-input)] transition-colors ${
               lead
-                ? 'col-span-3 lg:col-span-1 gap-5 p-5 sm:p-6 min-h-[140px] lg:min-h-[184px]'
+                ? 'col-span-3 lg:col-span-1 gap-5 p-5 sm:p-6 min-h-[140px] lg:min-h-[176px]'
                 : 'gap-4 px-3.5 py-4 sm:p-6 min-h-[112px] sm:min-h-[140px]'
             }`}
           >
@@ -528,9 +529,9 @@ function FinancialBlock({ data }: { data: FinStats }) {
   ]
 
   return (
-    <div className="grid lg:grid-cols-[1.25fr_1fr] gap-px bg-[var(--sm-border)] rounded-2xl overflow-hidden border border-[var(--sm-border)]">
+    <div className="grid lg:grid-cols-[1.25fr_1fr] gap-2.5 sm:gap-3">
       {/* Manchete: MRR */}
-      <div className="bg-[var(--sm-bg-card)] p-6 sm:p-8 flex flex-col justify-between gap-8 min-h-[220px]">
+      <div className={`${CARD} p-6 sm:p-8 flex flex-col justify-between gap-8 min-h-[220px]`}>
         <Eyebrow>Receita mensal recorrente</Eyebrow>
         <div>
           <p
@@ -557,9 +558,9 @@ function FinancialBlock({ data }: { data: FinStats }) {
       </div>
 
       {/* 2×2 */}
-      <div className="grid grid-cols-2 gap-px bg-[var(--sm-border)]">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
         {cells.map(c => (
-          <div key={c.label} className="bg-[var(--sm-bg-card)] p-5 sm:p-6 flex flex-col justify-between gap-4 min-h-[118px]">
+          <div key={c.label} className={`${CARD} p-5 sm:p-6 flex flex-col justify-between gap-4 min-h-[118px]`}>
             <Eyebrow color={c.on ? c.color : undefined}>{c.label}</Eyebrow>
             <div>
               <p
@@ -794,21 +795,22 @@ export function Dashboard() {
 
   return (
     <MotionConfig reducedMotion="user">
-      {/* sm-menu-gap-inside: o banner vai até o topo e reserva o espaço do menu por dentro */}
-      <div className="sm-menu-gap-inside min-h-full bg-[var(--sm-bg-page)]">
-        <DashboardHero
-          greeting={greeting}
-          userName={userName}
-          message={message}
-          pills={pills}
-          isLoading={greetingLoading}
-          onRefresh={refreshGreeting}
-        />
-
-        <div className="max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 pb-16">
+      {/* Painel de vidro: conteúdo à esquerda, coluna da agenda à direita (xl).
+          Abaixo do xl a coluna desce para o fim, em duas colunas no md. */}
+      <div className="sm-glass-panel mx-3 mb-3 md:m-0 rounded-[28px] md:rounded-[32px] overflow-hidden md:min-h-full grid xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 px-4 sm:px-6 lg:px-8 pb-10">
+          <DashboardHero
+            glass
+            greeting={greeting}
+            userName={userName}
+            message={message}
+            pills={pills}
+            isLoading={greetingLoading}
+            onRefresh={refreshGreeting}
+          />
 
           {/* ── 01 · O período ─────────────────────────────────────────────── */}
-          <section className="mt-10 sm:mt-12">
+          <section className="mt-9">
             <SectionHead n="01" title="O período" aside={<span className="capitalize">{rangeLabel(periodMode, range)}</span>}>
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Seta: troca os cards entre o conteúdo e o andamento do CRM */}
@@ -851,25 +853,15 @@ export function Dashboard() {
           </section>
 
           {/* ── 02 · Produção ──────────────────────────────────────────────── */}
-          <section className="mt-12 sm:mt-16">
+          <section className="mt-12">
             <SectionHead n="02" title="Produção" aside="onde cada post está" />
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] gap-4 lg:gap-5">
-              <Reveal>
-                <PipelineWidget counts={planCounts} />
-              </Reveal>
-              <div className="flex flex-col gap-4 lg:gap-5">
-                <Reveal delay={0.08}>
-                  <AgendaWidget items={plannerCalItems} />
-                </Reveal>
-                <Reveal delay={0.16}>
-                  <OpsWidget rows={opsRows} />
-                </Reveal>
-              </div>
-            </div>
+            <Reveal>
+              <PipelineWidget counts={planCounts} />
+            </Reveal>
           </section>
 
           {/* ── 03 · Financeiro ────────────────────────────────────────────── */}
-          <section className="mt-12 sm:mt-16">
+          <section className="mt-12">
             <SectionHead n="03" title="Financeiro" aside="ciclo atual">
               <Link
                 to="/financial"
@@ -883,8 +875,28 @@ export function Dashboard() {
               <FinancialBlock data={finStats} />
             </Reveal>
           </section>
-
         </div>
+
+        {/* ── Coluna da direita: conta, agenda e operação ─────────────────── */}
+        <aside className="sm-glass-side border-t xl:border-t-0 xl:border-l border-[var(--sm-border)] p-4 sm:p-5 grid md:grid-cols-2 xl:grid-cols-1 content-start gap-4">
+          <div className={`${CARD} sm-invert hidden xl:flex items-center gap-3 px-4 py-3`}>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">
+                {(agencyProfile as any)?.agency_name || userName}
+              </p>
+              <p className="text-[11px] text-[var(--sm-text-3)] truncate">{user?.email}</p>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <HeroControls inverted />
+            </div>
+          </div>
+          <Reveal delay={0.08} className="sm-invert">
+            <AgendaWidget items={plannerCalItems} />
+          </Reveal>
+          <Reveal delay={0.16} className="sm-invert">
+            <OpsWidget rows={opsRows} />
+          </Reveal>
+        </aside>
       </div>
     </MotionConfig>
   )
