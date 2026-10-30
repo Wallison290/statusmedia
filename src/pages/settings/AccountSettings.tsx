@@ -255,7 +255,7 @@ export function AccountSettings() {
               </div>
             </div>
           </div>
-          <Link to="/assinatura" className="flex items-center justify-between px-4 sm:px-5 py-3 border-t text-[13px] font-semibold hover:bg-black/5 transition-colors" style={{ borderColor: 'var(--sm-border)', color: isDark ? '#60A5FA' : '#2563EB' }}>
+          <Link to="/assinatura" className="flex items-center justify-between px-4 sm:px-5 py-3 border-t text-[13px] font-semibold hover:bg-[var(--sm-bg-alt)] transition-colors" style={{ borderColor: 'var(--sm-border)', color: isDark ? '#60A5FA' : '#2563EB' }}>
             Ver assinatura, faturas e trocar de plano
             <ArrowRight className="w-4 h-4" />
           </Link>

@@ -144,7 +144,7 @@ function toInput(r: FinRecurrence, patch: Partial<RecurrenceInput> = {}): Recurr
 
 function IconBtn({ children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button {...p} aria-label={p.title} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5"
+    <button {...p} aria-label={p.title} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)]"
       style={{ color: 'var(--sm-text-3)' }}>{children}</button>
   )
 }

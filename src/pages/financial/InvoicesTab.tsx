@@ -122,7 +122,7 @@ export function InvoicesTab() {
                   if (!window.confirm(`Registrar que a nota nº ${inv.number} foi cancelada? Cancele também no portal onde ela foi emitida. As parcelas voltam para "a emitir".`)) return
                   try { await cancel.mutateAsync(inv.id); toast('Cancelamento registrado.', 'success') }
                   catch (err: any) { toast(err.message ?? 'Erro.', 'error') }
-                }} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+                }} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)]" style={{ color: 'var(--sm-text-3)' }}>
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -235,7 +235,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
       </div>
       {value && (
         <button onClick={() => { navigator.clipboard?.writeText(value); toast(`${label} copiado.`, 'success') }}
-          aria-label={`Copiar ${label}`} title="Copiar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5 flex-shrink-0"
+          aria-label={`Copiar ${label}`} title="Copiar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)] flex-shrink-0"
           style={{ color: '#60A5FA' }}><Copy className="w-3.5 h-3.5" /></button>
       )}
     </div>

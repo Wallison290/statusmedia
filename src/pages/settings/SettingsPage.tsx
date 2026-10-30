@@ -67,13 +67,13 @@ const num = (i: number) => String(i + 1).padStart(2, '0')
 function SectionNav({ active, crmLocked }: { active: string; crmLocked: boolean }) {
   return (
     <>
-      <nav aria-label="Seções das configurações" className="lg:hidden flex gap-1 overflow-x-auto scrollbar-none border-b -mx-4 px-4 mb-6" style={{ borderColor: 'var(--sm-border)' }}>
+      <nav aria-label="Seções das configurações" className="lg:hidden flex w-fit max-w-full gap-0.5 p-1 rounded-full border overflow-x-auto scrollbar-none mb-6" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
         {SECTIONS.map(s => {
           const on = s.key === active
           return (
             <Link key={s.key} to={`/configuracoes/${s.key}`} aria-current={on ? 'page' : undefined}
-              className={`h-10 px-3 inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap border-b-2 -mb-px transition-colors ${on ? 'font-semibold' : 'opacity-80 hover:opacity-100'}`}
-              style={{ borderColor: on ? '#2563EB' : 'transparent', color: on ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
+              className={`sm-glass-segment flex-shrink-0 h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 text-[12.5px] whitespace-nowrap transition-colors ${on ? 'is-active font-semibold' : 'font-medium hover:text-[var(--sm-text-1)]'}`}
+              style={{ color: on ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
               {s.group === 'CRM' && <span style={{ color: 'var(--sm-text-4)' }}>CRM ·</span>}
               {s.label}
               {s.crm && crmLocked && <Lock className="w-3 h-3" style={{ color: 'var(--sm-text-4)' }} />}
@@ -85,24 +85,23 @@ function SectionNav({ active, crmLocked }: { active: string; crmLocked: boolean 
       <nav aria-label="Seções das configurações" className="hidden lg:block sticky top-6 space-y-6">
         {GROUPS.map(g => (
           <div key={g}>
-            <p className="px-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--sm-text-4)' }}>{g}</p>
-            <ul className="border-l" style={{ borderColor: 'var(--sm-border)' }}>
+            <p className="px-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--sm-text-3)' }}>{g}</p>
+            <ul className="space-y-0.5">
               {SECTIONS.filter(s => s.group === g).map(s => {
                 const on = s.key === active
                 const i = SECTIONS.indexOf(s)
                 return (
                   <li key={s.key}>
                     <Link to={`/configuracoes/${s.key}`} aria-current={on ? 'page' : undefined}
-                      className="group relative flex items-start gap-2.5 pl-3 pr-2 py-2 -ml-px border-l-2 transition-colors"
-                      style={{ borderColor: on ? '#2563EB' : 'transparent' }}>
-                      <span className="text-[11px] font-semibold tabular-nums pt-[2px] w-4 flex-shrink-0" style={{ color: on ? '#2563EB' : 'var(--sm-text-4)' }}>{num(i)}</span>
+                      className={`group relative flex items-start gap-2.5 px-3 py-2 rounded-2xl transition-colors ${on ? 'sm-glass-segment is-active' : 'hover:bg-[var(--sm-bg-alt)]'}`}>
+                      {on && <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r" style={{ background: '#2563EB' }} />}
                       <span className="min-w-0 flex-1">
                         <span className={`flex items-center gap-1.5 text-[13px] leading-snug transition-colors ${on ? 'font-semibold' : 'font-medium group-hover:!text-[color:var(--sm-text-1)]'}`}
                           style={{ color: on ? 'var(--sm-text-1)' : 'var(--sm-text-2)' }}>
                           {s.label}
                           {s.crm && crmLocked && <Lock className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--sm-text-4)' }} />}
                         </span>
-                        <span className="block text-[11.5px] leading-snug mt-0.5" style={{ color: 'var(--sm-text-4)' }}>{s.hint}</span>
+                        <span className="block text-[11.5px] leading-snug mt-0.5" style={{ color: 'var(--sm-text-3)' }}>{s.hint}</span>
                       </span>
                     </Link>
                   </li>
@@ -163,8 +162,8 @@ export function SettingsPage() {
 
         {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
         <header className="mb-5 lg:mb-8 max-md:pl-12 max-md:-mt-[3.25rem]">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Sistema</p>
-          <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Sistema</p>
+          <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
             Configurações
           </h1>
           <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>

@@ -206,7 +206,7 @@ export function PartnersPanel() {
                       onClick={() => resend.mutate(p)}
                       disabled={resend.isPending}
                       title="Reenviar convite"
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-black/5"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-[color:var(--sm-text-1)] hover:bg-[var(--sm-bg-alt)]"
                     >
                       <RotateCw className={`w-3.5 h-3.5 ${resend.isPending ? 'animate-spin' : ''}`} />
                     </button>
@@ -214,7 +214,7 @@ export function PartnersPanel() {
                   <button
                     onClick={() => setRemoving(p)}
                     title="Remover sócio"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-500 hover:bg-black/5"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-[#94a3b8] hover:text-red-500 hover:bg-[var(--sm-bg-alt)]"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -230,12 +230,12 @@ export function PartnersPanel() {
 
       <AnimatePresence>
         {removing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setRemoving(null)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center sm-glass-overlay px-4" onClick={() => setRemoving(null)}>
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="bg-[#111827] border border-[#1e293b] rounded-2xl shadow-2xl w-full max-w-xs p-6 space-y-4"
+              className="sm-glass-modal shadow-2xl w-full max-w-xs p-6 space-y-4"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-start gap-3">

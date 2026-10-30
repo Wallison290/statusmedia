@@ -81,13 +81,13 @@ export function EntriesTab() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
           <button onClick={() => setMonth(addMonthsISO(month, -1, 1))} aria-label="Mês anterior"
-            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-white/5"
+            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-[var(--sm-bg-alt)]"
             style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}><ChevronLeft className="w-4 h-4" /></button>
           <span className="font-display text-[16px] font-bold min-w-[150px] text-center" style={{ color: 'var(--sm-text-1)' }}>
             {MONTHS[m - 1]} {y}
           </span>
           <button onClick={() => setMonth(addMonthsISO(month, 1, 1))} aria-label="Próximo mês"
-            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-white/5"
+            className="w-9 h-9 rounded-xl border flex items-center justify-center hover:bg-[var(--sm-bg-alt)]"
             style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}><ChevronRight className="w-4 h-4" /></button>
         </div>
         <div className="flex-1" />
@@ -184,7 +184,7 @@ export function EntriesTab() {
 
 function IconBtn({ children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button {...p} aria-label={p.title} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+    <button {...p} aria-label={p.title} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors"
       style={{ color: 'var(--sm-text-3)' }}>
       {children}
     </button>

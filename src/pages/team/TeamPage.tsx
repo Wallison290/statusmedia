@@ -522,7 +522,7 @@ function TaskEditPanel({
           Salvar
         </button>
         <button onClick={onCancel}
-          className="flex-1 h-8 rounded-lg border border-[#1e293b] text-[12px] text-[#64748b] hover:bg-black/5">
+          className="flex-1 h-8 rounded-lg border border-[#1e293b] text-[12px] text-[#64748b] hover:bg-[var(--sm-bg-alt)]">
           Cancelar
         </button>
       </div>
@@ -800,7 +800,7 @@ function MemberDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-end bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-end sm-glass-overlay"
       onClick={onClose}
     >
       <motion.div
@@ -808,7 +808,7 @@ function MemberDetailModal({
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: 40 }}
         transition={{ duration: 0.2 }}
-        className="bg-[#111827] border-l border-[#1e293b] h-full w-full max-w-md flex flex-col shadow-2xl"
+        className="sm-glass-drawer h-full w-full max-w-md flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header do membro */}
@@ -834,7 +834,7 @@ function MemberDetailModal({
             </button>
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-full hover:bg-black/5 flex items-center justify-center"
+              className="w-7 h-7 rounded-full hover:bg-[var(--sm-bg-alt)] flex items-center justify-center"
             >
               <X className="w-4 h-4 text-[#94a3b8]" />
             </button>
@@ -946,7 +946,7 @@ function MemberDetailModal({
                           onClick={() => setExpanded(isExpanded ? null : task.id)}
                           title="Editar"
                           className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                            isExpanded ? 'bg-[#2563EB]/10 text-[#2563EB]' : 'text-[color:var(--sm-text-4)] hover:bg-black/5 hover:text-[color:var(--sm-text-1)]'
+                            isExpanded ? 'bg-[#2563EB]/10 text-[#2563EB]' : 'text-[color:var(--sm-text-4)] hover:bg-[var(--sm-bg-alt)] hover:text-[color:var(--sm-text-1)]'
                           }`}
                         >
                           <Pencil className="w-3 h-3" />
@@ -1063,12 +1063,12 @@ function MemberModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm-glass-overlay px-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="bg-[#111827] border border-[#1e293b] rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4"
+        className="sm-glass-modal shadow-2xl w-full max-w-sm p-6 space-y-4"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -1076,7 +1076,7 @@ function MemberModal({
           <h2 className="font-display text-[19px] font-bold text-[#F8FAFC]">
             {isEdit ? 'Editar membro' : 'Novo membro'}
           </h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-black/5 flex items-center justify-center">
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-[var(--sm-bg-alt)] flex items-center justify-center">
             <X className="w-4 h-4 text-[#94a3b8]" />
           </button>
         </div>
@@ -1130,7 +1130,7 @@ function MemberModal({
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             {isEdit ? 'Salvar' : 'Adicionar'}
           </button>
-          <button onClick={onClose} className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#475569] hover:bg-black/5">
+          <button onClick={onClose} className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#475569] hover:bg-[var(--sm-bg-alt)]">
             Cancelar
           </button>
         </div>
@@ -1204,12 +1204,12 @@ function NewTaskModal({
   const initial = member.name[0].toUpperCase()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm-glass-overlay px-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="bg-[#111827] border border-[#1e293b] rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+        className="sm-glass-modal shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -1228,7 +1228,7 @@ function NewTaskModal({
               <p className="text-[11px] text-[#94a3b8]">Para {member.name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-black/5 flex items-center justify-center">
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-[var(--sm-bg-alt)] flex items-center justify-center">
             <X className="w-4 h-4 text-[#94a3b8]" />
           </button>
         </div>
@@ -1335,7 +1335,7 @@ function NewTaskModal({
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             Criar demanda
           </button>
-          <button onClick={onClose} className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#475569] hover:bg-black/5">
+          <button onClick={onClose} className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#475569] hover:bg-[var(--sm-bg-alt)]">
             Cancelar
           </button>
         </div>
@@ -1388,11 +1388,11 @@ function MemberCard({
   }
 
   const level = getWorkloadLevel(openCount)
-  const iconBtn = 'w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors'
+  const iconBtn = 'w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors'
 
   return (
     <div
-      className={`relative flex flex-col md:flex-row md:items-center gap-3 md:gap-5 pl-5 pr-4 py-4 cursor-pointer transition-colors hover:bg-black/[0.02] ${first ? '' : 'border-t'}`}
+      className={`relative flex flex-col md:flex-row md:items-center gap-3 md:gap-5 pl-5 pr-4 py-4 cursor-pointer transition-colors hover:bg-[var(--sm-bg-alt)] ${first ? '' : 'border-t'}`}
       style={{ borderColor: 'var(--sm-border)' }}
       onClick={onOpenDetail}
     >
@@ -1429,7 +1429,7 @@ function MemberCard({
       {/* Ações */}
       <div className="flex items-center gap-1 flex-shrink-0 md:justify-end" onClick={e => e.stopPropagation()} style={{ color: 'var(--sm-text-3)' }}>
         <button onClick={onNewTask} title="Nova demanda"
-          className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[12px] font-semibold hover:bg-black/5" style={{ color: '#2563EB' }}>
+          className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[12px] font-semibold hover:bg-[var(--sm-bg-alt)]" style={{ color: '#2563EB' }}>
           <Plus className="w-3.5 h-3.5" /> Demanda
         </button>
         {member.whatsapp && (
@@ -1511,7 +1511,7 @@ function TaskCard({
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onEdit() }}
             title="Editar demanda" aria-label="Editar demanda"
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0"
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)] transition-colors flex-shrink-0"
             style={{ color: 'var(--sm-text-3)' }}
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -1571,21 +1571,21 @@ function BoardTaskEditModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center sm-glass-overlay px-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="bg-[#111827] border border-[#1e293b] rounded-2xl shadow-2xl w-full max-w-sm p-5"
+        className="sm-glass-modal shadow-2xl w-full max-w-sm p-5"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display text-[18px] font-bold text-[#F8FAFC]">Editar demanda</h3>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full hover:bg-black/5 flex items-center justify-center"
+            className="w-7 h-7 rounded-full hover:bg-[var(--sm-bg-alt)] flex items-center justify-center"
           >
             <X className="w-4 h-4 text-[#94a3b8]" />
           </button>
@@ -1870,12 +1870,12 @@ function DeleteConfirm({ name, onConfirm, onCancel }: {
   name: string; onConfirm: () => void; onCancel: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm-glass-overlay px-4" onClick={onCancel}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
-        className="bg-[#111827] border border-[#1e293b] rounded-2xl shadow-2xl w-full max-w-xs p-6 space-y-4"
+        className="sm-glass-modal shadow-2xl w-full max-w-xs p-6 space-y-4"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
@@ -1893,7 +1893,7 @@ function DeleteConfirm({ name, onConfirm, onCancel }: {
           <button onClick={onConfirm} className="flex-1 h-9 rounded-lg bg-red-500 text-white text-[13px] font-semibold hover:bg-red-600">
             Remover
           </button>
-          <button onClick={onCancel} className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#475569] hover:bg-black/5">
+          <button onClick={onCancel} className="flex-1 h-9 rounded-lg border border-[#1e293b] text-[13px] text-[#475569] hover:bg-[var(--sm-bg-alt)]">
             Cancelar
           </button>
         </div>
@@ -1984,8 +1984,8 @@ export function TeamPage() {
         {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
         <header className="mb-5 max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Agência</p>
-            <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Agência</p>
+            <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
               Equipe
             </h1>
             <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>
@@ -2021,7 +2021,7 @@ export function TeamPage() {
         </div>
 
         {/* ── Abas sublinhadas ── */}
-        <div className="flex items-end gap-1 border-b overflow-x-auto [&::-webkit-scrollbar]:hidden mb-5" style={{ borderColor: 'var(--sm-border)' }}>
+        <div className="flex w-fit max-w-full items-center gap-0.5 p-1 rounded-full border overflow-x-auto [&::-webkit-scrollbar]:hidden mb-5" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }}>
           {([
             ['membros', Users,         'Membros',           'Membros'],
             ['board',   ClipboardList, 'Board de tarefas',  'Board'],
@@ -2031,9 +2031,9 @@ export function TeamPage() {
             const ativo = tab === t
             return (
               <button key={t} onClick={() => setTab(t)} aria-current={ativo ? 'page' : undefined}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 h-10 px-3 border-b-2 -mb-px text-[13px] whitespace-nowrap transition-colors"
-                style={{ borderColor: ativo ? '#2563EB' : 'transparent', color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
-                <Icon className="w-4 h-4" style={{ color: ativo ? '#2563EB' : 'var(--sm-text-4)' }} />
+                className={`sm-glass-segment ${ativo ? 'is-active' : 'hover:text-[var(--sm-text-1)]'} flex-shrink-0 inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[12.5px] whitespace-nowrap transition-colors`}
+                style={{ color: ativo ? 'var(--sm-text-1)' : 'var(--sm-text-3)', fontWeight: ativo ? 600 : 500 }}>
+                <Icon className="w-3.5 h-3.5" style={{ color: ativo ? '#2563EB' : undefined }} />
                 <span className="sm:hidden">{short}</span>
                 <span className="hidden sm:inline">{label}</span>
               </button>
@@ -2106,7 +2106,7 @@ export function TeamPage() {
                     <button key={opt.id ?? 'todos'}
                       onClick={() => setFiltered(f => (opt.id === null ? null : f === opt.id ? null : opt.id))}
                       aria-pressed={ativo}
-                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[12.5px] transition-colors hover:bg-black/5"
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[12.5px] transition-colors hover:bg-[var(--sm-bg-alt)]"
                       style={ativo
                         ? { borderColor: '#2563EB', color: 'var(--sm-text-1)', fontWeight: 600, boxShadow: 'inset 0 0 0 1px #2563EB', background: 'var(--sm-bg-card)' }
                         : { borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)', fontWeight: 500, background: 'var(--sm-bg-card)' }}>

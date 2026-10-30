@@ -257,7 +257,6 @@ function PlanCard({
       {/* Cabeçalho do plano */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>{String(idx + 1).padStart(2, '0')}</p>
           <h3 className="font-display text-[22px] font-bold leading-tight" style={{ color: 'var(--sm-text-1)' }}>{plan.name}</h3>
           <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
             {plan.maxClients === -1 ? 'Clientes ilimitados' : `Até ${plan.maxClients} clientes`}
@@ -300,7 +299,7 @@ function PlanCard({
       {isCurrent ? (
         hasStripe ? (
           <button onClick={() => onPortal()} disabled={!!loadingPlan}
-            className={`${btnBase} border hover:bg-black/5`} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>
+            className={`${btnBase} border hover:bg-[var(--sm-bg-alt)]`} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' }}>
             {loadingPlan === 'portal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
             Gerenciar assinatura
           </button>
@@ -309,7 +308,7 @@ function PlanCard({
         )
       ) : isDowngrade ? (
         <button onClick={() => onPortal(plan.stripePriceId ?? undefined)} disabled={!!loadingPlan}
-          className={`${btnBase} border hover:bg-black/5`} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}>
+          className={`${btnBase} border hover:bg-[var(--sm-bg-alt)]`} style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-3)' }}>
           {loadingPlan === plan.stripePriceId && <Loader2 className="w-4 h-4 animate-spin" />}
           Fazer downgrade
         </button>
@@ -415,15 +414,15 @@ export function Subscription() {
       {/* ── Cabeçalho (no celular, ao lado do menu) ── */}
       <header className="max-md:pl-12 max-md:-mt-[3.25rem] flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Conta</p>
-          <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Conta</p>
+          <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>
             Assinatura
           </h1>
           <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Seu plano, o que você já usou no mês e as opções para crescer.</p>
         </div>
         {hasStripe && (
           <button onClick={() => handlePortal()} disabled={!!loadingPlan}
-            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border text-[13px] font-medium hover:bg-black/5 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border text-[13px] font-medium hover:bg-[var(--sm-bg-alt)] transition-colors disabled:opacity-60"
             style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-2)' }}>
             {loadingPlan === 'portal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             Gerenciar pagamento
@@ -451,7 +450,6 @@ export function Subscription() {
       {/* 01 · Plano atual + uso */}
       <section>
         <h2 className="flex items-baseline gap-2 mb-3">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>01</span>
           <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Seu plano</span>
         </h2>
         <div className="rounded-2xl border grid grid-cols-1 md:grid-cols-3 gap-px overflow-hidden" style={{ background: 'var(--sm-border)', borderColor: 'var(--sm-border)' }}>
@@ -490,7 +488,6 @@ export function Subscription() {
       {subData && (
         <section>
           <h2 className="flex items-baseline gap-2 mb-3">
-            <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>02</span>
           <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Renovação e pagamentos</span>
           </h2>
           <RenewalSection sub={subData} agencyId={agencyId ?? null} onPortal={() => handlePortal()} loadingPlan={loadingPlan} />
@@ -500,7 +497,6 @@ export function Subscription() {
       {/* 03 · Planos */}
       <section>
         <h2 className="flex items-baseline gap-2 mb-3">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>03</span>
           <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Planos disponíveis</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -514,7 +510,6 @@ export function Subscription() {
       {/* 04 · Comparativo */}
       <section>
         <h2 className="flex items-baseline gap-2 mb-3">
-          <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-4)' }}>04</span>
           <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>Comparativo</span>
         </h2>
         <div className="rounded-2xl border overflow-x-auto" style={card}>
@@ -531,7 +526,7 @@ export function Subscription() {
             </thead>
             <tbody>
               {linhas.map((row, ri) => (
-                <tr key={row.label} className={`hover:bg-black/[0.02] ${ri > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
+                <tr key={row.label} className={`hover:bg-[var(--sm-bg-alt)] ${ri > 0 ? 'border-t' : ''}`} style={{ borderColor: 'var(--sm-border)' }}>
                   <td className="px-5 py-3" style={{ color: 'var(--sm-text-2)' }}>{row.label}</td>
                   {row.values.map((v, i) => {
                     const atual = PLAN_ORDER[i] === currentPlanId

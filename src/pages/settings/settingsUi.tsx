@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-// Peças da página Configurações, no padrão do kit da marca: número da seção em
-// azul (#2563EB), título em Bricolage (font-display), linhas de 1px, cartões
-// neutros. O mesmo desenho de seção numerada usado no WhatsApp.
+// Peças da página Configurações: título em Bricolage (font-display), linhas de
+// 1px, cartões neutros. Seções sem numeração (pedido do usuário); `n` segue
+// aceito e não aparece.
 
 export const cardStyle = { background: 'var(--sm-bg-card)', borderColor: 'var(--sm-border)' } as const
 export const fieldStyle = { background: 'var(--sm-field-bg, var(--sm-bg-input))', borderColor: 'var(--sm-field-border, var(--sm-border))', color: 'var(--sm-text-1)' } as const
@@ -19,10 +19,7 @@ export function SettingsSection({ n, title, description, aside, children }: {
     <section>
       <div className="flex items-end justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <h3 className="flex items-baseline gap-2">
-            <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>
-            <span className="font-display text-[17px] font-bold" style={{ color: 'var(--sm-text-1)' }}>{title}</span>
-          </h3>
+          <h3 className="font-display text-[17px] font-bold tracking-[-0.01em]" style={{ color: 'var(--sm-text-1)' }}>{title}</h3>
           {description && <p className="text-[12.5px] mt-0.5 max-w-[62ch]" style={{ color: 'var(--sm-text-3)' }}>{description}</p>}
         </div>
         {aside}
@@ -34,7 +31,7 @@ export function SettingsSection({ n, title, description, aside, children }: {
 
 export function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
   return (
-    <label htmlFor={htmlFor} className="block text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--sm-text-4)' }}>
+    <label htmlFor={htmlFor} className="block text-[10.5px] font-semibold uppercase tracking-[0.08em] mb-1.5" style={{ color: 'var(--sm-text-3)' }}>
       {children}
     </label>
   )

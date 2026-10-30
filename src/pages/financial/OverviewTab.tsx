@@ -77,7 +77,7 @@ export function OverviewTab({ goTo }: { goTo: (tab: string) => void }) {
     <div className="space-y-6">
       {awaiting.length > 0 && (
         <button onClick={() => goTo('recorrencias')}
-          className="w-full text-left rounded-2xl border px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors"
+          className="w-full text-left rounded-2xl border px-4 py-3 flex items-center gap-3 hover:bg-[var(--sm-bg-alt)] transition-colors"
           style={{ borderColor: 'rgba(37,99,235,0.4)', background: 'rgba(37,99,235,0.08)' }}>
           <FileSignature className="w-5 h-5 flex-shrink-0" style={{ color: '#60A5FA' }} />
           <span className="text-[13px] flex-1" style={{ color: 'var(--sm-text-1)' }}>

@@ -44,7 +44,7 @@ export function SettingsTab() {
                 <p className="text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>{KINDS[a.kind]} · saldo inicial {fmtBRL(a.initial_balance)}</p>
               </div>
               <span className="text-[14px] font-semibold tabular-nums" style={{ color: 'var(--sm-text-1)' }}>{fmtBRL(a.balance)}</span>
-              <button onClick={() => setAcc(a)} aria-label="Editar conta" title="Editar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+              <button onClick={() => setAcc(a)} aria-label="Editar conta" title="Editar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)]" style={{ color: 'var(--sm-text-3)' }}>
                 <Pencil className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -85,7 +85,7 @@ export function SettingsTab() {
                     <p className="text-[13px] truncate" style={{ color: 'var(--sm-text-1)' }}>{c.name}</p>
                     <p className="text-[11px]" style={{ color: 'var(--sm-text-4)' }}>{DRE[c.dre_group]}{!c.is_active ? ' · desativada' : ''}</p>
                   </div>
-                  <button onClick={() => setCat(c)} aria-label="Editar categoria" title="Editar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5" style={{ color: 'var(--sm-text-3)' }}>
+                  <button onClick={() => setCat(c)} aria-label="Editar categoria" title="Editar" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--sm-bg-alt)]" style={{ color: 'var(--sm-text-3)' }}>
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                 </div>

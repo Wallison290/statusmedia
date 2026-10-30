@@ -39,18 +39,19 @@ export function FinancePage() {
 
   return (
     <div className="min-h-full" style={{ background: 'var(--sm-bg-page)' }}>
-      <div className="p-4 md:p-6 max-w-7xl mx-auto">
-        <header className="mb-5 max-md:pl-12 max-md:-mt-[3.25rem]">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-4)' }}>Gestão da agência</p>
-          <h1 className="font-display text-[28px] md:text-[34px] font-bold leading-[1.05] tracking-[-0.02em]" style={{ color: 'var(--sm-text-1)' }}>Financeiro</h1>
+      <div className="px-4 sm:px-6 lg:px-8 pt-4 md:pt-7 pb-12 max-w-7xl mx-auto">
+        <header className="mb-6 max-md:pl-12 max-md:-mt-[3.25rem]">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--sm-text-3)' }}>Gestão da agência</p>
+          <h1 className="font-display text-[30px] md:text-[38px] font-bold leading-[1.02] tracking-[-0.03em]" style={{ color: 'var(--sm-text-1)' }}>Financeiro</h1>
           <p className="text-[13px] mt-1" style={{ color: 'var(--sm-text-3)' }}>Contas a receber e a pagar, fluxo de caixa, cobranças e notas fiscais</p>
         </header>
 
-        <nav className="flex gap-1 overflow-x-auto scrollbar-none border-b mb-5 -mx-4 px-4 md:mx-0 md:px-0" style={{ borderColor: 'var(--sm-border)' }} aria-label="Seções do Financeiro">
+        {/* Abas em cápsula, como no resto do sistema */}
+        <nav className="flex w-fit max-w-full gap-0.5 p-1 rounded-full border overflow-x-auto scrollbar-none mb-6" style={{ background: 'var(--sm-bg-alt)', borderColor: 'var(--sm-border)' }} aria-label="Seções do Financeiro">
           {TABS.map(t => (
             <button key={t.id} onClick={() => goTo(t.id)} aria-current={tab === t.id ? 'page' : undefined}
-              className={`h-10 px-3 text-[13px] whitespace-nowrap border-b-2 -mb-px transition-colors ${tab === t.id ? 'font-semibold' : 'opacity-75 hover:opacity-100'}`}
-              style={{ borderColor: tab === t.id ? '#2563EB' : 'transparent', color: tab === t.id ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
+              className={`sm-glass-segment flex-shrink-0 h-8 px-3.5 rounded-full text-[12.5px] whitespace-nowrap transition-colors ${tab === t.id ? 'is-active font-semibold' : 'font-medium hover:text-[var(--sm-text-1)]'}`}
+              style={{ color: tab === t.id ? 'var(--sm-text-1)' : 'var(--sm-text-3)' }}>
               {t.label}
             </button>
           ))}
