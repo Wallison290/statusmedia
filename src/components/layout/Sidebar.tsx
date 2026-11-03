@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useStorageUsage } from '@/hooks/useStorageUsage'
 import { preloadRoute } from '@/lib/routePreload'
+import { APP_VERSION, APP_VERSION_TITLE } from '@/lib/appVersion'
 
 interface NavItem {
   href:       string
@@ -472,6 +473,14 @@ export function Sidebar({ onMobileClose, glass = false }: SidebarProps) {
           <LogOut className={`${rail ? 'w-[17px] h-[17px]' : 'w-[15px] h-[15px]'} flex-shrink-0`} style={{ color: rail ? 'var(--sm-sidebar-text)' : 'var(--sm-sidebar-icon)' }} />
           {!collapsed && <span className="whitespace-nowrap">Sair</span>}
         </button>
+        {/* Versão do sistema */}
+        <p
+          title={APP_VERSION_TITLE}
+          className={`mt-1.5 text-[10px] font-medium tabular-nums tracking-wide select-none whitespace-nowrap ${collapsed ? 'text-center' : rail ? 'pl-[15.5px]' : 'pl-2.5'}`}
+          style={{ color: 'var(--sm-sidebar-icon)' }}
+        >
+          {collapsed ? APP_VERSION : `StatusMedia ${APP_VERSION}`}
+        </p>
       </div>
 
       {/* ── Botão colapsar (oculto no mobile) ── */}

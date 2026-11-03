@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { LogOut, Bell, Menu, X, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { GlassBackdrop } from '@/components/dashboard/GlassBackdrop'
+import { APP_VERSION, APP_VERSION_TITLE } from '@/lib/appVersion'
 
 export interface PortalNavItem {
   key:    string
@@ -156,6 +157,13 @@ export function PortalLayout({
         <div className="flex-shrink-0 px-2.5 pb-3 pt-2 space-y-0.5" style={{ borderTop: '1px solid var(--sm-sidebar-border)' }}>
           <RailButton icon={Bell} label="Notificações" collapsed={collapsed} badge={badgeCount} dotOnly onClick={() => onPick(() => onBellClick?.())} />
           <RailButton icon={LogOut} label="Sair" collapsed={collapsed} onClick={() => signOut()} />
+          <p
+            title={APP_VERSION_TITLE}
+            className={`pt-1 text-[10px] font-medium tabular-nums tracking-wide select-none whitespace-nowrap ${collapsed ? 'text-center' : 'pl-[15.5px]'}`}
+            style={{ color: 'var(--sm-sidebar-icon)' }}
+          >
+            {collapsed ? APP_VERSION : `StatusMedia ${APP_VERSION}`}
+          </p>
         </div>
       </>
     )

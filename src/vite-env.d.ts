@@ -12,3 +12,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// Versão do sistema (vite.config.ts → define)
+declare const __APP_BUILD__: string
+declare const __APP_DATE__: string
