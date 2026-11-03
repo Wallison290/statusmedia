@@ -118,6 +118,13 @@ export function Layout() {
     return () => window.clearTimeout(t)
   }, [user?.id])
 
+  // Celular: a página por trás fica parada. Só o painel rola; antes o iPhone
+  // arrastava a tela inteira (efeito elástico) e mostrava o fundo atrás dela.
+  useEffect(() => {
+    document.documentElement.classList.add('sm-app-shell')
+    return () => document.documentElement.classList.remove('sm-app-shell')
+  }, [])
+
   // Aplica o data-theme só enquanto o app autenticado estiver montado — páginas
   // públicas (landing, login, portal do cliente...) nunca herdam essa preferência.
   useEffect(() => {
@@ -165,9 +172,9 @@ export function Layout() {
         <TrialBanner />
         {/* sm-menu-gap: no celular a página começa abaixo do botão de menu
             flutuante, que senão cobre o título e os primeiros controles */}
-        <div className={`sm-menu-gap flex-1 overflow-y-auto overflow-x-hidden pb-[env(safe-area-inset-bottom)] ${glass ? 'md:py-4 md:pr-4' : ''}`}>
+        <div className={`sm-menu-gap flex-1 min-h-0 overflow-x-hidden ${glassPanel ? 'overflow-hidden' : 'sm-scroll overflow-y-auto pb-[env(safe-area-inset-bottom)]'} ${glass ? 'md:py-4 md:pr-4' : ''}`}>
           {glassPanel ? (
-            <div className="sm-glass-panel h-full overflow-y-auto overflow-x-hidden md:rounded-[32px]">
+            <div className="sm-glass-panel sm-scroll h-full overflow-y-auto overflow-x-hidden pb-[env(safe-area-inset-bottom)] md:pb-0 md:rounded-[32px]">
               <Outlet />
             </div>
           ) : (

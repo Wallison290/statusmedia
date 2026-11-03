@@ -946,3 +946,18 @@
 .sm-board-arrow:hover { background: #2563EB; transform: translateY(-50%) scale(1.06); }
 [data-theme="light"] .sm-board-arrow { background: #FFFFFF; color: #0F172A; border-color: #E2E8F0; box-shadow: 0 10px 24px -10px rgba(15, 23, 42, 0.35); }
 [data-theme="light"] .sm-board-arrow:hover { background: #2563EB; color: #FFFFFF; }
+
+/* ── Rolagem no celular (sistema logado) ──────────────────────────────────────
+   A página (html/body) não rola nem "estica": só o painel de conteúdo rola.
+   Sem isso o iPhone puxava a tela inteira junto e mostrava o fundo por trás. */
+html.sm-app-shell,
+html.sm-app-shell body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html.sm-app-shell #root { height: 100%; }
+.sm-scroll {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
