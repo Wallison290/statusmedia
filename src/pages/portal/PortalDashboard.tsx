@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { ThumbImg, MediumImg } from '@/components/ThumbImg'
 import { useWeeklyFormConfig } from '@/hooks/useWeeklyForm'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, Paperclip, Link2,
   FileText, ImageIcon, Video, Music, File, Building2,
@@ -9,7 +9,7 @@ import {
   CheckCircle2, AlertCircle, XCircle, Clock, MessageSquare, X,
   LayoutDashboard, CalendarDays, FolderOpen, LifeBuoy,
   ArrowRight, Bell, Calendar, MessageCircle, Download, Eye,
-  ClipboardList, Copy,
+  ClipboardList, Copy, BarChart3, Wallet,
 } from 'lucide-react'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -17,11 +17,11 @@ import {
   addMonths, subMonths, parseISO, isThisMonth, startOfToday, isBefore,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { PortalLayout } from '@/components/layout/PortalLayout'
+import { PortalLayout, type PortalNavItem } from '@/components/layout/PortalLayout'
 import { PortalSectionHead, PortalEmpty, PortalFilterChip, PortalBlockTitle, portalPanel, portalEyebrow } from '@/components/portal/PortalUI'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -1553,6 +1553,41 @@ function AgencyWorkItem({
 }
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
+// Mesma linguagem do Dashboard da agência: saudação em display, faixa de
+// números com barra de cor fina, cartões de vidro e títulos sem numeração.
+
+const PCARD = portalPanel
+
+function PortalReveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function PortalSection({ title, aside, right, children, className = 'mt-12' }: {
+  title: string; aside?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string
+}) {
+  return (
+    <section className={className}>
+      <div className="flex items-end justify-between gap-x-4 gap-y-3 mb-4 flex-wrap">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <h2 className="font-display text-[20px] sm:text-[22px] font-bold tracking-[-0.025em] leading-none text-[var(--sm-text-1)]">{title}</h2>
+          {aside && <span className="text-[12px] text-[var(--sm-text-3)] truncate">{aside}</span>}
+        </div>
+        {right}
+      </div>
+      {children}
+    </section>
+  )
+}
 
 function ClientDashboardTab({
   client,
@@ -1571,6 +1606,18 @@ function ClientDashboardTab({
 }) {
   const [selectedItem, setSelectedItem] = useState<PlannerItem | null>(null)
   const [itemOpen, setItemOpen] = useState(false)
+
+  // Relógio da saudação
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+  const hour = now.getHours()
+  const greet = hour < 12 ? 'Bom dia,' : hour < 18 ? 'Boa tarde,' : 'Boa noite,'
+  const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const monthName = format(now, 'MMMM', { locale: ptBR })
 
   const today = startOfToday()
 
@@ -1594,64 +1641,90 @@ function ClientDashboardTab({
     .sort((a, b) => parseISO(b.reviewed_at!).getTime() - parseISO(a.reviewed_at!).getTime())
     .slice(0, 5)
 
-  // Financial alert — only show for 'vence_em_breve'
+  // Aviso do financeiro — só quando vence em breve e o ciclo não foi pago
   const financialStatus = calcFinancialStatus(client)
   const financialAux = getFinancialAuxText(client, financialStatus)
   const showFinancialAlert = financialStatus === 'vence_em_breve'
     && client.dia_vencimento != null
     && !hasPaidCurrentCycle(payments, client.dia_vencimento)
 
-  // Dynamic hero copy
-  const headline = pendingItems.length > 0
-    ? pendingItems.length === 1
-      ? 'Você tem 1 conteúdo aguardando sua aprovação'
-      : `Você tem ${pendingItems.length} conteúdos aguardando sua aprovação`
-    : plannerItems.length === 0
-      ? 'Estamos preparando seus primeiros conteúdos'
-      : 'Seu planejamento está ativo e atualizado'
-
   const subline = pendingItems.length > 0
-    ? 'Revise e aprove para manter o calendário em dia.'
+    ? `Você tem ${pendingItems.length} ${pendingItems.length === 1 ? 'conteúdo esperando' : 'conteúdos esperando'} a sua aprovação. Revise para manter o calendário em dia.`
     : plannerItems.length === 0
-      ? 'Em breve você verá todos os conteúdos aqui.'
-      : `${thisMonthItems.length} ${thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados'} para este mês.`
+      ? 'Estamos preparando seus primeiros conteúdos. Em breve eles aparecem aqui.'
+      : `Seu planejamento está em dia: ${thisMonthItems.length} ${thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados'} para este mês.`
+
+  const statusDot = client.status === 'ativo' ? '#22C55E' : client.status === 'pausado' ? '#EAB308' : client.status === 'encerrado' ? '#EF4444' : '#60A5FA'
+
+  const kpis: { label: string; short: string; value: number; note: string; color: string; go?: string; alert?: boolean }[] = [
+    { label: 'Aguardando você', short: 'Aguardando', value: pendingItems.length, note: pendingItems.length > 0 ? 'toque para revisar' : 'tudo revisado', color: '#EAB308', go: pendingItems.length > 0 ? 'planejamento' : undefined, alert: true },
+    { label: 'Aprovados no mês', short: 'Aprovados', value: approvedThisMonth.length, note: 'prontos para publicar', color: '#22C55E' },
+    { label: 'Programados no mês', short: 'Programados', value: thisMonthItems.length, note: 'ver o calendário', color: '#2563EB', go: 'planejamento' },
+    { label: 'Já publicados', short: 'Publicados', value: publishedItems.length, note: 'no ar no seu perfil', color: '#8B5CF6' },
+  ]
+
+  const contacts = [
+    client.instagram && { icon: <Instagram className="w-3.5 h-3.5" />, label: `@${client.instagram.replace('@', '')}`, href: `https://instagram.com/${client.instagram.replace('@', '')}` },
+    client.whatsapp && { icon: <Phone className="w-3.5 h-3.5" />, label: client.whatsapp, href: `https://wa.me/${client.whatsapp.replace(/\D/g, '').replace(/^(?!55)/, '55')}` },
+    client.email && { icon: <Mail className="w-3.5 h-3.5" />, label: client.email, href: `mailto:${client.email}` },
+    client.website && { icon: <Globe className="w-3.5 h-3.5" />, label: client.website.replace(/^https?:\/\//, ''), href: client.website.startsWith('http') ? client.website : `https://${client.website}` },
+  ].filter(Boolean) as { icon: React.ReactNode; label: string; href: string }[]
+
+  const brandFields = [
+    { label: 'Objetivo principal', value: client.main_objective },
+    { label: 'Público-alvo', value: client.target_audience },
+    { label: 'Tom de voz', value: client.tone_of_voice },
+  ].filter(f => f.value)
+
+  const Logo = ({ size }: { size: 'sm' | 'lg' }) => {
+    const box = size === 'lg' ? 'w-16 h-16 rounded-[20px]' : 'w-10 h-10 rounded-xl'
+    return client.logo_url ? (
+      <img src={client.logo_url} alt={client.company_name} className={`${box} object-cover flex-shrink-0 bg-white`} />
+    ) : (
+      <div className={`${box} flex items-center justify-center flex-shrink-0`} style={{ background: 'var(--sm-primary)' }}>
+        <span className={`font-display font-bold ${size === 'lg' ? 'text-[28px]' : 'text-[17px]'}`} style={{ color: '#ffffff' }}>
+          {client.company_name[0]?.toUpperCase()}
+        </span>
+      </div>
+    )
+  }
+
+  const openItem = (item: PlannerItem) => { setSelectedItem(item); setItemOpen(true) }
 
   return (
-    <div>
-      {/* ── 01 Abertura: saudação e manchete do momento ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.6fr] gap-8 lg:gap-14 items-end pb-9 sm:pb-12 border-b border-[#E4E7EC]">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <p className={portalEyebrow}>
-            <span className="text-[#2563EB] tabular-nums">01</span>
-            <span className="mx-2 text-[#C4CAD4]">/</span>
-            Olá, {firstName}
+    <MotionConfig reducedMotion="user">
+    <div className="px-4 sm:px-6 lg:px-8 pb-12">
+
+      {/* ── Saudação + cartão da empresa ── */}
+      <motion.header
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="relative pt-5 md:pt-9 flex items-start justify-between gap-8"
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--sm-text-3)]">
+            <span className="capitalize">{dateStr}</span>
+            <span className="mx-2 text-[var(--sm-text-4)]">/</span>
+            <span className="tabular-nums">{timeStr}</span>
           </p>
-          <h2
-            className="font-display font-bold text-[#0F172A] mt-4 leading-[1.0] tracking-[-0.035em] max-w-[18ch]"
-            style={{ fontSize: 'clamp(30px, 4.6vw, 56px)' }}
+          <motion.h1
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="font-display font-bold text-[var(--sm-text-1)] mt-4 sm:mt-5 leading-[0.95] tracking-[-0.035em]"
+            style={{ fontSize: 'clamp(34px, 4.4vw, 60px)' }}
           >
-            {pendingItems.length > 0 ? (
-              <>
-                Você tem{' '}
-                <span className="text-[#2563EB]">
-                  {pendingItems.length} {pendingItems.length === 1 ? 'conteúdo' : 'conteúdos'}
-                </span>{' '}
-                esperando a sua aprovação.
-              </>
-            ) : (
-              headline + '.'
-            )}
-          </h2>
-          <p className="text-[14px] leading-relaxed text-[#5B6576] mt-4 max-w-[52ch]">{subline}</p>
+            {greet}
+            <br className="sm:hidden" />{' '}
+            <span className="text-[#2563EB]">{firstName}.</span>
+          </motion.h1>
+          <p className="text-[14px] leading-relaxed text-[var(--sm-text-2)] mt-4 sm:mt-5 max-w-[60ch]">{subline}</p>
           {pendingItems.length > 0 && (
             <button
-              onClick={() => { setSelectedItem(pendingItems[0]); setItemOpen(true) }}
-              className="group mt-7 inline-flex items-center gap-3 h-12 pl-6 pr-2 rounded-full text-[13px] font-semibold transition-all duration-300 hover:gap-4"
-              style={{ background: '#0F172A', color: '#ffffff' }}
+              onClick={() => openItem(pendingItems[0])}
+              className="group mt-6 inline-flex items-center gap-3 h-11 pl-5 pr-1.5 rounded-full text-[13px] font-semibold transition-all duration-300 hover:gap-4"
+              style={{ background: 'var(--sm-primary)', color: '#ffffff' }}
             >
               Revisar agora
               <span className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
@@ -1659,294 +1732,339 @@ function ClientDashboardTab({
               </span>
             </button>
           )}
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          className="space-y-3"
+        {/* Cartão da empresa: contraste invertido, como o cartão do perfil da agência */}
+        <div className={`${PCARD} sm-invert hidden lg:flex w-[300px] items-center gap-3 px-4 py-3 flex-shrink-0`}>
+          <Logo size="sm" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">{client.company_name}</p>
+            <p className="text-[11px] text-[var(--sm-text-3)] truncate flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusDot }} />
+              {clientStatusLabels[client.status] ?? client.status}
+              <span className="text-[var(--sm-text-4)]">·</span>
+              desde {formatDate(client.entry_date)}
+            </p>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Aviso de vencimento */}
+      {showFinancialAlert && (
+        <button
+          onClick={() => onNavigate('financeiro')}
+          className={`${PCARD} group relative overflow-hidden mt-7 w-full sm:max-w-[520px] text-left pl-6 pr-5 py-4 flex items-start gap-3 hover:bg-[var(--sm-bg-input)] transition-colors`}
         >
-          {showFinancialAlert && (
-            <button
-              onClick={() => onNavigate('financeiro')}
-              className="group w-full text-left rounded-[18px] border border-[#F2D98A] bg-[#FFFBEB] px-5 py-4 flex items-start gap-3 transition-colors hover:border-[#EAB308]"
-            >
-              <span className="w-2 h-2 rounded-full bg-[#EAB308] mt-1.5 flex-shrink-0" />
-              <span className="flex-1 min-w-0">
-                <span className="block text-[12.5px] font-semibold text-[#854D0E]">Vence em breve</span>
-                <span className="block text-[12.5px] text-[#92400E] mt-0.5 leading-snug">
-                  {financialAux === 'Vence hoje' ? 'Seu pagamento vence hoje.' : `${financialAux}. Fique atento ao pagamento.`}
-                </span>
-              </span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#92400E] mt-1 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          )}
-        </motion.div>
-      </div>
+          <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full bg-[#EAB308]" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-[12.5px] font-semibold text-[var(--sm-text-1)]">Vence em breve</span>
+            <span className="block text-[12.5px] text-[var(--sm-text-2)] mt-0.5 leading-snug">
+              {financialAux === 'Vence hoje' ? 'Seu pagamento vence hoje.' : `${financialAux}. Fique atento ao pagamento.`}
+            </span>
+          </span>
+          <ArrowRight className="w-3.5 h-3.5 text-[var(--sm-text-3)] mt-1 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      )}
 
-      {/* ── Números do mês: uma faixa, fios de 1px ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[#E4E7EC] border-b border-[#E4E7EC]"
-      >
-        {[
-          { label: 'Aguardando você', value: pendingItems.length, note: pendingItems.length > 0 ? 'Toque para revisar' : 'Tudo revisado', dot: '#EAB308', go: pendingItems.length > 0 ? 'planejamento' : undefined, hot: pendingItems.length > 0 },
-          { label: 'Aprovados no mês', value: approvedThisMonth.length, note: 'Prontos para publicar', dot: '#22C55E' },
-          { label: 'Programados no mês', value: thisMonthItems.length, note: 'Ver o calendário', dot: '#2563EB', go: 'planejamento' },
-          { label: 'Já publicados', value: publishedItems.length, note: 'No ar no seu perfil', dot: '#0F172A' },
-        ].map(s => {
-          const Tag = s.go ? 'button' : 'div'
-          return (
-            <Tag
-              key={s.label}
-              onClick={s.go ? () => onNavigate(s.go!) : undefined}
-              className={`group text-left bg-[#F6F7F9] py-7 sm:py-9 px-4 sm:px-6 transition-colors ${s.go ? 'cursor-pointer hover:bg-white' : ''}`}
-            >
-              <p className="flex items-center gap-2 text-[11.5px] font-medium text-[#5B6576]">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
-                {s.label}
-              </p>
-              <p
-                className={`font-display font-bold tabular-nums leading-none tracking-[-0.05em] mt-4 ${s.hot ? 'text-[#2563EB]' : 'text-[#0F172A]'}`}
-                style={{ fontSize: 'clamp(40px, 5vw, 64px)' }}
-              >
-                {s.value}
-              </p>
-              <p className={`text-[11.5px] mt-3 text-[#8A94A6] inline-flex items-center gap-1 ${s.go ? 'group-hover:text-[#0F172A] transition-colors' : ''}`}>
-                {s.note}
-                {s.go && <ArrowRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />}
-              </p>
-            </Tag>
-          )
-        })}
-      </motion.div>
-
-      {/* ── Corpo: aprovação e andamento à esquerda, agenda à direita ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 mt-9 sm:mt-12">
-        <div className="space-y-5 min-w-0">
-
-          {/* Precisam da sua aprovação */}
-          {pendingItems.length > 0 && (
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className={`${portalPanel} overflow-hidden`}
-            >
-              <PortalBlockTitle
-                label="Precisam da sua aprovação"
-                count={pendingItems.length}
-                right={<span className="w-2 h-2 rounded-full bg-[#EAB308] animate-pulse" />}
-              />
-              <div className="divide-y divide-[#EEF0F3]">
-                {pendingItems.map(item => {
-                  const thumb = item.attachments?.find(a => a.file_type.startsWith('image/'))
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => { setSelectedItem(item); setItemOpen(true) }}
-                      className="group relative w-full flex items-center gap-4 px-5 sm:px-6 py-4 text-left transition-colors hover:bg-[#FAFBFC]"
-                    >
-                      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-[#EAB308]" />
-                      {thumb ? (
-                        <ThumbImg src={thumb.file_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[#E4E7EC] flex-shrink-0" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-[#F6F7F9] border border-[#E4E7EC] flex items-center justify-center flex-shrink-0">
-                          <div className={`w-2 h-2 rounded-full ${statusColors[item.status as PlannerStatus]}`} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-[#0F172A] truncate">{item.title}</p>
-                        <p className="text-[12px] text-[#8A94A6] mt-0.5">
-                          {format(parseISO(item.scheduled_date), "dd 'de' MMMM", { locale: ptBR })}
-                          <span className="mx-1.5 text-[#C4CAD4]">·</span>
-                          {contentTypeLabels[item.content_type as ContentType]}
-                        </p>
-                      </div>
-                      <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#0F172A]">
-                        <span className="hidden sm:inline">Revisar</span>
-                        <span className="w-8 h-8 rounded-full border border-[#E4E7EC] flex items-center justify-center transition-all duration-300 group-hover:bg-[#0F172A] group-hover:border-[#0F172A] group-hover:text-white group-hover:-rotate-45">
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </span>
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </motion.section>
-          )}
-
-          {/* O que a agência está fazendo */}
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            className={`${portalPanel} overflow-hidden`}
-          >
-            <PortalBlockTitle
-              label="Em andamento na agência"
-              right={
-                <span className="flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse [animation-delay:150ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse [animation-delay:300ms]" />
-                </span>
-              }
-            />
-            {plannerItems.length === 0 ? (
-              <p className="px-6 py-5 text-[13px] text-[#5B6576]">A agência está preparando a estratégia inicial para você.</p>
-            ) : (
-              <div className="grid sm:grid-cols-2">
-                {[
-                  inIdeaCount > 0 && { n: inIdeaCount, label: 'Ideias em desenvolvimento', detail: inIdeaCount === 1 ? 'conteúdo na fase criativa' : 'conteúdos na fase criativa', icon: <Sparkles className="w-4 h-4" /> },
-                  inProductionCount > 0 && { n: inProductionCount, label: 'Em produção', detail: inProductionCount === 1 ? 'item sendo criado' : 'itens sendo criados', icon: <CalendarDays className="w-4 h-4" /> },
-                  { n: thisMonthItems.length, label: 'Planejamento do mês', detail: thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados', icon: <LayoutDashboard className="w-4 h-4" /> },
-                  contents.length > 0 && { n: contents.length, label: 'Estratégia de conteúdo', detail: contents.length === 1 ? 'conteúdo gerado' : 'conteúdos gerados', icon: <MessageSquare className="w-4 h-4" /> },
-                ].filter(Boolean).map((w, i) => {
-                  const it = w as { n: number; label: string; detail: string; icon: React.ReactNode }
-                  return (
-                    <div key={it.label} className={`flex items-center gap-4 px-5 sm:px-6 py-4 border-[#EEF0F3] ${i > 0 ? 'border-t' : ''} ${i === 1 ? 'sm:border-t-0' : ''} ${i % 2 === 0 ? 'sm:border-r' : ''} ${i >= 2 ? 'sm:border-t' : ''}`}>
-                      <span className="w-10 h-10 rounded-xl bg-[#F6F7F9] text-[#5B6576] flex items-center justify-center flex-shrink-0">{it.icon}</span>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-[#0F172A] truncate">{it.label}</p>
-                        <p className="text-[12px] text-[#8A94A6]"><span className="tabular-nums text-[#0F172A] font-medium">{it.n}</span> {it.detail}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </motion.section>
-
-          {/* Atividade recente: linha do tempo com fio */}
-          {recentActivity.length > 0 && (
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className={`${portalPanel} overflow-hidden`}
-            >
-              <PortalBlockTitle label="Atividade recente" />
-              <ol className="px-5 sm:px-6 py-5 relative">
-                <span className="absolute left-[33px] sm:left-[37px] top-7 bottom-7 w-px bg-[#E4E7EC]" />
-                {recentActivity.map(item => {
-                  const status = (item.approval_status || 'pendente_aprovacao') as ApprovalStatus
-                  return (
-                    <li key={item.id} className="relative flex items-start gap-4 py-2.5">
-                      <span className={`relative z-10 w-6 h-6 rounded-full bg-white border border-[#E4E7EC] flex items-center justify-center flex-shrink-0 ${approvalText[status]} [&>svg]:w-3 [&>svg]:h-3`}>
-                        {approvalIcons[status]}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] text-[#0F172A]">{humanizeActivity(status, item)}</p>
-                        <p className="text-[12px] text-[#5B6576] truncate mt-0.5">{item.title}</p>
-                      </div>
-                      {item.reviewed_at && (
-                        <span className="text-[11px] text-[#A0A8B5] flex-shrink-0 mt-0.5">{formatRelative(item.reviewed_at)}</span>
-                      )}
-                    </li>
-                  )
-                })}
-              </ol>
-            </motion.section>
-          )}
-        </div>
-
-        {/* ── Coluna direita ── */}
-        <div className="space-y-5">
-          {/* Próximos conteúdos: agenda com a data em destaque */}
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.22 }}
-            className={`${portalPanel} overflow-hidden`}
-          >
-            <PortalBlockTitle
-              label="Próximos conteúdos"
-              right={
-                <button
-                  onClick={() => onNavigate('planejamento')}
-                  className="group inline-flex items-center gap-1 text-[12px] font-medium text-[#2563EB]"
+      {/* ── O mês em números ── */}
+      <PortalSection title="O mês" aside={<span className="capitalize">{monthName}</span>} className="mt-9">
+        <PortalReveal>
+          <div className="grid grid-cols-3 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-2.5 sm:gap-3">
+            {kpis.map((k, i) => {
+              const lead = i === 0
+              const Tag = k.go ? 'button' : 'div'
+              return (
+                <Tag
+                  key={k.label}
+                  onClick={k.go ? () => onNavigate(k.go!) : undefined}
+                  className={`${PCARD} group relative overflow-hidden text-left flex flex-col justify-between transition-colors ${k.go ? 'cursor-pointer hover:bg-[var(--sm-bg-input)]' : ''} ${
+                    lead
+                      ? 'col-span-3 lg:col-span-1 gap-5 p-5 sm:p-6 min-h-[140px] lg:min-h-[176px]'
+                      : 'gap-4 px-3.5 py-4 sm:p-6 min-h-[112px] sm:min-h-[140px]'
+                  }`}
                 >
-                  Ver todos <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
-                </button>
-              }
-            />
-            {upcomingItems.length === 0 ? (
-              <div className="px-6 py-10 text-center">
-                <p className="text-[13px] text-[#5B6576]">Nenhum conteúdo agendado.</p>
-                <p className="text-[12px] text-[#A0A8B5] mt-1">A agência está preparando o calendário.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-[#EEF0F3]">
-                {upcomingItems.map(item => {
-                  const isPending = item.approval_status === 'pendente_aprovacao'
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => { setSelectedItem(item); setItemOpen(true) }}
-                      className="group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-[#FAFBFC]"
+                  <span
+                    className={`absolute left-0 w-[3px] rounded-r-full transition-all duration-300 ${lead ? 'top-6 bottom-6 group-hover:top-4 group-hover:bottom-4' : 'top-4 bottom-4 sm:top-6 sm:bottom-6'}`}
+                    style={{ background: k.value > 0 ? k.color : 'var(--sm-border)' }}
+                  />
+                  <span className="flex items-center gap-2 min-w-0 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)]">
+                    <span className={lead ? '' : 'hidden sm:inline'}>{k.label}</span>
+                    {!lead && <span className="sm:hidden">{k.short}</span>}
+                    {k.go && <ArrowRight className="hidden sm:block w-3.5 h-3.5 ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />}
+                  </span>
+                  <span className="block">
+                    <span
+                      className="block font-display font-bold tabular-nums leading-[0.85] tracking-[-0.045em]"
+                      style={{
+                        fontSize: lead ? 'clamp(56px, 7vw, 92px)' : 'clamp(32px, 4vw, 50px)',
+                        color: k.alert && k.value > 0 ? '#CA8A04' : 'var(--sm-text-1)',
+                      }}
                     >
-                      <div className="w-11 flex-shrink-0 text-center">
-                        <p className="font-display text-[24px] font-bold text-[#0F172A] tabular-nums leading-none tracking-[-0.04em]">
-                          {format(parseISO(item.scheduled_date), 'd')}
-                        </p>
-                        <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[#8A94A6] mt-1">
-                          {format(parseISO(item.scheduled_date), 'MMM', { locale: ptBR }).replace('.', '')}
-                        </p>
-                      </div>
-                      <div className="flex-1 min-w-0 border-l border-[#EEF0F3] pl-4">
-                        <p className="text-[13px] font-medium text-[#0F172A] truncate">{item.title}</p>
-                        <p className="text-[11.5px] text-[#8A94A6] mt-0.5 flex items-center gap-1.5">
-                          {isPending && <span className="w-1.5 h-1.5 rounded-full bg-[#EAB308]" />}
-                          {contentTypeLabels[item.content_type as ContentType]}
-                          {isPending && <span className="text-[#A16207]">· aguardando</span>}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-[#C4CAD4] group-hover:text-[#0F172A] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                      {k.value}
+                    </span>
+                    <span className={`block text-[12px] text-[var(--sm-text-3)] mt-2.5 leading-snug ${lead ? '' : 'hidden sm:block'}`}>{k.note}</span>
+                  </span>
+                </Tag>
+              )
+            })}
+          </div>
+        </PortalReveal>
+      </PortalSection>
+
+      {/* ── Conteúdos: aprovação e andamento à esquerda, agenda à direita ── */}
+      <PortalSection title="Seus conteúdos" aside="o que precisa de você e o que vem por aí">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-2.5 sm:gap-3 items-start">
+          <div className="space-y-2.5 sm:space-y-3 min-w-0">
+
+            {pendingItems.length > 0 && (
+              <PortalReveal>
+                <div className={`${PCARD} overflow-hidden`}>
+                  <PortalBlockTitle
+                    label="Precisam da sua aprovação"
+                    count={pendingItems.length}
+                    right={<span className="w-2 h-2 rounded-full bg-[#EAB308] animate-pulse" />}
+                  />
+                  <div className="divide-y divide-[var(--sm-border)]">
+                    {pendingItems.map(item => {
+                      const thumb = item.attachments?.find(a => a.file_type.startsWith('image/'))
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openItem(item)}
+                          className="group relative w-full flex items-center gap-4 px-5 sm:px-6 py-4 text-left transition-colors hover:bg-[var(--sm-bg-alt)]"
+                        >
+                          <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-[#EAB308]" />
+                          {thumb ? (
+                            <ThumbImg src={thumb.file_url} alt="" className="w-12 h-12 rounded-xl object-cover border border-[var(--sm-border)] flex-shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-[var(--sm-bg-alt)] border border-[var(--sm-border)] flex items-center justify-center flex-shrink-0">
+                              <div className={`w-2 h-2 rounded-full ${statusColors[item.status as PlannerStatus]}`} />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-semibold text-[var(--sm-text-1)] truncate">{item.title}</p>
+                            <p className="text-[12px] text-[var(--sm-text-3)] mt-0.5">
+                              {format(parseISO(item.scheduled_date), "dd 'de' MMMM", { locale: ptBR })}
+                              <span className="mx-1.5 text-[var(--sm-text-4)]">·</span>
+                              {contentTypeLabels[item.content_type as ContentType]}
+                            </p>
+                          </div>
+                          <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--sm-text-1)]">
+                            <span className="hidden sm:inline">Revisar</span>
+                            <span className="w-8 h-8 rounded-full border border-[var(--sm-border)] flex items-center justify-center transition-all duration-300 group-hover:-rotate-45 group-hover:border-[var(--sm-text-3)]">
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </PortalReveal>
+            )}
+
+            {/* O que a agência está fazendo */}
+            <PortalReveal delay={0.04}>
+              <div className={`${PCARD} overflow-hidden`}>
+                <PortalBlockTitle
+                  label="Em andamento na agência"
+                  right={
+                    <span className="flex gap-1 items-center">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse [animation-delay:300ms]" />
+                    </span>
+                  }
+                />
+                {plannerItems.length === 0 ? (
+                  <p className="px-6 py-5 text-[13px] text-[var(--sm-text-2)]">A agência está preparando a estratégia inicial para você.</p>
+                ) : (
+                  <div className="grid sm:grid-cols-2">
+                    {[
+                      inIdeaCount > 0 && { n: inIdeaCount, label: 'Ideias em desenvolvimento', detail: inIdeaCount === 1 ? 'conteúdo na fase criativa' : 'conteúdos na fase criativa', icon: <Sparkles className="w-4 h-4" /> },
+                      inProductionCount > 0 && { n: inProductionCount, label: 'Em produção', detail: inProductionCount === 1 ? 'item sendo criado' : 'itens sendo criados', icon: <CalendarDays className="w-4 h-4" /> },
+                      { n: thisMonthItems.length, label: 'Planejamento do mês', detail: thisMonthItems.length === 1 ? 'conteúdo programado' : 'conteúdos programados', icon: <LayoutDashboard className="w-4 h-4" /> },
+                      contents.length > 0 && { n: contents.length, label: 'Estratégia de conteúdo', detail: contents.length === 1 ? 'conteúdo gerado' : 'conteúdos gerados', icon: <MessageSquare className="w-4 h-4" /> },
+                    ].filter(Boolean).map((w, i, arr) => {
+                      const it = w as { n: number; label: string; detail: string; icon: React.ReactNode }
+                      // Número ímpar de itens: o último ocupa a linha toda (sem célula vazia)
+                      const full = arr.length % 2 === 1 && i === arr.length - 1
+                      return (
+                        <div key={it.label} className={`flex items-center gap-4 px-5 sm:px-6 py-4 border-[var(--sm-border)] ${i > 0 ? 'border-t' : ''} ${i === 1 ? 'sm:border-t-0' : ''} ${i % 2 === 0 && !full ? 'sm:border-r' : ''} ${i >= 2 ? 'sm:border-t' : ''} ${full ? 'sm:col-span-2' : ''}`}>
+                          <span className="w-10 h-10 rounded-xl bg-[var(--sm-bg-alt)] text-[var(--sm-text-2)] flex items-center justify-center flex-shrink-0">{it.icon}</span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">{it.label}</p>
+                            <p className="text-[12px] text-[var(--sm-text-3)]"><span className="tabular-nums text-[var(--sm-text-1)] font-medium">{it.n}</span> {it.detail}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </PortalReveal>
+
+            {/* Atividade recente: linha do tempo com fio */}
+            {recentActivity.length > 0 && (
+              <PortalReveal delay={0.08}>
+                <div className={`${PCARD} overflow-hidden`}>
+                  <PortalBlockTitle label="Atividade recente" />
+                  <ol className="px-5 sm:px-6 py-5 relative">
+                    <span className="absolute left-[33px] sm:left-[37px] top-7 bottom-7 w-px bg-[var(--sm-border)]" />
+                    {recentActivity.map(item => {
+                      const status = (item.approval_status || 'pendente_aprovacao') as ApprovalStatus
+                      return (
+                        <li key={item.id} className="relative flex items-start gap-4 py-2.5">
+                          <span className={`relative z-10 w-6 h-6 rounded-full bg-white border border-[var(--sm-border)] flex items-center justify-center flex-shrink-0 ${approvalText[status]} [&>svg]:w-3 [&>svg]:h-3`}>
+                            {approvalIcons[status]}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] text-[var(--sm-text-1)]">{humanizeActivity(status, item)}</p>
+                            <p className="text-[12px] text-[var(--sm-text-2)] truncate mt-0.5">{item.title}</p>
+                          </div>
+                          {item.reviewed_at && (
+                            <span className="text-[11px] text-[var(--sm-text-4)] flex-shrink-0 mt-0.5">{formatRelative(item.reviewed_at)}</span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ol>
+                </div>
+              </PortalReveal>
+            )}
+          </div>
+
+          {/* ── Coluna direita ── */}
+          <div className="space-y-2.5 sm:space-y-3">
+            <PortalReveal delay={0.06}>
+              <div className={`${PCARD} overflow-hidden`}>
+                <PortalBlockTitle
+                  label="Próximos conteúdos"
+                  right={
+                    <button
+                      onClick={() => onNavigate('planejamento')}
+                      className="group inline-flex items-center gap-1 text-[12px] font-medium text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] transition-colors"
+                    >
+                      Ver todos <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                     </button>
-                  )
-                })}
+                  }
+                />
+                {upcomingItems.length === 0 ? (
+                  <div className="px-6 py-10 text-center">
+                    <p className="text-[13px] text-[var(--sm-text-2)]">Nenhum conteúdo agendado.</p>
+                    <p className="text-[12px] text-[var(--sm-text-4)] mt-1">A agência está preparando o calendário.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--sm-border)]">
+                    {upcomingItems.map(item => {
+                      const isPending = item.approval_status === 'pendente_aprovacao'
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openItem(item)}
+                          className="group w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-[var(--sm-bg-alt)]"
+                        >
+                          <div className="w-11 flex-shrink-0 text-center">
+                            <p className="font-display text-[24px] font-bold text-[var(--sm-text-1)] tabular-nums leading-none tracking-[-0.04em]">
+                              {format(parseISO(item.scheduled_date), 'd')}
+                            </p>
+                            <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[var(--sm-text-3)] mt-1">
+                              {format(parseISO(item.scheduled_date), 'MMM', { locale: ptBR }).replace('.', '')}
+                            </p>
+                          </div>
+                          <div className="flex-1 min-w-0 border-l border-[var(--sm-border)] pl-4">
+                            <p className="text-[13px] font-medium text-[var(--sm-text-1)] truncate">{item.title}</p>
+                            <p className="text-[11.5px] text-[var(--sm-text-3)] mt-0.5 flex items-center gap-1.5">
+                              {isPending && <span className="w-1.5 h-1.5 rounded-full bg-[#EAB308]" />}
+                              {contentTypeLabels[item.content_type as ContentType]}
+                              {isPending && <span className="text-[#A16207]">· aguardando</span>}
+                            </p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-[var(--sm-text-4)] group-hover:text-[var(--sm-text-1)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </PortalReveal>
+
+            {/* Conversa com a agência: cartão invertido (azul-escuro no tema claro) */}
+            <PortalReveal delay={0.1}>
+              <div className={`${PCARD} sm-invert relative overflow-hidden p-6`}>
+                <div
+                  aria-hidden
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ background: 'radial-gradient(ellipse 70% 60% at 100% 0%, rgba(37,99,235,0.30) 0%, transparent 70%)' }}
+                />
+                <div className="relative">
+                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--sm-text-3)]">Próxima reunião</p>
+                  <p className="font-display text-[24px] font-bold leading-[1.05] tracking-[-0.03em] mt-3 text-[var(--sm-text-1)]">
+                    Quer alinhar a estratégia?
+                  </p>
+                  <p className="text-[12.5px] leading-relaxed mt-2 text-[var(--sm-text-2)]">
+                    Peça uma conversa com a agência. O pedido fica registrado em Solicitações.
+                  </p>
+                  <button
+                    onClick={() => onNavigate('notas')}
+                    className="group mt-5 inline-flex items-center gap-2 h-10 pl-4 pr-1.5 rounded-full text-[12.5px] font-semibold transition-all hover:gap-3"
+                    style={{ background: '#ffffff', color: '#0F172A' }}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" /> Solicitar reunião
+                    <span className="w-7 h-7 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45" style={{ background: 'var(--sm-primary)' }}>
+                      <ArrowRight className="w-3 h-3" style={{ color: '#ffffff' }} />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </PortalReveal>
+          </div>
+        </div>
+      </PortalSection>
+
+      {/* ── A sua marca: identidade, contatos e o que guia os conteúdos ── */}
+      <PortalSection title="A sua marca" aside="o que a agência usa para criar">
+        <PortalReveal>
+          <div className={`${PCARD} overflow-hidden`}>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 p-5 sm:p-6">
+              <div className="flex items-center gap-4 min-w-0">
+                <Logo size="lg" />
+                <div className="min-w-0">
+                  <p className="font-display text-[22px] sm:text-[26px] font-bold leading-[1.0] tracking-[-0.03em] text-[var(--sm-text-1)] break-words">
+                    {client.company_name}<span className="text-[#2563EB]">.</span>
+                  </p>
+                  <p className="text-[12.5px] text-[var(--sm-text-2)] mt-1.5">
+                    {client.responsible_name && <span className="font-medium text-[var(--sm-text-1)]">{client.responsible_name}</span>}
+                    {client.niche && <><span className="mx-2 text-[var(--sm-text-4)]">·</span>{client.niche}</>}
+                    <span className="lg:hidden"><span className="mx-2 text-[var(--sm-text-4)]">·</span>desde {formatDate(client.entry_date)}</span>
+                  </p>
+                </div>
+              </div>
+              {contacts.length > 0 && (
+                <div className="flex flex-wrap gap-2 md:justify-end md:max-w-[50%]">
+                  {contacts.map(c => (
+                    <a key={c.href} href={c.href} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 h-9 max-w-full px-3.5 rounded-full border border-[var(--sm-border)] bg-[var(--sm-bg-card)] text-[12.5px] text-[var(--sm-text-2)] hover:text-[var(--sm-text-1)] hover:border-[var(--sm-text-3)] transition-colors">
+                      <span className="text-[var(--sm-text-3)]">{c.icon}</span>
+                      <span className="truncate">{c.label}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+            {brandFields.length > 0 && (
+              <div className={`grid grid-cols-1 ${brandFields.length === 3 ? 'md:grid-cols-3' : brandFields.length === 2 ? 'md:grid-cols-2' : ''} border-t border-[var(--sm-border)]`}>
+                {brandFields.map((f, i) => (
+                  <div key={f.label} className={`px-5 sm:px-6 py-5 border-[var(--sm-border)] ${i > 0 ? 'border-t md:border-t-0 md:border-l' : ''}`}>
+                    <p className={portalEyebrow}>{f.label}</p>
+                    <p className="text-[13px] leading-relaxed text-[var(--sm-text-1)] mt-2 line-clamp-3">{f.value}</p>
+                  </div>
+                ))}
               </div>
             )}
-          </motion.section>
-
-          {/* Conversa com a agência */}
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.28 }}
-            className="relative overflow-hidden rounded-[22px] p-6"
-            style={{ background: '#0F172A' }}
-          >
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse 70% 60% at 100% 0%, rgba(37,99,235,0.35) 0%, transparent 70%)' }}
-            />
-            <div className="relative">
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: '#93A4C3' }}>Próxima reunião</p>
-              <p className="font-display text-[24px] font-bold leading-[1.05] tracking-[-0.03em] mt-3" style={{ color: '#ffffff' }}>
-                Quer alinhar a estratégia?
-              </p>
-              <p className="text-[12.5px] leading-relaxed mt-2" style={{ color: '#B6C2D6' }}>
-                Peça uma conversa com a agência. O pedido fica registrado em Solicitações.
-              </p>
-              <button
-                onClick={() => onNavigate('notas')}
-                className="group mt-5 inline-flex items-center gap-2 h-10 pl-4 pr-1.5 rounded-full bg-white text-[12.5px] font-semibold text-[#0F172A] transition-all hover:gap-3"
-              >
-                <MessageCircle className="w-3.5 h-3.5" /> Solicitar reunião
-                <span className="w-7 h-7 rounded-full bg-[#0F172A] flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
-                  <ArrowRight className="w-3 h-3" style={{ color: '#ffffff' }} />
-                </span>
-              </button>
-            </div>
-          </motion.section>
-        </div>
-      </div>
+          </div>
+        </PortalReveal>
+      </PortalSection>
 
       {selectedItem && (
         <ItemDetailView
@@ -1956,6 +2074,7 @@ function ClientDashboardTab({
         />
       )}
     </div>
+    </MotionConfig>
   )
 }
 
@@ -2652,18 +2771,6 @@ export function PortalDashboard() {
   const { data: notifications = [] } = useNotifications()
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const tabsRef = useRef<HTMLDivElement>(null)
-
-  // No celular a barra de abas rola de lado: traz a aba escolhida para a área visível
-  useEffect(() => {
-    const list = tabsRef.current
-    const el = list?.querySelector<HTMLElement>('[data-state="active"]')
-    if (!list || !el) return
-    const left = el.offsetLeft - 16
-    const right = el.offsetLeft + el.offsetWidth - list.clientWidth + 16
-    if (list.scrollLeft > left) list.scrollTo({ left, behavior: 'smooth' })
-    else if (list.scrollLeft < right) list.scrollTo({ left: right, behavior: 'smooth' })
-  }, [activeTab])
   const clientId = profile?.linked_client_id ?? ''
   const { data: formConfig } = useWeeklyFormConfig(clientId)
   const [selectedAsset, setSelectedAsset] = useState<ContentAsset | null>(null)
@@ -2679,6 +2786,16 @@ export function PortalDashboard() {
   ).length
 
   const unreadCount = notifications.filter(n => !n.is_read).length
+
+  const navItems: PortalNavItem[] = [
+    { key: 'dashboard',    label: 'Início',                icon: LayoutDashboard },
+    { key: 'planejamento', label: 'Planejamento',          icon: CalendarDays, badge: pendingCount },
+    { key: 'notas',        label: 'Solicitações e ideias', icon: MessageSquare },
+    { key: 'materiais',    label: 'Materiais',             icon: FolderOpen },
+    { key: 'resultados',   label: 'Resultados',            icon: BarChart3 },
+    { key: 'financeiro',   label: 'Financeiro',            icon: Wallet },
+    ...(formConfig?.is_active ? [{ key: 'formulario', label: 'Formulário', icon: ClipboardList }] : []),
+  ]
 
   if (isLoading) {
     return (
@@ -2724,159 +2841,12 @@ export function PortalDashboard() {
       unreadCount={unreadCount}
       pendingCount={pendingCount}
       onBellClick={() => setShowNotifications(true)}
+      nav={navItems}
+      active={activeTab}
+      onNavigate={setActiveTab}
     >
-      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-16">
-
-        {/* ── Capa do cliente: faixa escura, logo sobreposta, dados principais ── */}
-        <motion.header
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative overflow-hidden rounded-[28px] border border-[#E4E7EC] bg-white"
-        >
-          {/* Faixa da capa */}
-          <div className="relative h-[150px] sm:h-[190px] overflow-hidden" style={{ background: '#0F172A' }}>
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)',
-                backgroundSize: '44px 44px',
-                WebkitMaskImage: 'radial-gradient(ellipse 65% 120% at 85% 20%, #000 0%, transparent 75%)',
-                maskImage: 'radial-gradient(ellipse 65% 120% at 85% 20%, #000 0%, transparent 75%)',
-              }}
-            />
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `radial-gradient(ellipse 45% 90% at 88% 0%, ${/^#[0-9a-f]{6}$/i.test(client.brand_color_primary ?? '') ? client.brand_color_primary : '#2563EB'}66 0%, transparent 70%), radial-gradient(ellipse 35% 80% at 10% 120%, rgba(37,99,235,0.25) 0%, transparent 70%)`,
-              }}
-            />
-            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(96,165,250,0.5) 45%, transparent)' }} />
-
-            <div className="relative h-full flex items-start justify-between gap-4 p-5 sm:p-7">
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: '#93A4C3' }}>
-                Área do cliente
-              </p>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[11.5px] font-semibold bg-white/10 backdrop-blur" style={{ color: '#ffffff' }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: client.status === 'ativo' ? '#22C55E' : client.status === 'pausado' ? '#EAB308' : client.status === 'encerrado' ? '#EF4444' : '#60A5FA' }} />
-                  {clientStatusLabels[client.status] ?? client.status}
-                </span>
-                <span className="hidden sm:inline-flex items-center h-7 px-3 rounded-full text-[11.5px] bg-white/10 backdrop-blur" style={{ color: '#CBD5E1' }}>
-                  Cliente desde {formatDate(client.entry_date)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Identidade */}
-          <div className="relative px-5 sm:px-8 pb-6 sm:pb-8">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 md:gap-8">
-              <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 min-w-0">
-                {client.logo_url ? (
-                  <img src={client.logo_url} alt={client.company_name}
-                    className="-mt-12 sm:-mt-14 w-24 h-24 sm:w-28 sm:h-28 rounded-[26px] object-cover border-4 border-white bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)] flex-shrink-0" />
-                ) : (
-                  <div className="-mt-12 sm:-mt-14 w-24 h-24 sm:w-28 sm:h-28 rounded-[26px] border-4 border-white flex items-center justify-center flex-shrink-0 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)]"
-                    style={{ background: '#0F172A' }}>
-                    <span className="font-display text-[44px] font-bold tracking-[-0.04em]" style={{ color: '#ffffff' }}>
-                      {client.company_name[0].toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="min-w-0 sm:pb-1">
-                  <h1
-                    className="font-display font-bold text-[#0F172A] leading-[0.95] tracking-[-0.04em] break-words"
-                    style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
-                  >
-                    {client.company_name}<span className="text-[#2563EB]">.</span>
-                  </h1>
-                  <p className="text-[13px] text-[#5B6576] mt-2.5">
-                    <span className="font-medium text-[#0F172A]">{client.responsible_name}</span>
-                    {client.niche && <><span className="mx-2 text-[#C4CAD4]">·</span>{client.niche}</>}
-                    <span className="sm:hidden"><span className="mx-2 text-[#C4CAD4]">·</span>desde {formatDate(client.entry_date)}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Contatos */}
-              {(client.instagram || client.whatsapp || client.email || client.website) && (
-                <div className="flex flex-wrap gap-2 md:justify-end md:max-w-[46%]">
-                  {[
-                    client.instagram && { icon: <Instagram className="w-3.5 h-3.5" />, label: `@${client.instagram.replace('@', '')}`, href: `https://instagram.com/${client.instagram.replace('@', '')}` },
-                    client.whatsapp && { icon: <Phone className="w-3.5 h-3.5" />, label: client.whatsapp, href: `https://wa.me/${client.whatsapp.replace(/\D/g, '').replace(/^(?!55)/, '55')}` },
-                    client.email && { icon: <Mail className="w-3.5 h-3.5" />, label: client.email, href: `mailto:${client.email}` },
-                    client.website && { icon: <Globe className="w-3.5 h-3.5" />, label: client.website.replace(/^https?:\/\//, ''), href: client.website.startsWith('http') ? client.website : `https://${client.website}` },
-                  ].filter(Boolean).map(c => {
-                    const it = c as { icon: React.ReactNode; label: string; href: string }
-                    return (
-                      <a key={it.href} href={it.href} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 h-9 max-w-full px-3.5 rounded-full border border-[#E4E7EC] text-[12.5px] text-[#334155] hover:border-[#0F172A] hover:text-[#0F172A] transition-colors">
-                        <span className="text-[#8A94A6]">{it.icon}</span>
-                        <span className="truncate">{it.label}</span>
-                      </a>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Dados principais do cliente */}
-            {infoFields.slice(0, 3).some(f => f.value) && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-[#EEF0F3] border-t border-[#EEF0F3] mt-7 -mx-5 sm:-mx-8 -mb-6 sm:-mb-8">
-                {infoFields.slice(0, 3).filter(f => f.value).map(f => (
-                  <div key={f.label} className="bg-white px-5 sm:px-8 py-5">
-                    <p className={portalEyebrow}>{f.label}</p>
-                    <p className="text-[13px] leading-relaxed text-[#0F172A] mt-2 line-clamp-3">{f.value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.header>
-
-        {/* ── Abas numeradas, com fio azul embaixo da ativa ── */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-10 sm:mt-14">
-          {/* O fio fica no invólucro (fora da área que rola) para a barra não tremer na vertical */}
-          <div className="relative -mx-4 sm:mx-0 mb-9 sm:mb-12 border-b border-[#E4E7EC]">
-          <div aria-hidden className="sm:hidden absolute right-0 top-0 bottom-px w-12 z-10 pointer-events-none bg-gradient-to-l from-[#F6F7F9] to-transparent" />
-          <TabsList
-            ref={tabsRef}
-            className="portal-tabs relative flex w-full h-auto p-0 px-4 sm:px-0 bg-transparent border-0 rounded-none justify-start gap-6 sm:gap-8 flex-nowrap overflow-x-auto overflow-y-hidden overscroll-x-contain scrollbar-none"
-          >
-            {[
-              { v: 'dashboard',    label: 'Dashboard' },
-              { v: 'planejamento', label: 'Planejamento', count: plannerItems?.length || 0 },
-              { v: 'notas',        label: 'Solicitações e ideias' },
-              { v: 'materiais',    label: 'Materiais' },
-              { v: 'resultados',   label: 'Resultados' },
-              { v: 'financeiro',   label: 'Financeiro' },
-              ...(formConfig?.is_active ? [{ v: 'formulario', label: 'Formulário' }] : []),
-            ].map((t, i) => (
-              <TabsTrigger
-                key={t.v}
-                value={t.v}
-                className="group relative flex-shrink-0 gap-2 rounded-none px-0 pt-1 pb-3.5 text-[13.5px] font-medium bg-transparent text-[#8A94A6] hover:bg-transparent hover:text-[#0F172A] data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[2px] after:bg-[#0F172A] after:origin-left after:scale-x-0 after:transition-transform after:duration-500 data-[state=active]:after:scale-x-100"
-              >
-                <span className="text-[10.5px] tabular-nums text-[#C4CAD4] group-data-[state=active]:text-[#2563EB] transition-colors">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                {t.label}
-                {pendingCount > 0 && t.v === 'planejamento' ? (
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center" style={{ background: '#EAB308', color: '#fff' }}>
-                    {pendingCount}
-                  </span>
-                ) : t.count != null && (
-                  <span className="text-[11px] tabular-nums text-[#A0A8B5]">{t.count}</span>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          </div>
-
+      <div className="max-w-[1320px] mx-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Aba Dashboard */}
           <TabsContent value="dashboard" className="mt-0">
             <ClientDashboardTab
@@ -2890,7 +2860,7 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Planejamento */}
-          <TabsContent value="planejamento" className="mt-0">
+          <TabsContent value="planejamento" className="mt-0 px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
             <PortalSectionHead
               n="02" eyebrow="Planejamento" title="O calendário" accent="do mês."
               desc="Cada post aparece no dia em que vai ao ar. Clique para ver a arte, ler a legenda e aprovar ou pedir ajuste."
@@ -2907,7 +2877,7 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Materiais */}
-          <TabsContent value="materiais" className="mt-0">
+          <TabsContent value="materiais" className="mt-0 px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
             <PortalSectionHead
               n="04" eyebrow="Materiais" title="Tudo da sua marca," accent="num lugar só."
               desc="Logos, fotos, vídeos e documentos que a agência organizou para você baixar quando precisar."
@@ -2916,7 +2886,7 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Resultados */}
-          <TabsContent value="resultados" className="mt-0">
+          <TabsContent value="resultados" className="mt-0 px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
             <PortalSectionHead
               n="05" eyebrow="Resultados" title="O que os números" accent="dizem."
               desc="O relatório de cada mês, com alcance, seguidores, engajamento e a leitura da agência."
@@ -2925,7 +2895,7 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Financeiro */}
-          <TabsContent value="financeiro" className="mt-0">
+          <TabsContent value="financeiro" className="mt-0 px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
             <PortalSectionHead
               n="06" eyebrow="Financeiro" title="Pagamentos" accent="em dia."
               desc="A situação do contrato, o próximo vencimento e o histórico do que já foi pago."
@@ -2934,7 +2904,7 @@ export function PortalDashboard() {
           </TabsContent>
 
           {/* Aba Notas */}
-          <TabsContent value="notas" className="mt-0">
+          <TabsContent value="notas" className="mt-0 px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
             <PortalSectionHead
               n="03" eyebrow="Solicitações e ideias" title="Fale com" accent="a agência."
               desc="Mande ideias de conteúdo, avisos e pedidos. Tudo fica registrado aqui, em vez de se perder na conversa."
@@ -2944,7 +2914,7 @@ export function PortalDashboard() {
 
           {/* Aba Formulário */}
           {formConfig?.is_active && (
-            <TabsContent value="formulario" className="mt-0">
+            <TabsContent value="formulario" className="mt-0 px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
               <PortalSectionHead
                 n="07" eyebrow="Formulário" title="A sua semana" accent="em 5 minutos."
                 desc="Conte o que está acontecendo aí. É com isso que a agência cria conteúdos alinhados à sua realidade."

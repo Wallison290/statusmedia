@@ -126,7 +126,7 @@ function ChecklistEditor({
             type="button"
             onClick={() => toggle(item.id)}
             className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-              item.done ? 'bg-[#0f0f0f] border-[#0f0f0f]' : 'border-[#d0d0d0] hover:border-[#a0a0a0]'
+              item.done ? 'bg-[#0F172A] border-[#0F172A]' : 'border-[#d0d0d0] hover:border-[#a0a0a0]'
             }`}
           >
             {item.done && <Check className="w-2.5 h-2.5" style={{ color: '#ffffff' }} />}
@@ -273,7 +273,7 @@ function NoteModal({ note, onClose }: { note: Note | null; onClose: () => void }
               >
                 {t === 'texto' ? 'Texto' : 'Checklist'}
                 {t === 'checklist' && checklist.length > 0 && (
-                  <span className="ml-1.5 text-[10px] bg-[#0f0f0f] rounded-full px-1.5 py-0.5" style={{ color: '#ffffff' }}>
+                  <span className="ml-1.5 text-[10px] bg-[#0F172A] rounded-full px-1.5 py-0.5" style={{ color: '#ffffff' }}>
                     {checklist.filter(i => i.done).length}/{checklist.length}
                   </span>
                 )}
@@ -317,7 +317,7 @@ function NoteModal({ note, onClose }: { note: Note | null; onClose: () => void }
                   {note.checklist.map(item => (
                     <div key={item.id} className="flex items-center gap-2">
                       <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                        item.done ? 'bg-[#0f0f0f] border-[#0f0f0f]' : 'border-[#d0d0d0]'
+                        item.done ? 'bg-[#0F172A] border-[#0F172A]' : 'border-[#d0d0d0]'
                       }`}>
                         {item.done && <Check className="w-2.5 h-2.5" style={{ color: '#ffffff' }} />}
                       </div>
@@ -368,7 +368,7 @@ function NoteModal({ note, onClose }: { note: Note | null; onClose: () => void }
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-xl bg-[#0f0f0f] hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-xl bg-[#0F172A] hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
               style={{ color: '#ffffff' }}
             >
               {saving ? 'Enviando...' : isNew ? 'Enviar nota' : 'Salvar'}
