@@ -78,7 +78,7 @@ const STATUS: Record<string, { label: string; color: string }> = {
   a_fazer:      { label: 'A fazer',             color: '#94A3B8' },
   em_andamento: { label: 'Em andamento',        color: '#F59E0B' },
   revisao:      { label: 'Agência conferindo',  color: '#2563EB' },
-  concluido:    { label: 'Concluída',           color: '#10B981' },
+  concluido:    { label: 'Aprovada',            color: '#10B981' },
 }
 
 const PRIORITY: Record<string, { label: string; color: string }> = {
@@ -285,7 +285,7 @@ function HomeTab({ member, tasks, onOpen, onGo }: {
     { label: 'Para fazer',          short: 'Para fazer', value: open.length,    note: open.length > 0 ? 'ver as demandas' : 'nada pendente', color: '#2563EB', go: 'abertas' },
     { label: 'Atrasadas',           short: 'Atrasadas',  value: overdue.length, note: 'passaram do prazo',   color: '#EF4444', go: 'abertas', alert: true },
     { label: 'Agência conferindo',  short: 'Conferindo', value: review.length,  note: 'entregues por você', color: '#8B5CF6', go: 'revisao' },
-    { label: 'Concluídas',          short: 'Concluídas', value: done.length,    note: 'aprovadas',          color: '#10B981', go: 'concluidas' },
+    { label: 'Aprovadas',           short: 'Aprovadas',  value: done.length,    note: 'entregas aprovadas',          color: '#10B981', go: 'concluidas' },
   ]
 
   // Por cliente: só ajuda quando há mais de um
@@ -466,7 +466,7 @@ function DemandsTab({ tasks, filter, setFilter, onOpen }: {
   const statusFilters = [
     { key: 'abertas',    label: 'Para fazer',         dot: '#2563EB', match: isOpen },
     { key: 'revisao',    label: 'Agência conferindo', dot: '#8B5CF6', match: (t: CollaboratorTask) => t.status === 'revisao' },
-    { key: 'concluidas', label: 'Concluídas',         dot: '#10B981', match: (t: CollaboratorTask) => t.status === 'concluido' },
+    { key: 'concluidas', label: 'Aprovadas',         dot: '#10B981', match: (t: CollaboratorTask) => t.status === 'concluido' },
     { key: 'todas',      label: 'Todas',              dot: undefined, match: () => true },
   ]
   const clientKey = filter.startsWith('cliente:') ? filter.slice(8) : null
@@ -927,11 +927,11 @@ function TaskModal({ task, token, onClose, onUpdated }: {
           <References links={links} />
 
           {/* Entrega */}
-          {task.in_planner ? (
+          {task.in_planner || (task.status === 'concluido' && !!task.delivered_at) ? (
             <div className={`${portalPanel} relative overflow-hidden pl-6 pr-5 py-4`}>
               <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r bg-[#10B981]" />
               <p className="text-[14px] font-semibold text-[var(--sm-text-1)] flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Entrega aprovada</p>
-              <p className="text-[12.5px] text-[var(--sm-text-2)] mt-1 leading-snug">A agência aprovou e o conteúdo já está no planejamento do cliente. Obrigado!</p>
+              <p className="text-[12.5px] text-[var(--sm-text-2)] mt-1 leading-snug">{task.in_planner ? 'A agência aprovou e o conteúdo já está no planejamento do cliente. Obrigado!' : 'A agência aprovou a sua entrega. Obrigado!'}</p>
               {delivered.length > 0 && (
                 <div className="flex gap-2 mt-3 overflow-x-auto">
                   {delivered.map(d => (

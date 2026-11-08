@@ -268,6 +268,24 @@ export function useRequestDeliveryAdjust() {
   })
 }
 
+/** Aprova a entrega sem criar post (ex.: material que não vai ao Instagram). */
+export function useApproveDelivery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ taskId }: { taskId: string }) => {
+      const { error } = await (supabase as any)
+        .from('tasks')
+        .update({ status: 'concluido', agency_feedback: null, updated_at: new Date().toISOString() })
+        .eq('id', taskId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team_tasks'] })
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+    },
+  })
+}
+
 const PLANNER_FORMAT: Record<DeliverableType, { content_type: string; ig_post_type: string }> = {
   reels:     { content_type: 'reels',     ig_post_type: 'REELS' },
   post:      { content_type: 'post',      ig_post_type: 'IMAGE' },

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Check, ExternalLink, Film, Image as ImageIcon, Layers, Loader2, RotateCcw, X } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, CheckCircle2, ExternalLink, Film, Image as ImageIcon, Layers, Loader2, RotateCcw, X } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mediaUrl } from '@/lib/thumbs'
+import { supabase } from '@/integrations/supabase/client'
 import {
-  plannerFormatFor, useRequestDeliveryAdjust, useSendDeliveryToPlanner,
-  type DeliverableType, type TeamTask,
+  plannerFormatFor, useApproveDelivery, useRequestDeliveryAdjust, useSendDeliveryToPlanner, useTeamMembers,
+  type DeliverableType, type TeamMember, type TeamTask,
 } from '@/hooks/useTeamMembers'
 
 // Entrega do colaborador dentro da demanda (Equipe): a agência vê o vídeo, a
@@ -66,6 +67,41 @@ export function hasPendingDelivery(task: Pick<TeamTask, 'delivered_at' | 'planne
   return !!task.delivered_at && !task.planner_id && task.status === 'revisao'
 }
 
+// ── Aviso no WhatsApp do colaborador (sai pelo WhatsApp conectado da agência) ──
+
+const EMOJI_OK = '\u2705'          // ✅
+const EMOJI_EDIT = '\u270F\uFE0F'  // ✏️
+
+function portalUrlOf(member: TeamMember) {
+  return `${window.location.origin}/colaborador/${member.portal_token}`
+}
+
+function approvedMessage(member: TeamMember, task: TeamTask, toPlanner: boolean) {
+  const first = member.name.split(' ')[0]
+  const cliente = task.clients?.company_name ? ` (${task.clients.company_name})` : ''
+  return `Olá, ${first}! ${EMOJI_OK} Sua entrega "${task.title}"${cliente} foi aprovada`
+    + (toPlanner ? ' e já foi para o planejamento do cliente.' : '.')
+    + ` Obrigado!\n\nSuas demandas: ${portalUrlOf(member)}`
+}
+
+function adjustMessage(member: TeamMember, task: TeamTask, feedback: string) {
+  const first = member.name.split(' ')[0]
+  return `Olá, ${first}! ${EMOJI_EDIT} A agência pediu um ajuste em "${task.title}":\n\n${feedback.trim()}\n\nVeja e envie de novo por aqui: ${portalUrlOf(member)}`
+}
+
+/** Devolve null quando avisou, ou o motivo de não ter avisado. */
+async function notifyWhatsApp(member: TeamMember | undefined, text: string): Promise<string | null> {
+  if (!member?.whatsapp) return 'sem WhatsApp cadastrado'
+  try {
+    const { data, error } = await supabase.functions.invoke('send-whatsapp', { body: { number: member.whatsapp, text } })
+    if (error) return 'o WhatsApp da agência não respondeu'
+    if (data?.ok === false) return data.error ?? 'falha no envio'
+    return null
+  } catch {
+    return 'o WhatsApp da agência não respondeu'
+  }
+}
+
 function todayYmd() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -77,7 +113,21 @@ export function DeliveryReviewBlock({ task, onDone }: { task: TeamTask; onDone?:
   const { toast } = useToast()
   const navigate = useNavigate()
   const adjust = useRequestDeliveryAdjust()
+  const approve = useApproveDelivery()
   const send = useSendDeliveryToPlanner()
+  const { data: members = [] } = useTeamMembers()
+  const member = members.find(m => m.id === task.assignee_id)
+  const firstName = member?.name.split(' ')[0] ?? 'o colaborador'
+  const [notifyWa, setNotifyWa] = useState(true)
+  const canWa = !!member?.whatsapp
+
+  // Avisa no WhatsApp e mostra o resultado junto da confirmação
+  const tellCollaborator = async (text: string, done: string) => {
+    if (!notifyWa || !canWa) { toast(done, 'success'); return }
+    const fail = await notifyWhatsApp(member, text)
+    if (fail) toast(`${done} Não deu para avisar ${firstName} no WhatsApp: ${fail}.`, 'error')
+    else toast(`${done} ${firstName} foi avisado no WhatsApp.`, 'success')
+  }
 
   const files = Array.isArray(task.deliveries) ? task.deliveries : []
   const hasDelivery = files.length > 0 || !!task.delivery_url || !!task.collaborator_note
@@ -98,7 +148,7 @@ export function DeliveryReviewBlock({ task, onDone }: { task: TeamTask; onDone?:
     if (!feedback.trim()) return
     try {
       await adjust.mutateAsync({ taskId: task.id, feedback })
-      toast('Pedido de ajuste enviado ao colaborador.', 'success')
+      await tellCollaborator(member ? adjustMessage(member, task, feedback) : '', 'Ajuste pedido.')
       setMode('idle'); setFeedback('')
       onDone?.()
     } catch (e) {
@@ -110,13 +160,25 @@ export function DeliveryReviewBlock({ task, onDone }: { task: TeamTask; onDone?:
     if (!title.trim() || !date) return
     try {
       const postId = await send.mutateAsync({ task, title, date, time: time || null })
-      toast('Post criado no Planejamento. Revise a legenda e envie ao cliente.', 'success')
+      await tellCollaborator(member ? approvedMessage(member, task, true) : '', 'Post criado no Planejamento.')
       onDone?.()
       navigate(`/planner?item=${postId}`)
     } catch (e) {
       toast((e as Error).message || 'Não foi possível mandar para o planejamento.', 'error')
     }
   }
+
+  const doApprove = async () => {
+    try {
+      await approve.mutateAsync({ taskId: task.id })
+      await tellCollaborator(member ? approvedMessage(member, task, false) : '', 'Entrega aprovada.')
+      onDone?.()
+    } catch (e) {
+      toast((e as Error).message || 'Não foi possível aprovar.', 'error')
+    }
+  }
+
+  const busy = approve.isPending || adjust.isPending || send.isPending
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ borderColor: pending ? 'rgba(37,99,235,0.45)' : 'var(--sm-border)', background: 'var(--sm-bg-card)' }}>
@@ -126,6 +188,7 @@ export function DeliveryReviewBlock({ task, onDone }: { task: TeamTask; onDone?:
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: '#2563EB' }}>Entrega do colaborador</p>
           <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
             {task.planner_id ? 'Aprovada e enviada ao Planejamento'
+              : task.status === 'concluido' ? 'Aprovada'
               : pending ? 'Esperando a sua conferência'
               : task.agency_feedback ? 'Ajuste pedido, aguardando nova entrega'
               : 'Recebida'}
@@ -200,26 +263,58 @@ export function DeliveryReviewBlock({ task, onDone }: { task: TeamTask; onDone?:
           >
             Ver o post no Planejamento <ArrowRight className="w-3.5 h-3.5" />
           </button>
+        ) : task.status === 'concluido' ? (
+          <p className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: '#10B981' }}>
+            <CheckCircle2 className="w-4 h-4" /> Entrega aprovada
+          </p>
         ) : pending && mode === 'idle' ? (
-          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+          <div className="space-y-2 pt-1">
             <button
               type="button"
               onClick={() => setMode('planejamento')}
-              className="flex-1 h-10 rounded-xl text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5"
+              disabled={busy}
+              className="w-full h-10 rounded-xl text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
               style={{ background: 'var(--sm-primary)', color: '#ffffff' }}
             >
-              <CalendarDays className="w-4 h-4" /> Mandar para o Planejamento
+              <CalendarDays className="w-4 h-4" /> Aprovar e mandar para o Planejamento
             </button>
-            <button
-              type="button"
-              onClick={() => setMode('ajuste')}
-              className="flex-1 h-10 rounded-xl border text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5"
-              style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)', background: 'transparent' }}
-            >
-              <RotateCcw className="w-4 h-4" /> Pedir ajuste
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={doApprove}
+                disabled={busy}
+                title="Aprova sem criar post (ex.: material que não vai ao Instagram)"
+                className="h-10 rounded-xl border text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
+                style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)', background: 'transparent' }}
+              >
+                {approve.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" style={{ color: '#10B981' }} />} Só aprovar
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('ajuste')}
+                disabled={busy}
+                className="h-10 rounded-xl border text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
+                style={{ borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)', background: 'transparent' }}
+              >
+                <RotateCcw className="w-4 h-4" /> Pedir ajuste
+              </button>
+            </div>
           </div>
         ) : null}
+
+        {/* Avisar no WhatsApp: vale para aprovar e para pedir ajuste */}
+        {pending && (
+          <label className={`flex items-center gap-2 text-[12px] select-none ${canWa ? 'cursor-pointer' : ''}`} style={{ color: 'var(--sm-text-2)' }}>
+            <input
+              type="checkbox"
+              checked={canWa && notifyWa}
+              disabled={!canWa}
+              onChange={e => setNotifyWa(e.target.checked)}
+              className="w-4 h-4 accent-[#2563EB]"
+            />
+            {canWa ? `Avisar ${firstName} no WhatsApp` : `${firstName} não tem WhatsApp cadastrado na Equipe`}
+          </label>
+        )}
 
         {mode === 'ajuste' && (
           <div className="space-y-2 pt-1">
