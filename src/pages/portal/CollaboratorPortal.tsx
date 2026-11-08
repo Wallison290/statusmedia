@@ -1,1201 +1,1058 @@
 // ── Portal do Colaborador ─────────────────────────────────────────────────────
-// Rota pública: /colaborador/:token
-// O colaborador visualiza um dashboard com suas demandas separadas por cliente
-// e pode atualizar status, nota e URL de entrega de cada uma.
+// Rota pública: /colaborador/:token (o token é a identidade; não há login).
+// Mesmo visual de vidro do portal do cliente: menu lateral, painel que rola
+// por dentro, Início com saudação e números, e a lista de demandas.
+// Em cada demanda o colaborador vê as referências e ENTREGA o trabalho:
+// arquivos (vídeo, imagem, carrossel na ordem dos slides) e/ou um link.
+// Ao enviar, a demanda vai para "Em revisão" e a agência confere na Equipe.
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, MotionConfig } from 'framer-motion'
 import {
-  CheckCircle2, Clock, AlertCircle, Circle, ExternalLink, ChevronDown,
-  Loader2, Send, FileText, Link as LinkIcon, Calendar, Briefcase,
-  X, Image, Film, Folder, Building2, AlertTriangle, ListChecks,
+  ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, ExternalLink, FileText,
+  Film, Folder, Image as ImageIcon, Layers, LayoutDashboard, Link as LinkIcon, ListChecks,
+  Loader2, Play, Send, Trash2, Upload, X,
 } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PortalLayout, type PortalNavItem } from '@/components/layout/PortalLayout'
+import { PortalBlockTitle, PortalEmpty, PortalFilterChip, PortalSectionHead, portalPanel } from '@/components/portal/PortalUI'
+import { mediaUrl } from '@/lib/thumbs'
+import { edgeErrorMessage } from '@/lib/edgeErrors'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
+type DeliverableType = 'reels' | 'post' | 'carrossel'
+
 interface CollaboratorMember {
-  id:          string
-  name:        string
-  role:        string | null
-  color:       string
-  avatar_url:  string | null
+  id: string
+  name: string
+  role: string | null
+  color: string
+  avatar_url: string | null
   portal_token: string
-  user_id:     string
+  user_id: string
 }
 
 interface TaskLink {
-  id:    string
+  id: string
   label: string
-  url:   string
-  type:  'link' | 'imagem' | 'video' | 'arquivo' | 'pasta'
+  url: string
+  type: 'link' | 'imagem' | 'video' | 'arquivo' | 'pasta'
+}
+
+interface Delivery {
+  id: string
+  url: string
+  type: 'image' | 'video'
+  name: string
+  size: number | null
 }
 
 interface CollaboratorTask {
-  id:                string
-  title:             string
-  description:       string | null
-  status:            string
-  priority:          string
-  due_date:          string | null
+  id: string
+  title: string
+  description: string | null
+  status: string
+  priority: string
+  due_date: string | null
+  due_time: string | null
   collaborator_note: string | null
-  delivery_url:      string | null
-  task_links:        TaskLink[] | null
-  created_at:        string
-  updated_at:        string
-  client_id:         string | null
-  clients:           { id: string; company_name: string } | null
-}
-
-interface ClientTaskGroup {
-  clientId:    string | null
-  companyName: string
-  tasks:       CollaboratorTask[]
-  openCount:   number
-  totalCount:  number
-  nextDueDate: string | null
-}
-
-// Ícone por tipo de link
-function LinkTypeIcon({ type, className }: { type: TaskLink['type']; className?: string }) {
-  const cls = className ?? 'w-4 h-4'
-  if (type === 'imagem')  return <Image   className={cls} />
-  if (type === 'video')   return <Film    className={cls} />
-  if (type === 'arquivo') return <FileText className={cls} />
-  if (type === 'pasta')   return <Folder  className={cls} />
-  return <LinkIcon className={cls} />
-}
-
-const LINK_TYPE_COLORS: Record<TaskLink['type'], string> = {
-  link:    'text-blue-800   bg-blue-50',
-  imagem:  'text-pink-800   bg-pink-50',
-  video:   'text-red-800    bg-red-50',
-  arquivo: 'text-amber-800  bg-amber-50',
-  pasta:   'text-violet-800 bg-violet-50',
+  delivery_url: string | null
+  task_links: TaskLink[] | null
+  deliverable_type: DeliverableType | null
+  deliveries: Delivery[] | null
+  delivered_at: string | null
+  agency_feedback: string | null
+  in_planner: boolean
+  created_at: string
+  updated_at: string
+  client_id: string | null
+  clients: { id: string; company_name: string; logo_url: string | null } | null
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS = [
-  { value: 'a_fazer',      label: 'A fazer',       icon: Circle,       color: 'text-slate-700',  bg: 'bg-slate-100' },
-  { value: 'em_andamento', label: 'Em andamento',  icon: Clock,        color: 'text-blue-800',   bg: 'bg-blue-50'   },
-  { value: 'revisao',      label: 'Em revisão',    icon: AlertCircle,  color: 'text-amber-800',  bg: 'bg-amber-50'  },
-  { value: 'concluido',    label: 'Concluído',     icon: CheckCircle2, color: 'text-green-800',  bg: 'bg-green-50'  },
-]
-
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  baixa:  { label: 'Baixa',   color: 'text-slate-500',  bg: 'bg-slate-100'  },
-  media:  { label: 'Média',   color: 'text-blue-800',   bg: 'bg-blue-100'   },
-  alta:   { label: 'Alta',    color: 'text-orange-800', bg: 'bg-orange-100' },
-  urgente:{ label: 'Urgente', color: 'text-red-800',    bg: 'bg-red-100'    },
+const STATUS: Record<string, { label: string; color: string }> = {
+  a_fazer:      { label: 'A fazer',             color: '#94A3B8' },
+  em_andamento: { label: 'Em andamento',        color: '#F59E0B' },
+  revisao:      { label: 'Agência conferindo',  color: '#2563EB' },
+  concluido:    { label: 'Concluída',           color: '#10B981' },
 }
+
+const PRIORITY: Record<string, { label: string; color: string }> = {
+  baixa:   { label: 'Baixa',   color: '#94A3B8' },
+  media:   { label: 'Normal',  color: '#2563EB' },
+  alta:    { label: 'Alta',    color: '#F97316' },
+  urgente: { label: 'Urgente', color: '#EF4444' },
+}
+
+const DELIVERABLE: Record<DeliverableType, { label: string; ask: string; accept: string; max: number; Icon: typeof Film }> = {
+  reels:     { label: 'Vídeo (Reels)', ask: 'Envie o vídeo editado.',                               accept: 'video/*',         max: 1,  Icon: Film },
+  post:      { label: 'Imagem (post)', ask: 'Envie a imagem pronta.',                               accept: 'image/*',         max: 1,  Icon: ImageIcon },
+  carrossel: { label: 'Carrossel',     ask: 'Envie as imagens do carrossel na ordem dos slides.',   accept: 'image/*,video/*', max: 10, Icon: Layers },
+}
+
+const EASE = [0.16, 1, 0.3, 1] as const
+const fieldCls = 'w-full rounded-xl border px-3 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25 placeholder:text-[var(--sm-text-4)]'
+const fieldStyle = { background: 'var(--sm-bg-input)', borderColor: 'var(--sm-border)', color: 'var(--sm-text-1)' } as const
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(date: string | null) {
+function ymdToday() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// 'YYYY-MM-DD' lido como texto: sem o bug do fuso (UTC-3 mostrava o dia anterior)
+function fmtDate(date: string | null, long = false) {
   if (!date) return null
-  return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  const [y, m, d] = date.split('T')[0].split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('pt-BR', long ? { day: 'numeric', month: 'long' } : { day: '2-digit', month: 'short' }).replace('.', '')
 }
 
-function isOverdue(due_date: string | null, status: string) {
-  if (!due_date || status === 'concluido') return false
-  return new Date(due_date) < new Date()
+function isOverdue(t: Pick<CollaboratorTask, 'due_date' | 'status'>) {
+  if (!t.due_date || t.status === 'concluido' || t.status === 'revisao') return false
+  return t.due_date.split('T')[0] < ymdToday()
 }
 
-function getStatusConfig(value: string) {
-  return STATUS_OPTIONS.find(s => s.value === value) ?? STATUS_OPTIONS[0]
+function needsAdjust(t: CollaboratorTask) {
+  return !!t.agency_feedback && !t.in_planner && (t.status === 'a_fazer' || t.status === 'em_andamento')
 }
 
-// Agrupa as demandas por cliente — tarefas sem client_id caem no grupo "Sem cliente"
-function buildClientGroups(tasks: CollaboratorTask[]): ClientTaskGroup[] {
-  const buckets = new Map<string, { clientId: string | null; companyName: string; tasks: CollaboratorTask[] }>()
+function isOpen(t: CollaboratorTask) {
+  return t.status === 'a_fazer' || t.status === 'em_andamento'
+}
 
-  for (const t of tasks) {
-    const key = t.client_id ?? '__none__'
-    if (!buckets.has(key)) {
-      buckets.set(key, { clientId: t.client_id, companyName: t.clients?.company_name ?? 'Sem cliente', tasks: [] })
-    }
-    buckets.get(key)!.tasks.push(t)
+function fmtSize(bytes: number | null) {
+  if (!bytes) return ''
+  if (bytes > 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+  if (bytes > 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
+// Windows às vezes não informa o tipo de .mov/.mkv: deduz pela extensão
+function mimeOf(file: File) {
+  if (file.type) return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const map: Record<string, string> = {
+    mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', gif: 'image/gif',
   }
-
-  const groups: ClientTaskGroup[] = Array.from(buckets.values()).map(b => {
-    const openTasksWithDate = b.tasks.filter(t => t.status !== 'concluido' && t.due_date)
-    const nextDueDate = openTasksWithDate.length
-      ? openTasksWithDate.reduce((min, t) => (t.due_date! < min ? t.due_date! : min), openTasksWithDate[0].due_date!)
-      : null
-    return {
-      clientId:    b.clientId,
-      companyName: b.companyName,
-      tasks:       b.tasks,
-      openCount:   b.tasks.filter(t => t.status !== 'concluido').length,
-      totalCount:  b.tasks.length,
-      nextDueDate,
-    }
-  })
-
-  groups.sort((a, b) => {
-    if (a.clientId === null) return 1
-    if (b.clientId === null) return -1
-    return a.companyName.localeCompare(b.companyName, 'pt-BR')
-  })
-
-  return groups
+  return map[ext] ?? ''
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
+function newId() {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
+}
 
-function Avatar({ member }: { member: CollaboratorMember }) {
-  if (member.avatar_url) {
-    return (
-      <img
-        src={member.avatar_url}
-        alt={member.name}
-        className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow"
-      />
-    )
-  }
-  const initials = member.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+function initials(name: string) {
+  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
+
+// ── Envio de arquivo: permissão pelo token + PUT direto no R2 com progresso ──
+
+async function uploadDelivery(token: string, taskId: string, file: File, onProgress: (p: number) => void) {
+  const contentType = mimeOf(file)
+  const { data, error } = await supabase.functions.invoke('collaborator-upload-url', {
+    body: { token, taskId, fileName: file.name, contentType, sizeBytes: file.size },
+  })
+  if (error) throw new Error(await edgeErrorMessage(error, 'Não foi possível preparar o envio.'))
+  if (data?.error) throw new Error(data.error)
+  const { uploadUrl, publicUrl } = data as { uploadUrl: string; publicUrl: string }
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', uploadUrl, true)
+    xhr.setRequestHeader('Content-Type', contentType)
+    xhr.timeout = 60_000 + Math.ceil(file.size / 200_000) * 1000
+    xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total) }
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`O envio foi recusado (${xhr.status}). Tente de novo.`)))
+    xhr.onerror = () => reject(new Error('A conexão caiu durante o envio. Tente de novo.'))
+    xhr.ontimeout = () => reject(new Error('O envio demorou demais. Tente de novo numa conexão melhor.'))
+    xhr.send(file)
+  })
+  return publicUrl
+}
+
+// ── Peças pequenas ────────────────────────────────────────────────────────────
+
+function Dot({ color, children }: { color: string; children: React.ReactNode }) {
   return (
-    <div
-      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ring-2 ring-white shadow"
-      style={{ background: member.color }}
-    >
-      {initials}
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap text-[var(--sm-text-2)]">
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+      {children}
+    </span>
   )
 }
 
-// ── StatusDropdown ─────────────────────────────────────────────────────────────
+function Section({ title, aside, children, className = 'mt-12' }: { title: string; aside?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={className}>
+      <div className="flex items-baseline gap-3 mb-4 min-w-0">
+        <h2 className="font-display text-[20px] sm:text-[22px] font-bold tracking-[-0.025em] leading-none text-[var(--sm-text-1)]">{title}</h2>
+        {aside && <span className="text-[12px] text-[var(--sm-text-3)] truncate">{aside}</span>}
+      </div>
+      {children}
+    </section>
+  )
+}
 
-function StatusDropdown({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string
-  onChange: (v: string) => void
-  disabled?: boolean
+/** Linha de demanda: barra de 3px na cor do estado, título, cliente e prazo. */
+function TaskRow({ task, onOpen }: { task: CollaboratorTask; onOpen: () => void }) {
+  const st = STATUS[task.status] ?? STATUS.a_fazer
+  const overdue = isOverdue(task)
+  const adjust = needsAdjust(task)
+  const bar = adjust ? '#F59E0B' : overdue ? '#EF4444' : st.color
+  const type = task.deliverable_type ? DELIVERABLE[task.deliverable_type] : null
+  return (
+    <button
+      onClick={onOpen}
+      className="group relative w-full flex items-center gap-4 px-5 sm:px-6 py-4 text-left transition-colors hover:bg-[var(--sm-bg-alt)]"
+    >
+      <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r" style={{ background: bar }} />
+      <span className="w-11 h-11 rounded-xl border border-[var(--sm-border)] bg-[var(--sm-bg-alt)] flex items-center justify-center flex-shrink-0 text-[var(--sm-text-3)]">
+        {type ? <type.Icon className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className={`block text-[14px] font-semibold truncate ${task.status === 'concluido' ? 'text-[var(--sm-text-3)]' : 'text-[var(--sm-text-1)]'}`}>{task.title}</span>
+        <span className="block text-[12px] text-[var(--sm-text-3)] mt-0.5 truncate">
+          {task.clients?.company_name ?? 'Interno'}
+          {task.due_date && (
+            <>
+              <span className="mx-1.5 text-[var(--sm-text-4)]">·</span>
+              <span style={overdue ? { color: '#EF4444', fontWeight: 600 } : undefined}>{overdue ? 'Atrasada · ' : ''}{fmtDate(task.due_date)}</span>
+            </>
+          )}
+          {adjust && <><span className="mx-1.5 text-[var(--sm-text-4)]">·</span><span style={{ color: '#B45309', fontWeight: 600 }}>Ajuste pedido</span></>}
+        </span>
+      </span>
+      <span className="hidden sm:inline-flex flex-shrink-0"><Dot color={st.color}>{st.label}</Dot></span>
+      <span className="w-8 h-8 rounded-full border border-[var(--sm-border)] flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:-rotate-45 group-hover:border-[var(--sm-text-3)] text-[var(--sm-text-1)]">
+        <ArrowRight className="w-3.5 h-3.5" />
+      </span>
+    </button>
+  )
+}
+
+// ── Início ────────────────────────────────────────────────────────────────────
+
+function HomeTab({ member, tasks, onOpen, onGo }: {
+  member: CollaboratorMember
+  tasks: CollaboratorTask[]
+  onOpen: (t: CollaboratorTask) => void
+  onGo: (tab: string, filter?: string) => void
 }) {
-  const [open, setOpen] = useState(false)
-  const current = getStatusConfig(value)
-  const Icon = current.icon
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+  const hour = now.getHours()
+  const greet = hour < 12 ? 'Bom dia,' : hour < 18 ? 'Boa tarde,' : 'Boa noite,'
+  const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const firstName = member.name.split(' ')[0]
+
+  const open = tasks.filter(isOpen)
+  const overdue = tasks.filter(isOverdue)
+  const review = tasks.filter(t => t.status === 'revisao')
+  const done = tasks.filter(t => t.status === 'concluido')
+  const adjust = tasks.filter(needsAdjust)
+
+  const subline = tasks.length === 0
+    ? 'Você ainda não tem demandas. Assim que a agência mandar alguma, ela aparece aqui.'
+    : adjust.length > 0
+      ? `A agência pediu ajuste em ${adjust.length === 1 ? '1 entrega' : `${adjust.length} entregas`}. Comece por ${adjust.length === 1 ? 'ela' : 'elas'}.`
+      : overdue.length > 0
+        ? `${overdue.length === 1 ? '1 demanda passou' : `${overdue.length} demandas passaram`} do prazo. Vale olhar primeiro.`
+        : open.length > 0
+          ? `${open.length === 1 ? '1 demanda está' : `${open.length} demandas estão`} com você agora.`
+          : 'Tudo entregue. Nenhuma demanda esperando por você.'
+
+  const next = [...open].sort((a, b) => {
+    const pa = needsAdjust(a) ? 0 : isOverdue(a) ? 1 : 2
+    const pb = needsAdjust(b) ? 0 : isOverdue(b) ? 1 : 2
+    if (pa !== pb) return pa - pb
+    return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')
+  })
+  const first = next[0]
+
+  const kpis = [
+    { label: 'Para fazer',          short: 'Para fazer', value: open.length,    note: open.length > 0 ? 'ver as demandas' : 'nada pendente', color: '#2563EB', go: 'abertas' },
+    { label: 'Atrasadas',           short: 'Atrasadas',  value: overdue.length, note: 'passaram do prazo',   color: '#EF4444', go: 'abertas', alert: true },
+    { label: 'Agência conferindo',  short: 'Conferindo', value: review.length,  note: 'entregues por você', color: '#8B5CF6', go: 'revisao' },
+    { label: 'Concluídas',          short: 'Concluídas', value: done.length,    note: 'aprovadas',          color: '#10B981', go: 'concluidas' },
+  ]
+
+  // Por cliente: só ajuda quando há mais de um
+  const byClient = useMemo(() => {
+    const m = new Map<string, { name: string; open: number; total: number }>()
+    for (const t of tasks) {
+      const k = t.client_id ?? '__none__'
+      const g = m.get(k) ?? { name: t.clients?.company_name ?? 'Interno', open: 0, total: 0 }
+      g.total++
+      if (isOpen(t)) g.open++
+      m.set(k, g)
+    }
+    return [...m.entries()].sort((a, b) => b[1].open - a[1].open || a[1].name.localeCompare(b[1].name, 'pt-BR'))
+  }, [tasks])
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => !disabled && setOpen(o => !o)}
-        disabled={disabled}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all
-          ${current.bg} ${current.color} border-transparent hover:border-current/20 disabled:opacity-60 disabled:cursor-not-allowed`}
-      >
-        <Icon className="w-3.5 h-3.5" />
-        {current.label}
-        {!disabled && <ChevronDown className="w-3 h-3 opacity-60" />}
-      </button>
+    <MotionConfig reducedMotion="user">
+      <div className="px-4 sm:px-6 lg:px-8 pb-12">
+        <motion.header
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: EASE }}
+          className="pt-5 md:pt-9 flex items-start justify-between gap-8"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--sm-text-3)]">
+              <span className="capitalize">{dateStr}</span>
+              <span className="mx-2 text-[var(--sm-text-4)]">/</span>
+              <span className="tabular-nums">{timeStr}</span>
+            </p>
+            <motion.h1
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
+              className="font-display font-bold text-[var(--sm-text-1)] mt-4 sm:mt-5 leading-[0.95] tracking-[-0.035em]"
+              style={{ fontSize: 'clamp(34px, 4.4vw, 60px)' }}
+            >
+              {greet}
+              <br className="sm:hidden" />{' '}
+              <span className="text-[#2563EB]">{firstName}.</span>
+            </motion.h1>
+            <p className="text-[14px] leading-relaxed text-[var(--sm-text-2)] mt-4 sm:mt-5 max-w-[60ch]">{subline}</p>
+            {first && (
+              <button
+                onClick={() => onOpen(first)}
+                className="group mt-6 inline-flex items-center gap-3 h-11 pl-5 pr-1.5 rounded-full text-[13px] font-semibold transition-all duration-300 hover:gap-4"
+                style={{ background: 'var(--sm-primary)', color: '#ffffff' }}
+              >
+                {needsAdjust(first) ? 'Ver o ajuste' : 'Abrir a próxima'}
+                <span className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-300 group-hover:-rotate-45">
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </button>
+            )}
+          </div>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden min-w-[160px]">
-            {STATUS_OPTIONS.map(opt => {
-              const Ic = opt.icon
+          {/* Cartão do colaborador */}
+          <div className={`${portalPanel} sm-invert hidden lg:flex w-[300px] items-center gap-3 px-4 py-3 flex-shrink-0`}>
+            {member.avatar_url ? (
+              <img src={member.avatar_url} alt={member.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+            ) : (
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-display font-bold text-[15px]" style={{ background: member.color, color: '#ffffff' }}>
+                {initials(member.name)}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">{member.name}</p>
+              <p className="text-[11px] text-[var(--sm-text-3)] truncate">{member.role || 'Colaborador'}</p>
+            </div>
+          </div>
+        </motion.header>
+
+        {/* Números */}
+        <Section title="Seus números" aside="tudo o que já passou por você" className="mt-9">
+          <div className="grid grid-cols-3 lg:grid-cols-[1.55fr_1fr_1fr_1fr] gap-2.5 sm:gap-3">
+            {kpis.map((k, i) => {
+              const lead = i === 0
               return (
                 <button
-                  key={opt.value}
-                  onClick={() => { onChange(opt.value); setOpen(false) }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50
-                    ${opt.value === value ? 'font-semibold' : ''}`}
+                  key={k.label}
+                  onClick={() => onGo('demandas', k.go)}
+                  className={`${portalPanel} group relative overflow-hidden text-left flex flex-col justify-between transition-colors hover:bg-[var(--sm-bg-input)] ${
+                    lead ? 'col-span-3 lg:col-span-1 gap-5 p-5 sm:p-6 min-h-[140px] lg:min-h-[176px]' : 'gap-4 px-3.5 py-4 sm:p-6 min-h-[112px] sm:min-h-[140px]'
+                  }`}
                 >
-                  <Ic className={`w-4 h-4 ${opt.color}`} />
-                  {opt.label}
+                  <span
+                    className={`absolute left-0 w-[3px] rounded-r-full ${lead ? 'top-6 bottom-6' : 'top-4 bottom-4 sm:top-6 sm:bottom-6'}`}
+                    style={{ background: k.value > 0 ? k.color : 'var(--sm-border)' }}
+                  />
+                  <span className="flex items-center gap-2 min-w-0 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)]">
+                    <span className={lead ? '' : 'hidden sm:inline'}>{k.label}</span>
+                    {!lead && <span className="sm:hidden">{k.short}</span>}
+                    <ArrowRight className="hidden sm:block w-3.5 h-3.5 ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                  </span>
+                  <span className="block">
+                    <span
+                      className="block font-display font-bold tabular-nums leading-[0.85] tracking-[-0.045em]"
+                      style={{ fontSize: lead ? 'clamp(56px, 7vw, 92px)' : 'clamp(32px, 4vw, 50px)', color: k.alert && k.value > 0 ? '#DC2626' : 'var(--sm-text-1)' }}
+                    >
+                      {k.value}
+                    </span>
+                    <span className={`block text-[12px] text-[var(--sm-text-3)] mt-2.5 leading-snug ${lead ? '' : 'hidden sm:block'}`}>{k.note}</span>
+                  </span>
                 </button>
               )
             })}
           </div>
-        </>
-      )}
-    </div>
-  )
-}
+        </Section>
 
-// ── TaskDetailModal ───────────────────────────────────────────────────────────
-
-function TaskDetailModal({
-  task,
-  portalToken,
-  onClose,
-  onUpdated,
-}: {
-  task: CollaboratorTask
-  portalToken: string
-  onClose: () => void
-  onUpdated: (updated: Partial<CollaboratorTask> & { id: string }) => void
-}) {
-  const [status,      setStatus]      = useState(task.status)
-  const [note,        setNote]        = useState(task.collaborator_note ?? '')
-  const [deliveryUrl, setDeliveryUrl] = useState(task.delivery_url ?? '')
-  const [saving,      setSaving]      = useState(false)
-  const [saved,       setSaved]       = useState(false)
-  const [error,       setError]       = useState<string | null>(null)
-  const [showDelivery, setShowDelivery] = useState(false)
-
-  const priority = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.media
-  const overdue  = isOverdue(task.due_date, status)
-  const sc       = getStatusConfig(status)
-  const links    = Array.isArray(task.task_links) ? task.task_links : []
-
-  const isDirty =
-    status !== task.status ||
-    note   !== (task.collaborator_note ?? '') ||
-    deliveryUrl !== (task.delivery_url ?? '')
-
-  async function handleSave() {
-    setSaving(true); setError(null)
-    try {
-      const { data, error: rpcError } = await (supabase as any).rpc('update_collaborator_task', {
-        p_token:             portalToken,
-        p_task_id:           task.id,
-        p_status:            status,
-        p_collaborator_note: note || null,
-        p_delivery_url:      deliveryUrl || null,
-      })
-      if (rpcError) throw new Error(rpcError.message)
-      if (data?.error) throw new Error(data.error)
-      setSaved(true)
-      onUpdated({ id: task.id, status, collaborator_note: note, delivery_url: deliveryUrl })
-      setTimeout(() => setSaved(false), 3000)
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // Cor da barra lateral por status
-  const barColor = sc.color.includes('slate') ? '#94a3b8'
-    : sc.color.includes('blue')  ? '#3b82f6'
-    : sc.color.includes('amber') ? '#f59e0b'
-    : '#3fa06e'
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Handle bar (mobile) */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="w-10 h-1 rounded-full bg-slate-200" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-start gap-3 px-5 pt-4 pb-3">
-          <div className="w-1.5 self-stretch rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: barColor, minHeight: 40 }} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="font-bold text-slate-800 text-base leading-snug flex-1">{task.title}</h2>
-              <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center flex-shrink-0 -mt-1">
-                <X className="w-4 h-4 text-slate-400" />
-              </button>
-            </div>
-            {/* Badges */}
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${priority.bg} ${priority.color}`}>
-                {priority.label}
-              </span>
-              {task.clients && (
-                <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                  <Briefcase className="w-3 h-3" /> {task.clients.company_name}
-                </span>
-              )}
-              {task.due_date && (
-                <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${
-                  overdue ? 'text-red-800 bg-red-50 font-semibold' : 'text-slate-500 bg-slate-100'
-                }`}>
-                  <Calendar className="w-3 h-3" />
-                  {overdue && 'Atrasado · '}{formatDate(task.due_date)}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="px-5 pb-6 space-y-4">
-          {/* Status */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-slate-500 w-16 flex-shrink-0">Status</span>
-            <StatusDropdown value={status} onChange={setStatus} />
-          </div>
-
-          {/* Descrição */}
-          {task.description && (
-            <div className="bg-slate-50 rounded-2xl p-3.5">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Descrição</p>
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{task.description}</p>
-            </div>
-          )}
-
-          {/* Links e referências da agência */}
-          {links.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Referências e materiais ({links.length})
-              </p>
-              <div className="space-y-3">
-                {links.map(link => {
-                  // ── Prévia de imagem ──
-                  if (link.type === 'imagem') {
-                    return (
-                      <div key={link.id} className="rounded-2xl overflow-hidden border border-slate-200">
-                        <img
-                          src={link.url}
-                          alt={link.label}
-                          className="w-full max-h-72 object-cover"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-                        <div className="flex items-center justify-between px-3 py-2.5 bg-white">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-pink-500 bg-pink-50">
-                              <LinkTypeIcon type="imagem" className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="text-sm font-medium text-slate-700 truncate">{link.label}</span>
-                          </div>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="text-slate-300 hover:text-violet-500 ml-2 flex-shrink-0 transition-colors">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  // ── Prévia de vídeo ──
-                  if (link.type === 'video') {
-                    return (
-                      <div key={link.id} className="rounded-2xl overflow-hidden border border-slate-200">
-                        <video
-                          src={link.url}
-                          controls
-                          className="w-full max-h-72 bg-black"
-                          preload="metadata"
-                        />
-                        <div className="flex items-center justify-between px-3 py-2.5 bg-white">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-red-800 bg-red-50">
-                              <LinkTypeIcon type="video" className="w-3.5 h-3.5" />
-                            </div>
-                            <span className="text-sm font-medium text-slate-700 truncate">{link.label}</span>
-                          </div>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="text-slate-300 hover:text-violet-500 ml-2 flex-shrink-0 transition-colors">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  // ── Outros tipos: link, arquivo, pasta ──
-                  const colorCls = LINK_TYPE_COLORS[link.type] ?? 'text-blue-800 bg-blue-50'
-                  return (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition-all group"
-                    >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colorCls}`}>
-                        <LinkTypeIcon type={link.type} className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-700 truncate group-hover:text-violet-700 transition-colors">
-                          {link.label}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">{link.url}</p>
-                      </div>
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-violet-400 flex-shrink-0 transition-colors" />
-                    </a>
-                  )
-                })}
+        {/* Demandas */}
+        <Section title="Com você agora" aside="ajustes e atrasadas primeiro">
+          {tasks.length === 0 ? (
+            <PortalEmpty title="Nenhuma demanda ainda" text="Quando a agência mandar uma demanda, ela aparece aqui com os prazos e as referências." />
+          ) : (
+            <div className={`grid grid-cols-1 ${byClient.length > 1 ? 'lg:grid-cols-[1fr_320px]' : ''} gap-2.5 sm:gap-3 items-start`}>
+              <div className={`${portalPanel} overflow-hidden min-w-0`}>
+                <PortalBlockTitle
+                  label={next.length > 0 ? 'Para fazer' : 'Tudo entregue'}
+                  count={next.length || undefined}
+                  right={next.length > 6 ? (
+                    <button onClick={() => onGo('demandas', 'abertas')} className="text-[12px] font-semibold text-[#2563EB] inline-flex items-center gap-1">
+                      Ver todas <ArrowRight className="w-3 h-3" />
+                    </button>
+                  ) : undefined}
+                />
+                {next.length === 0 ? (
+                  <p className="px-6 py-5 text-[13px] text-[var(--sm-text-2)]">
+                    {review.length > 0 ? `A agência está conferindo ${review.length === 1 ? 'a sua entrega' : `${review.length} entregas suas`}. Se precisar de ajuste, aparece aqui.` : 'Nenhuma demanda pendente.'}
+                  </p>
+                ) : (
+                  <div className="divide-y divide-[var(--sm-border)]">
+                    {next.slice(0, 6).map(t => <TaskRow key={t.id} task={t} onOpen={() => onOpen(t)} />)}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* Entrega do colaborador (existente) */}
-          {(task.collaborator_note || task.delivery_url) && (
-            <div className="bg-violet-50 rounded-2xl p-3.5 border border-violet-100">
-              <p className="text-xs font-semibold text-violet-500 uppercase tracking-wider mb-2">Sua entrega atual</p>
-              {task.collaborator_note && (
-                <p className="text-sm text-violet-800 leading-relaxed mb-2">📝 {task.collaborator_note}</p>
-              )}
-              {task.delivery_url && (
-                <a href={task.delivery_url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
-                  <ExternalLink className="w-3.5 h-3.5" /> Ver entrega enviada
-                </a>
-              )}
-            </div>
-          )}
-
-          {/* Seção de entrega — colapsível só para nota + link */}
-          <div className="border border-slate-200 rounded-2xl overflow-hidden">
-            <button
-              onClick={() => setShowDelivery(d => !d)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
-            >
-              <span className="text-sm font-semibold text-slate-700">
-                {task.collaborator_note || task.delivery_url ? 'Atualizar entrega' : 'Adicionar entrega'}
-              </span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showDelivery ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showDelivery && (
-              <div className="px-4 pb-4 pt-3 space-y-3">
-                <div>
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1.5">
-                    <FileText className="w-3.5 h-3.5" /> Nota / observação
-                  </label>
-                  <textarea
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    placeholder="Escreva uma observação, dificuldade ou comentário..."
-                    rows={3}
-                    className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 placeholder:text-slate-300"
-                  />
+              {byClient.length > 1 && (
+                <div className={`${portalPanel} overflow-hidden`}>
+                  <PortalBlockTitle label="Por cliente" count={byClient.length} />
+                  <div className="divide-y divide-[var(--sm-border)]">
+                    {byClient.map(([key, g]) => (
+                      <button
+                        key={key}
+                        onClick={() => onGo('demandas', `cliente:${key}`)}
+                        className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-[var(--sm-bg-alt)] transition-colors"
+                      >
+                        <span className="text-[13px] font-semibold text-[var(--sm-text-1)] truncate">{g.name}</span>
+                        <span className="text-[12px] text-[var(--sm-text-3)] tabular-nums flex-shrink-0">
+                          {g.open > 0 ? <><span className="text-[var(--sm-text-1)] font-semibold">{g.open}</span> para fazer</> : `${g.total} no total`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1.5">
-                    <LinkIcon className="w-3.5 h-3.5" /> Link de entrega
-                  </label>
-                  <input
-                    type="url"
-                    value={deliveryUrl}
-                    onChange={e => setDeliveryUrl(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 placeholder:text-slate-300"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Erro */}
-          {error && (
-            <p className="text-xs text-red-500 flex items-center gap-1.5 px-1">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {error}
-            </p>
+              )}
+            </div>
           )}
-
-          {/* Botão salvar — sempre visível, ativo quando houver mudança */}
-          <button
-            onClick={handleSave}
-            disabled={saving || !isDirty}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all ${
-              saved    ? 'bg-green-500 text-white'
-              : isDirty ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-200'
-              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            }`}
-          >
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
-             : saved  ? <><CheckCircle2 className="w-4 h-4" /> Salvo!</>
-             : <><Send className="w-4 h-4" /> Salvar atualização</>}
-          </button>
-        </div>
+        </Section>
       </div>
-    </div>
+    </MotionConfig>
   )
 }
 
-// ── TaskCard (resumo — clicável para abrir o modal) ───────────────────────────
+// ── Demandas ──────────────────────────────────────────────────────────────────
 
-function TaskCard({
-  task,
-  onOpen,
-}: {
-  task: CollaboratorTask
-  onOpen: () => void
-}) {
-  const priority = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.media
-  const overdue  = isOverdue(task.due_date, task.status)
-  const sc       = getStatusConfig(task.status)
-  const links    = Array.isArray(task.task_links) ? task.task_links : []
-
-  const barColor = sc.color.includes('slate') ? '#94a3b8'
-    : sc.color.includes('blue')  ? '#3b82f6'
-    : sc.color.includes('amber') ? '#f59e0b'
-    : '#3fa06e'
-
-  return (
-    <button
-      onClick={onOpen}
-      className="w-full text-left bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-violet-300 hover:shadow-md transition-all overflow-hidden group"
-    >
-      <div className="flex gap-3 p-4">
-        {/* Barra lateral de status */}
-        <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: barColor, minHeight: 36 }} />
-
-        <div className="flex-1 min-w-0">
-          {/* Título + prioridade */}
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h3 className="font-semibold text-slate-800 text-sm leading-snug group-hover:text-violet-700 transition-colors">
-              {task.title}
-            </h3>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${priority.bg} ${priority.color}`}>
-              {priority.label}
-            </span>
-          </div>
-
-          {/* Meta */}
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            {task.clients && (
-              <span className="flex items-center gap-1">
-                <Briefcase className="w-3 h-3" /> {task.clients.company_name}
-              </span>
-            )}
-            {task.due_date && (
-              <span className={`flex items-center gap-1 ${overdue ? 'text-red-500 font-medium' : ''}`}>
-                <Calendar className="w-3 h-3" />
-                {overdue && 'Atrasado · '}{formatDate(task.due_date)}
-              </span>
-            )}
-          </div>
-
-          {/* Descrição (preview) */}
-          {task.description && (
-            <p className="mt-1.5 text-xs text-slate-400 line-clamp-1 leading-relaxed">{task.description}</p>
-          )}
-
-          {/* Footer: status + links badge */}
-          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
-            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${sc.bg} ${sc.color}`}>
-              {sc.label}
-            </span>
-            {links.length > 0 && (
-              <span className="text-[10px] text-violet-500 flex items-center gap-0.5">
-                <LinkIcon className="w-3 h-3" /> {links.length} anexo{links.length !== 1 ? 's' : ''}
-              </span>
-            )}
-            {(task.collaborator_note || task.delivery_url) && (
-              <span className="text-[10px] text-emerald-500 ml-auto">✓ Entrega enviada</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </button>
-  )
-}
-
-// ── KPI card (cópia local do padrão usado no portal do cliente) ───────────────
-
-type CardColor = 'amber' | 'green' | 'blue' | 'purple' | 'red' | 'default'
-
-const cardColorMap: Record<CardColor, { icon: string; label: string; value: string; ring: string; dot: string; bar: string }> = {
-  amber:   { icon: 'text-orange-800', label: 'text-orange-900', value: 'text-orange-900', ring: 'border-orange-200 bg-orange-50', dot: 'bg-orange-400', bar: 'bg-[#f97316]' },
-  green:   { icon: 'text-green-800',  label: 'text-green-900',  value: 'text-green-900',  ring: 'border-green-200 bg-green-50',  dot: 'bg-green-500',  bar: 'bg-[#3fa06e]' },
-  blue:    { icon: 'text-blue-800',   label: 'text-blue-900',   value: 'text-blue-900',   ring: 'border-blue-200 bg-blue-50',    dot: 'bg-blue-500',   bar: 'bg-[#3b82f6]' },
-  purple:  { icon: 'text-purple-800', label: 'text-purple-900', value: 'text-purple-900', ring: 'border-purple-200 bg-purple-50', dot: 'bg-purple-500', bar: 'bg-[#8b5cf6]' },
-  red:     { icon: 'text-red-800',    label: 'text-red-900',    value: 'text-red-900',    ring: 'border-red-200 bg-red-50',      dot: 'bg-red-500',    bar: 'bg-[#ef4444]' },
-  default: { icon: 'text-gray-500',   label: 'text-slate-500',  value: 'text-slate-800',  ring: 'border-slate-200 bg-white',     dot: 'bg-gray-400',   bar: 'bg-slate-200' },
-}
-
-function StatusKpiCard({
-  icon, label, value, color, onClick,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  color: CardColor
-  onClick?: () => void
-}) {
-  const c = cardColorMap[color]
-  return (
-    <div
-      onClick={onClick}
-      className={`rounded-2xl border overflow-hidden flex flex-col transition-all shadow-sm ${c.ring} ${onClick ? 'cursor-pointer hover:shadow-md hover:scale-[1.01]' : ''}`}
-    >
-      <div className="p-4 flex flex-col gap-3 flex-1">
-        <div className="flex items-center justify-between">
-          <span className={c.icon}>{icon}</span>
-          <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
-        </div>
-        <div>
-          <p className={`text-[11px] leading-snug ${c.label}`}>{label}</p>
-          <p className={`text-[15px] font-semibold mt-1 leading-tight ${c.value}`}>{value}</p>
-        </div>
-      </div>
-      <div className={`h-1 w-full ${c.bar}`} />
-    </div>
-  )
-}
-
-// ── Header ────────────────────────────────────────────────────────────────────
-
-function CollaboratorHeader({ member }: { member: CollaboratorMember }) {
-  const initials = member.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  return (
-    <header className="h-14 border-b border-slate-200 bg-white flex items-center px-4 sm:px-6 sticky top-0 z-30 shadow-sm">
-      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
-          <img src="/logo-icon.png" alt="StatusMedia" className="w-full h-full object-contain select-none" draggable={false} />
-        </div>
-        <span className="text-slate-900 font-bold text-[14px] tracking-tight hidden sm:inline">
-          Status<span className="text-violet-600">Media</span>
-        </span>
-        <span className="text-slate-300 text-xs mx-1 hidden sm:inline">/</span>
-        <span className="text-slate-500 text-[12px] truncate">Portal do colaborador</span>
-      </div>
-
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {member.avatar_url ? (
-          <img src={member.avatar_url} alt={member.name}
-            className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
-        ) : (
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ring-2 ring-white shadow-sm"
-            style={{ background: member.color }}>
-            {initials}
-          </div>
-        )}
-        <div className="hidden sm:block">
-          <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate max-w-[140px]">{member.name}</p>
-          {member.role && <p className="text-[11px] text-slate-400 leading-tight truncate max-w-[140px]">{member.role}</p>}
-        </div>
-      </div>
-    </header>
-  )
-}
-
-// ── Hero (saudação + resumo dinâmico) ──────────────────────────────────────────
-
-function CollaboratorHero({
-  member,
-  counts,
-}: {
-  member: CollaboratorMember
-  counts: { total: number; aFazer: number; emProgresso: number; atrasadas: number; concluidas: number }
-}) {
-  const firstName = member.name.split(' ')[0]
-  const pendentes = counts.aFazer + counts.emProgresso
-
-  let headline: string
-  let subline: string
-  let tone: 'red' | 'amber' | 'green' | 'neutral'
-
-  if (counts.total === 0) {
-    headline = `Bem-vindo, ${firstName}`
-    subline  = 'Você ainda não tem nenhuma demanda. Assim que a agência atribuir algo, aparece aqui.'
-    tone = 'neutral'
-  } else if (counts.atrasadas > 0) {
-    headline = counts.atrasadas === 1 ? 'Você tem 1 demanda atrasada' : `Você tem ${counts.atrasadas} demandas atrasadas`
-    subline  = 'Dá uma olhada nelas primeiro pra não acumular.'
-    tone = 'red'
-  } else if (pendentes > 0) {
-    headline = pendentes === 1 ? 'Você tem 1 demanda em aberto' : `Você tem ${pendentes} demandas em aberto`
-    subline  = `${counts.concluidas} já ${counts.concluidas === 1 ? 'concluída' : 'concluídas'}. Continue assim.`
-    tone = 'amber'
-  } else {
-    headline = 'Tudo em dia!'
-    subline  = `${counts.concluidas} ${counts.concluidas === 1 ? 'demanda concluída' : 'demandas concluídas'}. Nenhuma pendência no momento.`
-    tone = 'green'
-  }
-
-  const toneClasses: Record<typeof tone, string> = {
-    red:     'border-red-200 bg-gradient-to-br from-red-50 via-red-50/40 to-transparent',
-    amber:   'border-amber-200 bg-gradient-to-br from-amber-50 via-amber-50/40 to-transparent',
-    green:   'border-green-200 bg-gradient-to-br from-green-50 via-green-50/40 to-transparent',
-    neutral: 'border-slate-200 bg-gradient-to-br from-slate-50 via-white to-transparent',
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
-      className={`rounded-2xl p-6 border ${toneClasses[tone]}`}
-    >
-      <div className="flex items-center gap-4">
-        <Avatar member={member} />
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-slate-500 uppercase tracking-[0.12em] mb-1">Olá, {firstName}</p>
-          <h2 className="text-[18px] sm:text-[20px] font-semibold text-slate-800 leading-snug">{headline}</h2>
-          <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">{subline}</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-// ── Card de resumo por cliente ─────────────────────────────────────────────────
-
-function ClientSummaryCard({ group, onClick }: { group: ClientTaskGroup; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-violet-300 hover:shadow-md transition-all p-4 w-full"
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="w-8 h-8 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center flex-shrink-0">
-          <Building2 className="w-4 h-4 text-violet-500" />
-        </div>
-        {group.openCount > 0 && (
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 flex-shrink-0">
-            {group.openCount} em aberto
-          </span>
-        )}
-      </div>
-      <p className="text-sm font-semibold text-slate-800 truncate">{group.companyName}</p>
-      <p className="text-xs text-slate-400 mt-0.5">
-        {group.totalCount - group.openCount}/{group.totalCount} concluídas
-      </p>
-      {group.nextDueDate && (
-        <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
-          <Calendar className="w-3 h-3" /> Próxima: {formatDate(group.nextDueDate)}
-        </p>
-      )}
-    </button>
-  )
-}
-
-// ── Linha compacta de tarefa (próximas entregas / atividade recente) ──────────
-
-function TaskMiniRow({ task, onOpen }: { task: CollaboratorTask; onOpen: () => void }) {
-  const sc = getStatusConfig(task.status)
-  const Icon = sc.icon
-  const overdue = isOverdue(task.due_date, task.status)
-  return (
-    <button
-      onClick={onOpen}
-      className="w-full flex items-center gap-3 text-left hover:bg-slate-50 rounded-xl px-2 py-2 -mx-2 transition-colors"
-    >
-      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${sc.bg}`}>
-        <Icon className={`w-3.5 h-3.5 ${sc.color}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-medium text-slate-800 truncate">{task.title}</p>
-        <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-          {task.clients?.company_name ?? 'Sem cliente'}
-          {task.due_date && (
-            <span className={overdue ? 'text-red-500 font-medium' : ''}> · {formatDate(task.due_date)}</span>
-          )}
-        </p>
-      </div>
-    </button>
-  )
-}
-
-// ── Aba Dashboard ───────────────────────────────────────────────────────────────
-
-function CollaboratorDashboardTab({
-  counts,
-  clientGroups,
-  upcoming,
-  recent,
-  onNavigate,
-  onOpenTask,
-}: {
-  counts: { total: number; aFazer: number; emProgresso: number; atrasadas: number; concluidas: number }
-  clientGroups: ClientTaskGroup[]
-  upcoming: CollaboratorTask[]
-  recent: CollaboratorTask[]
-  onNavigate: (tab: 'dashboard' | 'demandas', clientId?: string | null) => void
-  onOpenTask: (task: CollaboratorTask) => void
-}) {
-  if (counts.total === 0) {
-    return (
-      <div className="text-center py-16">
-        <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-7 h-7 text-slate-300" />
-        </div>
-        <p className="text-slate-500 font-medium">Nenhuma demanda atribuída</p>
-        <p className="text-sm text-slate-400 mt-1">Fique de olho, novas demandas aparecerão aqui.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Alerta de atrasadas */}
-      {counts.atrasadas > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18 }}
-          className="flex items-center gap-3 p-4 rounded-xl border border-red-200 bg-red-50"
-        >
-          <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-red-700">
-              {counts.atrasadas === 1 ? '1 demanda atrasada' : `${counts.atrasadas} demandas atrasadas`}
-            </p>
-            <p className="text-[12px] text-red-800 mt-0.5 leading-snug">Priorize essas antes das outras.</p>
-          </div>
-          <button
-            onClick={() => onNavigate('demandas')}
-            className="flex-shrink-0 flex items-center gap-1 text-[11px] font-medium text-red-700 hover:text-red-600 transition-colors whitespace-nowrap"
-          >
-            Ver
-          </button>
-        </motion.div>
-      )}
-
-      {/* KPIs */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22, delay: 0.06 }}
-        className="grid grid-cols-2 sm:grid-cols-5 gap-3"
-      >
-        <StatusKpiCard
-          icon={<ListChecks className="w-4 h-4" />}
-          label="Total"
-          value={String(counts.total)}
-          color="purple"
-        />
-        <StatusKpiCard
-          icon={<Circle className="w-4 h-4" />}
-          label="A fazer"
-          value={String(counts.aFazer)}
-          color="default"
-          onClick={() => onNavigate('demandas')}
-        />
-        <StatusKpiCard
-          icon={<Clock className="w-4 h-4" />}
-          label="Em progresso"
-          value={String(counts.emProgresso)}
-          color={counts.emProgresso > 0 ? 'blue' : 'default'}
-          onClick={() => onNavigate('demandas')}
-        />
-        <StatusKpiCard
-          icon={<AlertTriangle className="w-4 h-4" />}
-          label="Atrasadas"
-          value={String(counts.atrasadas)}
-          color={counts.atrasadas > 0 ? 'red' : 'default'}
-          onClick={() => onNavigate('demandas')}
-        />
-        <StatusKpiCard
-          icon={<CheckCircle2 className="w-4 h-4" />}
-          label="Concluídas"
-          value={String(counts.concluidas)}
-          color={counts.concluidas > 0 ? 'green' : 'default'}
-        />
-      </motion.div>
-
-      {/* Por cliente — só faz sentido com mais de um cliente */}
-      {clientGroups.length > 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, delay: 0.1 }}
-        >
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-1">
-            Por cliente ({clientGroups.length})
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {clientGroups.map(g => (
-              <ClientSummaryCard
-                key={g.clientId ?? '__none__'}
-                group={g}
-                onClick={() => onNavigate('demandas', g.clientId)}
-              />
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Próximas entregas / Atividade recente */}
-      {(upcoming.length > 0 || recent.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {upcoming.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: 0.14 }}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Próximas entregas</h3>
-              <div className="space-y-0.5">
-                {upcoming.map(t => <TaskMiniRow key={t.id} task={t} onOpen={() => onOpenTask(t)} />)}
-              </div>
-            </motion.div>
-          )}
-          {recent.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: 0.18 }}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Atividade recente</h3>
-              <div className="space-y-0.5">
-                {recent.map(t => <TaskMiniRow key={t.id} task={t} onOpen={() => onOpenTask(t)} />)}
-              </div>
-            </motion.div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Aba Minhas Demandas (lista completa, separada por cliente) ────────────────
-
-function CollaboratorDemandsTab({
-  tasks,
-  clientGroups,
-  clientFilter,
-  onFilterChange,
-  onOpenTask,
-}: {
+function DemandsTab({ tasks, filter, setFilter, onOpen }: {
   tasks: CollaboratorTask[]
-  clientGroups: ClientTaskGroup[]
-  clientFilter: string
-  onFilterChange: (filter: string) => void
-  onOpenTask: (task: CollaboratorTask) => void
+  filter: string
+  setFilter: (f: string) => void
+  onOpen: (t: CollaboratorTask) => void
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const clients = useMemo(() => {
+    const m = new Map<string, string>()
+    tasks.forEach(t => m.set(t.client_id ?? '__none__', t.clients?.company_name ?? 'Interno'))
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
+  }, [tasks])
 
-  function toggleCollapsed(key: string) {
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
+  const statusFilters = [
+    { key: 'abertas',    label: 'Para fazer',         dot: '#2563EB', match: isOpen },
+    { key: 'revisao',    label: 'Agência conferindo', dot: '#8B5CF6', match: (t: CollaboratorTask) => t.status === 'revisao' },
+    { key: 'concluidas', label: 'Concluídas',         dot: '#10B981', match: (t: CollaboratorTask) => t.status === 'concluido' },
+    { key: 'todas',      label: 'Todas',              dot: undefined, match: () => true },
+  ]
+  const clientKey = filter.startsWith('cliente:') ? filter.slice(8) : null
+  const sf = statusFilters.find(f => f.key === filter) ?? statusFilters[3]
+  const list = tasks
+    .filter(t => (clientKey ? (t.client_id ?? '__none__') === clientKey : sf.match(t)))
+    .sort((a, b) => {
+      const pa = needsAdjust(a) ? 0 : isOverdue(a) ? 1 : 2
+      const pb = needsAdjust(b) ? 0 : isOverdue(b) ? 1 : 2
+      if (pa !== pb) return pa - pb
+      return (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')
     })
-  }
 
-  if (tasks.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-7 h-7 text-slate-300" />
-        </div>
-        <p className="text-slate-500 font-medium">Nenhuma demanda atribuída</p>
-        <p className="text-sm text-slate-400 mt-1">Fique de olho, novas demandas aparecerão aqui.</p>
-      </div>
-    )
-  }
-
-  const visibleGroups = clientFilter === 'all'
-    ? clientGroups
-    : clientGroups.filter(g => (g.clientId ?? '__none__') === clientFilter)
+  // Agrupa por cliente quando a lista mistura clientes
+  const groups = useMemo(() => {
+    const m = new Map<string, { name: string; items: CollaboratorTask[] }>()
+    for (const t of list) {
+      const k = t.client_id ?? '__none__'
+      const g = m.get(k) ?? { name: t.clients?.company_name ?? 'Interno', items: [] }
+      g.items.push(t)
+      m.set(k, g)
+    }
+    return [...m.values()]
+  }, [list])
 
   return (
-    <div className="space-y-5">
-      {/* Chips de filtro por cliente */}
-      {clientGroups.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onFilterChange('all')}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-              clientFilter === 'all'
-                ? 'bg-violet-600 border-violet-600 text-white'
-                : 'bg-white border-slate-200 text-slate-600 hover:border-violet-300'
-            }`}
-          >
-            Todos ({tasks.length})
-          </button>
-          {clientGroups.map(g => {
-            const key = g.clientId ?? '__none__'
-            const active = clientFilter === key
+    <div className="px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-12">
+      <PortalSectionHead
+        eyebrow="Demandas"
+        title="O que está"
+        accent="com você."
+        desc="Abra a demanda para ver as referências da agência e entregar o trabalho pronto: vídeo, imagem, carrossel ou link."
+      />
+
+      <div className="flex flex-wrap gap-2 mb-5">
+        {statusFilters.map(f => (
+          <PortalFilterChip key={f.key} active={filter === f.key} label={f.label} dot={f.dot}
+            count={tasks.filter(f.match).length} onClick={() => setFilter(f.key)} />
+        ))}
+        {clients.length > 1 && clients.map(([k, name]) => (
+          <PortalFilterChip key={k} active={clientKey === k} label={name}
+            count={tasks.filter(t => (t.client_id ?? '__none__') === k).length} onClick={() => setFilter(`cliente:${k}`)} />
+        ))}
+      </div>
+
+      {list.length === 0 ? (
+        <PortalEmpty title="Nada por aqui" text={filter === 'abertas' ? 'Nenhuma demanda esperando por você.' : 'Nenhuma demanda neste filtro.'} />
+      ) : (
+        <div className="space-y-3">
+          {groups.map(g => (
+            <div key={g.name} className={`${portalPanel} overflow-hidden`}>
+              {groups.length > 1 && <PortalBlockTitle label={g.name} count={g.items.length} />}
+              <div className="divide-y divide-[var(--sm-border)]">
+                {g.items.map(t => <TaskRow key={t.id} task={t} onOpen={() => onOpen(t)} />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Referências da agência ────────────────────────────────────────────────────
+
+function References({ links }: { links: TaskLink[] }) {
+  if (links.length === 0) return null
+  const media = links.filter(l => l.type === 'imagem' || l.type === 'video')
+  const others = links.filter(l => l.type !== 'imagem' && l.type !== 'video')
+  const iconOf = (t: TaskLink['type']) => (t === 'arquivo' ? FileText : t === 'pasta' ? Folder : LinkIcon)
+  return (
+    <div>
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)] mb-2.5">Referências da agência</p>
+      {others.length > 0 && (
+        <div className="space-y-2">
+          {others.map(l => {
+            const Icon = iconOf(l.type)
             return (
-              <button
-                key={key}
-                onClick={() => onFilterChange(key)}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-                  active
-                    ? 'bg-violet-600 border-violet-600 text-white'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-violet-300'
-                }`}
-              >
-                {g.companyName} ({g.totalCount})
-              </button>
+              <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
+                className="group flex items-center gap-3 p-3 rounded-2xl border border-[var(--sm-border)] hover:bg-[var(--sm-bg-alt)] transition-colors">
+                <span className="w-9 h-9 rounded-xl bg-[var(--sm-bg-alt)] flex items-center justify-center flex-shrink-0 text-[var(--sm-text-2)]"><Icon className="w-4 h-4" /></span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-semibold text-[var(--sm-text-1)] truncate">{l.label || 'Link'}</span>
+                  <span className="block text-[11px] text-[var(--sm-text-3)] truncate">{l.url}</span>
+                </span>
+                <ExternalLink className="w-3.5 h-3.5 text-[var(--sm-text-3)] flex-shrink-0" />
+              </a>
             )
           })}
         </div>
       )}
+      {media.length > 0 && (
+        <div className={`grid grid-cols-2 gap-2 ${others.length > 0 ? 'mt-2' : ''}`}>
+          {media.map(l => (
+            <div key={l.id} className="rounded-2xl overflow-hidden border border-[var(--sm-border)] bg-black/5">
+              {l.type === 'video'
+                ? <video src={mediaUrl(l.url)} controls playsInline preload="metadata" className="w-full aspect-[4/5] object-cover bg-black" />
+                : <a href={mediaUrl(l.url)} target="_blank" rel="noopener noreferrer"><img src={mediaUrl(l.url)} alt={l.label} className="w-full aspect-[4/5] object-cover" /></a>}
+              <p className="px-2.5 py-1.5 text-[11px] text-[var(--sm-text-2)] truncate">{l.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
-      {/* Seções por cliente */}
-      {visibleGroups.map(group => {
-        const key = group.clientId ?? '__none__'
-        const isCollapsed = collapsed.has(key)
-        return (
-          <div key={key} className="space-y-3">
-            {clientGroups.length > 1 && (
-              <button
-                onClick={() => toggleCollapsed(key)}
-                className="w-full flex items-center justify-between px-1 py-1"
-              >
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    {group.companyName} ({group.totalCount - group.openCount}/{group.totalCount})
-                  </h3>
+// ── Entrega ───────────────────────────────────────────────────────────────────
+
+interface DraftFile {
+  id: string
+  type: 'image' | 'video'
+  name: string
+  size: number | null
+  url: string | null          // pública, quando já subiu
+  preview: string             // blob local ou a própria URL
+  progress: number            // 0..1
+  error: string | null
+}
+
+function DeliveryEditor({ task, token, onSaved }: {
+  task: CollaboratorTask
+  token: string
+  onSaved: (patch: Partial<CollaboratorTask>) => void
+}) {
+  const spec = task.deliverable_type ? DELIVERABLE[task.deliverable_type] : null
+  const max = spec?.max ?? 10
+  const accept = spec?.accept ?? 'image/*,video/*'
+  const [files, setFiles] = useState<DraftFile[]>(() =>
+    (task.deliveries ?? []).map(d => ({ id: d.id, type: d.type, name: d.name, size: d.size, url: d.url, preview: mediaUrl(d.url), progress: 1, error: null })),
+  )
+  const [link, setLink] = useState(task.delivery_url ?? '')
+  const [note, setNote] = useState(task.collaborator_note ?? '')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const uploading = files.some(f => !f.url && !f.error)
+
+  const addFiles = (list: FileList | File[]) => {
+    setError(null)
+    const picked = Array.from(list).filter(f => {
+      const m = mimeOf(f)
+      if (!/^(image|video)\//.test(m) || m.startsWith('image/svg')) return false
+      if (task.deliverable_type === 'reels') return m.startsWith('video/')
+      if (task.deliverable_type === 'post') return m.startsWith('image/')
+      return true
+    })
+    if (picked.length === 0) {
+      setError(task.deliverable_type === 'reels' ? 'Escolha um arquivo de vídeo.' : task.deliverable_type === 'post' ? 'Escolha um arquivo de imagem.' : 'Escolha imagens ou vídeos.')
+      return
+    }
+    // Vídeo e post: um arquivo só (o novo substitui). Carrossel: até 10.
+    const keep = max === 1 ? [] : files
+    const room = Math.max(0, max - keep.length)
+    if (room === 0) { setError(`O carrossel aceita até ${max} arquivos.`); return }
+    if (picked.length > room) setError(`Só cabem mais ${room}. Os outros ficaram de fora.`)
+    const drafts: DraftFile[] = picked.slice(0, room).map(f => ({
+      id: newId(),
+      type: mimeOf(f).startsWith('video/') ? 'video' : 'image',
+      name: f.name,
+      size: f.size,
+      url: null,
+      preview: URL.createObjectURL(f),
+      progress: 0,
+      error: null,
+    }))
+    setFiles([...keep, ...drafts])
+    drafts.forEach((d, i) => {
+      const file = picked[i]
+      uploadDelivery(token, task.id, file, p => setFiles(prev => prev.map(x => (x.id === d.id ? { ...x, progress: p } : x))))
+        .then(url => setFiles(prev => prev.map(x => (x.id === d.id ? { ...x, url, progress: 1 } : x))))
+        .catch((e: Error) => setFiles(prev => prev.map(x => (x.id === d.id ? { ...x, error: e.message } : x))))
+    })
+  }
+
+  const move = (id: string, dir: -1 | 1) => setFiles(prev => {
+    const i = prev.findIndex(f => f.id === id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= prev.length) return prev
+    const next = [...prev]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    return next
+  })
+
+  const dropOn = (targetId: string) => {
+    if (!dragId || dragId === targetId) return
+    setFiles(prev => {
+      const from = prev.findIndex(f => f.id === dragId)
+      const to = prev.findIndex(f => f.id === targetId)
+      if (from < 0 || to < 0) return prev
+      const next = [...prev]
+      const [it] = next.splice(from, 1)
+      next.splice(to, 0, it)
+      return next
+    })
+    setDragId(null)
+  }
+
+  const ready = files.filter(f => f.url && !f.error)
+  const canSend = !sending && !uploading && (ready.length > 0 || link.trim().length > 0)
+
+  const submit = async () => {
+    setSending(true); setError(null)
+    try {
+      const deliveries = ready.map(f => ({ id: f.id, url: f.url, type: f.type, name: f.name, size: f.size }))
+      const { data, error: rpcError } = await (supabase as any).rpc('submit_collaborator_delivery', {
+        p_token: token,
+        p_task_id: task.id,
+        p_deliveries: deliveries,
+        p_delivery_url: link.trim() || null,
+        p_note: note.trim() || null,
+      })
+      if (rpcError) throw new Error(rpcError.message)
+      if (data?.error) throw new Error(data.error)
+      setSent(true)
+      onSaved({
+        deliveries: data.deliveries ?? deliveries,
+        delivery_url: link.trim() || null,
+        collaborator_note: note.trim() || null,
+        status: 'revisao',
+        delivered_at: data.delivered_at ?? new Date().toISOString(),
+      })
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const already = !!task.delivered_at && task.status === 'revisao'
+
+  return (
+    <div className={`${portalPanel} overflow-hidden`}>
+      <div className="px-5 py-4 border-b border-[var(--sm-border)]">
+        <p className="text-[14px] font-semibold text-[var(--sm-text-1)]">{already ? 'Sua entrega' : 'Entregar o trabalho'}</p>
+        <p className="text-[12.5px] text-[var(--sm-text-3)] mt-0.5 leading-snug">
+          {already
+            ? `Enviada em ${fmtDate(task.delivered_at!.slice(0, 10), true)}. A agência está conferindo; se mudar algo, envie de novo.`
+            : spec ? spec.ask : 'Anexe os arquivos prontos ou cole um link.'}
+        </p>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {/* Arquivos */}
+        <div
+          onDragOver={e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragOver(true) } }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { if (e.dataTransfer.files.length) { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files) } }}
+        >
+          {files.length > 0 && (
+            <div className={`grid gap-2 mb-2 ${max === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
+              {files.map((f, i) => (
+                <div
+                  key={f.id}
+                  draggable={max > 1}
+                  onDragStart={() => setDragId(f.id)}
+                  onDragOver={e => { if (dragId) e.preventDefault() }}
+                  onDrop={e => { if (dragId) { e.preventDefault(); e.stopPropagation(); dropOn(f.id) } }}
+                  className={`relative rounded-2xl overflow-hidden border bg-black ${dragId === f.id ? 'opacity-40' : ''}`}
+                  style={{ borderColor: f.error ? '#EF4444' : 'var(--sm-border)' }}
+                >
+                  {f.type === 'video' ? (
+                    <video src={f.preview} controls={max === 1 && !!f.url} muted={max > 1} playsInline preload="metadata"
+                      className={`w-full ${max === 1 ? 'max-h-[360px]' : 'aspect-[4/5] object-cover'} bg-black`} />
+                  ) : (
+                    <img src={f.preview} alt={f.name} className={`w-full ${max === 1 ? 'max-h-[360px] object-contain' : 'aspect-[4/5] object-cover'}`} />
+                  )}
+                  {max > 1 && (
+                    <span className="absolute top-2 left-2 min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center bg-black/70 text-white">{i + 1}</span>
+                  )}
+                  {max > 1 && f.type === 'video' && (
+                    <span className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center bg-black/70 text-white"><Play className="w-3 h-3" /></span>
+                  )}
+                  {/* Rodapé: nome, progresso, ações */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-black/0 pt-6 px-2 pb-2">
+                    {!f.url && !f.error && (
+                      <div className="h-1 rounded-full bg-white/25 overflow-hidden mb-1.5">
+                        <div className="h-full bg-white transition-[width] duration-200" style={{ width: `${Math.round(f.progress * 100)}%` }} />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <span className="flex-1 min-w-0 text-[10.5px] text-white/90 truncate">
+                        {f.error ? f.error : !f.url ? `Enviando ${Math.round(f.progress * 100)}%` : `${f.name}${f.size ? ` · ${fmtSize(f.size)}` : ''}`}
+                      </span>
+                      {max > 1 && (
+                        <>
+                          <button type="button" onClick={() => move(f.id, -1)} disabled={i === 0} aria-label="Mover para antes"
+                            className="w-6 h-6 rounded-full bg-white/15 text-white flex items-center justify-center disabled:opacity-30"><ArrowLeft className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => move(f.id, 1)} disabled={i === files.length - 1} aria-label="Mover para depois"
+                            className="w-6 h-6 rounded-full bg-white/15 text-white flex items-center justify-center disabled:opacity-30"><ArrowRight className="w-3 h-3" /></button>
+                        </>
+                      )}
+                      <button type="button" onClick={() => setFiles(prev => prev.filter(x => x.id !== f.id))} aria-label="Tirar arquivo"
+                        className="w-6 h-6 rounded-full bg-white/15 text-white flex items-center justify-center"><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  </div>
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-              </button>
-            )}
-            {!isCollapsed && (
-              <div className="space-y-3">
-                {group.tasks.map(task => (
-                  <TaskCard key={task.id} task={task} onOpen={() => onOpenTask(task)} />
-                ))}
-              </div>
+              ))}
+            </div>
+          )}
+
+          {(max > 1 ? files.length < max : true) && (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="w-full rounded-2xl border border-dashed px-4 py-6 flex flex-col items-center gap-2 text-center transition-colors hover:bg-[var(--sm-bg-alt)]"
+              style={{ borderColor: dragOver ? '#2563EB' : 'var(--sm-border)', background: dragOver ? 'rgba(37,99,235,0.06)' : undefined }}
+            >
+              <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--sm-primary)' }}>
+                <Upload className="w-4 h-4" style={{ color: '#ffffff' }} />
+              </span>
+              <span className="text-[13px] font-semibold text-[var(--sm-text-1)]">
+                {files.length > 0 && max === 1 ? 'Trocar o arquivo' : files.length > 0 ? 'Adicionar mais' : task.deliverable_type === 'reels' ? 'Anexar o vídeo' : task.deliverable_type === 'post' ? 'Anexar a imagem' : 'Anexar arquivos'}
+              </span>
+              <span className="text-[11.5px] text-[var(--sm-text-3)]">
+                {max > 1 ? `Até ${max} arquivos. No computador, dá para arrastar para cá e mudar a ordem arrastando.` : 'No computador, dá para arrastar o arquivo para cá.'}
+              </span>
+            </button>
+          )}
+          <input ref={inputRef} type="file" accept={accept} multiple={max > 1} className="hidden"
+            onChange={e => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = '' }} />
+        </div>
+
+        {/* Link */}
+        <div>
+          <label className="text-[11.5px] font-medium text-[var(--sm-text-3)] mb-1.5 flex items-center gap-1.5">
+            <LinkIcon className="w-3.5 h-3.5" /> {files.length > 0 ? 'Link (opcional)' : 'Ou cole um link (Drive, WeTransfer…)'}
+          </label>
+          <input type="url" inputMode="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://drive.google.com/..."
+            className={`${fieldCls} h-10`} style={fieldStyle} />
+          {files.length === 0 && link.trim() && (
+            <p className="text-[11.5px] text-[var(--sm-text-3)] mt-1.5 leading-snug">Dica: anexando o arquivo aqui, a agência já publica sem precisar baixar do link.</p>
+          )}
+        </div>
+
+        {/* Observação */}
+        <div>
+          <label className="text-[11.5px] font-medium text-[var(--sm-text-3)] mb-1.5 flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" /> Observação para a agência (opcional)
+          </label>
+          <textarea rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="Ex.: deixei duas versões de capa no link."
+            className={`${fieldCls} py-2.5 resize-none`} style={fieldStyle} />
+        </div>
+
+        {error && <p className="text-[12.5px] font-medium" style={{ color: '#DC2626' }}>{error}</p>}
+
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canSend}
+          className="w-full h-12 rounded-2xl text-[13.5px] font-semibold inline-flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+          style={{ background: sent ? '#10B981' : 'var(--sm-primary)', color: '#ffffff' }}
+        >
+          {sending ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</>
+            : uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Aguarde o arquivo terminar de subir</>
+            : sent ? <><Check className="w-4 h-4" /> Entrega enviada</>
+            : <><Send className="w-4 h-4" /> {already ? 'Enviar de novo' : 'Enviar entrega'}</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Janela da demanda ─────────────────────────────────────────────────────────
+
+function TaskModal({ task, token, onClose, onUpdated }: {
+  task: CollaboratorTask
+  token: string
+  onClose: () => void
+  onUpdated: (id: string, patch: Partial<CollaboratorTask>) => void
+}) {
+  const st = STATUS[task.status] ?? STATUS.a_fazer
+  const pri = PRIORITY[task.priority] ?? PRIORITY.media
+  const overdue = isOverdue(task)
+  const links = Array.isArray(task.task_links) ? task.task_links : []
+  const spec = task.deliverable_type ? DELIVERABLE[task.deliverable_type] : null
+  const [starting, setStarting] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const start = async () => {
+    setStarting(true)
+    try {
+      const { data, error } = await (supabase as any).rpc('update_collaborator_task', { p_token: token, p_task_id: task.id, p_status: 'em_andamento' })
+      if (!error && !data?.error) onUpdated(task.id, { status: 'em_andamento' })
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const delivered = task.deliveries ?? []
+
+  return createPortal(
+    <div data-theme="light" className="portal-light fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm-glass-overlay p-0 sm:p-4" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: EASE }}
+        className="sm-glass-modal shadow-2xl w-full sm:max-w-[640px] max-h-[94dvh] overflow-y-auto overflow-x-hidden rounded-t-[26px] sm:rounded-[26px]"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Cabeçalho */}
+        <div className="sticky top-0 z-10 px-5 sm:px-6 pt-5 pb-4 border-b border-[var(--sm-border)]" style={{ background: 'var(--sm-bg-card2, var(--sm-bg-card))' }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)] truncate">{task.clients?.company_name ?? 'Interno'}</p>
+              <h2 className="font-display text-[22px] sm:text-[26px] font-bold leading-[1.05] tracking-[-0.025em] text-[var(--sm-text-1)] mt-1.5">{task.title}</h2>
+            </div>
+            <button onClick={onClose} aria-label="Fechar" className="w-9 h-9 rounded-full border border-[var(--sm-border)] flex items-center justify-center flex-shrink-0 hover:bg-[var(--sm-bg-alt)]">
+              <X className="w-4 h-4 text-[var(--sm-text-2)]" />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3">
+            <Dot color={st.color}>{st.label}</Dot>
+            <Dot color={pri.color}>{pri.label}</Dot>
+            {spec && <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--sm-text-2)]"><spec.Icon className="w-3.5 h-3.5" /> {spec.label}</span>}
+            {task.due_date && (
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium tabular-nums" style={{ color: overdue ? '#DC2626' : 'var(--sm-text-2)' }}>
+                <CalendarDays className="w-3.5 h-3.5" /> {overdue ? 'Atrasada · ' : 'Prazo '}{fmtDate(task.due_date, true)}{task.due_time ? ` às ${task.due_time.slice(0, 5)}` : ''}
+              </span>
             )}
           </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Loading ───────────────────────────────────────────────────────────────────
-
-function PortalLoading() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 text-white animate-spin" />
         </div>
-        <p className="text-slate-500 text-sm">Carregando suas demandas...</p>
-      </div>
-    </div>
-  )
-}
 
-// ── Error ─────────────────────────────────────────────────────────────────────
+        <div className="px-5 sm:px-6 py-5 space-y-5">
+          {/* Pedido de ajuste */}
+          {needsAdjust(task) && (
+            <div className="relative rounded-2xl border border-[var(--sm-border)] pl-5 pr-4 py-3.5" style={{ background: 'rgba(245,158,11,0.07)' }}>
+              <span className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-[#F59E0B]" />
+              <p className="text-[12.5px] font-semibold text-[var(--sm-text-1)]">A agência pediu ajuste</p>
+              <p className="text-[13px] text-[var(--sm-text-2)] mt-1 leading-relaxed whitespace-pre-wrap">{task.agency_feedback}</p>
+            </div>
+          )}
 
-function PortalError({ message }: { message: string }) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50 flex items-center justify-center p-6">
-      <div className="max-w-sm w-full bg-white rounded-3xl shadow-sm border border-red-100 p-8 text-center">
-        <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <AlertCircle className="w-7 h-7 text-red-400" />
+          {task.status === 'a_fazer' && !task.in_planner && (
+            <button onClick={start} disabled={starting}
+              className="w-full h-11 rounded-2xl border border-[var(--sm-border)] text-[13px] font-semibold text-[var(--sm-text-1)] inline-flex items-center justify-center gap-2 hover:bg-[var(--sm-bg-alt)] disabled:opacity-60">
+              {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Comecei a fazer
+            </button>
+          )}
+
+          {task.description && (
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--sm-text-3)] mb-2">O que fazer</p>
+              <p className="text-[14px] text-[var(--sm-text-1)] leading-relaxed whitespace-pre-wrap">{task.description}</p>
+            </div>
+          )}
+
+          <References links={links} />
+
+          {/* Entrega */}
+          {task.in_planner ? (
+            <div className={`${portalPanel} relative overflow-hidden pl-6 pr-5 py-4`}>
+              <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r bg-[#10B981]" />
+              <p className="text-[14px] font-semibold text-[var(--sm-text-1)] flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Entrega aprovada</p>
+              <p className="text-[12.5px] text-[var(--sm-text-2)] mt-1 leading-snug">A agência aprovou e o conteúdo já está no planejamento do cliente. Obrigado!</p>
+              {delivered.length > 0 && (
+                <div className="flex gap-2 mt-3 overflow-x-auto">
+                  {delivered.map(d => (
+                    <a key={d.id} href={mediaUrl(d.url)} target="_blank" rel="noopener noreferrer" className="w-16 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-black">
+                      {d.type === 'video'
+                        ? <span className="w-full h-full flex items-center justify-center"><Film className="w-4 h-4 text-white" /></span>
+                        : <img src={mediaUrl(d.url)} alt="" className="w-full h-full object-cover" />}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : task.status === 'concluido' && !task.delivered_at ? (
+            <p className="text-[13px] text-[var(--sm-text-2)]">Demanda concluída.</p>
+          ) : (
+            <DeliveryEditor task={task} token={token} onSaved={patch => onUpdated(task.id, patch)} />
+          )}
         </div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-2">Link inválido</h2>
-        <p className="text-sm text-slate-500">{message}</p>
-      </div>
-    </div>
+      </motion.div>
+    </div>,
+    document.body,
   )
 }
 
-// ── Main: CollaboratorPortal ──────────────────────────────────────────────────
+// ── Carregando / erro ─────────────────────────────────────────────────────────
+
+function Center({ children }: { children: React.ReactNode }) {
+  return <div className="flex items-center justify-center h-full min-h-[60vh] px-6">{children}</div>
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export function CollaboratorPortal() {
   const { token } = useParams<{ token: string }>()
-  const [member,      setMember]      = useState<CollaboratorMember | null>(null)
-  const [tasks,       setTasks]       = useState<CollaboratorTask[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState<string | null>(null)
-  const [openTask,    setOpenTask]    = useState<CollaboratorTask | null>(null)
-  const [activeTab,   setActiveTab]   = useState<'dashboard' | 'demandas'>('dashboard')
-  const [clientFilter, setClientFilter] = useState('all')
+  const [member, setMember] = useState<CollaboratorMember | null>(null)
+  const [agencyName, setAgencyName] = useState<string | null>(null)
+  const [tasks, setTasks] = useState<CollaboratorTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [tab, setTab] = useState('inicio')
+  const [filter, setFilter] = useState('abertas')
 
   useEffect(() => {
-    if (!token) { setError('Token não encontrado na URL.'); setLoading(false); return }
-
-    async function load() {
+    if (!token) { setError('O link está incompleto.'); setLoading(false); return }
+    let alive = true
+    ;(async () => {
       try {
-        const { data, error: rpcError } = await (supabase as any)
-          .rpc('get_collaborator_data', { p_token: token })
+        const { data, error: rpcError } = await (supabase as any).rpc('get_collaborator_data', { p_token: token })
         if (rpcError) throw new Error(rpcError.message)
         if (data?.error) throw new Error(data.error)
+        if (!alive) return
         setMember(data.member)
+        setAgencyName(data.agency_name ?? null)
         setTasks(data.tasks ?? [])
-      } catch (err: any) {
-        setError(err.message)
+      } catch (e) {
+        if (alive) setError((e as Error).message)
       } finally {
-        setLoading(false)
+        if (alive) setLoading(false)
       }
-    }
-
-    load()
+    })()
+    return () => { alive = false }
   }, [token])
 
-  function handleTaskUpdated(updated: Partial<CollaboratorTask> & { id: string }) {
-    setTasks(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t))
-    // Atualiza também o modal aberto
-    setOpenTask(prev => prev && prev.id === updated.id ? { ...prev, ...updated } : prev)
-  }
+  useEffect(() => {
+    document.title = member ? `Demandas · ${member.name.split(' ')[0]}` : 'Portal do colaborador'
+  }, [member])
 
-  function handleNavigate(tab: 'dashboard' | 'demandas', clientId?: string | null) {
-    setActiveTab(tab)
-    if (clientId !== undefined) setClientFilter(clientId ?? '__none__')
-  }
+  const updateTask = (id: string, patch: Partial<CollaboratorTask>) =>
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...patch } : t)))
 
-  if (loading) return <PortalLoading />
-  if (error || !member) return <PortalError message={error ?? 'Colaborador não encontrado.'} />
+  const openTask = tasks.find(t => t.id === openId) ?? null
+  const openCount = tasks.filter(isOpen).length
 
-  const counts = {
-    total:       tasks.length,
-    aFazer:      tasks.filter(t => t.status === 'a_fazer').length,
-    emProgresso: tasks.filter(t => t.status === 'em_andamento' || t.status === 'revisao').length,
-    atrasadas:   tasks.filter(t => isOverdue(t.due_date, t.status)).length,
-    concluidas:  tasks.filter(t => t.status === 'concluido').length,
+  const nav: PortalNavItem[] = [
+    { key: 'inicio',   label: 'Início',   icon: LayoutDashboard },
+    { key: 'demandas', label: 'Demandas', icon: ListChecks, badge: openCount || undefined },
+  ]
+
+  const subtitle = agencyName ? `Colaborador · ${agencyName}` : 'Portal do colaborador'
+
+  if (loading || error || !member) {
+    return (
+      <PortalLayout publicAccess clientName={subtitle}>
+        <Center>
+          {loading ? (
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-[#2563EB]" />
+              <p className="text-[13px] text-[var(--sm-text-3)]">Carregando suas demandas...</p>
+            </div>
+          ) : (
+            <div className="text-center max-w-sm">
+              <p className="font-display text-[26px] font-bold tracking-[-0.025em] text-[var(--sm-text-1)]">Link inválido</p>
+              <p className="text-[13.5px] text-[var(--sm-text-2)] mt-2 leading-relaxed">
+                {error === 'Link inválido' ? 'Este link não está mais ativo. Peça um novo link para a agência.' : error ?? 'Colaborador não encontrado.'}
+              </p>
+            </div>
+          )}
+        </Center>
+      </PortalLayout>
+    )
   }
-  const clientGroups = buildClientGroups(tasks)
-  const upcoming = tasks
-    .filter(t => t.due_date && t.status !== 'concluido')
-    .sort((a, b) => a.due_date!.localeCompare(b.due_date!))
-    .slice(0, 5)
-  const recent = [...tasks]
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    .slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50">
-      <CollaboratorHeader member={member} />
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-        <CollaboratorHero member={member} counts={counts} />
-
-        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'dashboard' | 'demandas')}>
-          <TabsList className="w-full flex gap-1">
-            <TabsTrigger value="dashboard" className="flex-1 justify-center">Dashboard</TabsTrigger>
-            <TabsTrigger value="demandas" className="flex-1 justify-center">Minhas Demandas ({tasks.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dashboard" className="mt-6">
-            <CollaboratorDashboardTab
-              counts={counts}
-              clientGroups={clientGroups}
-              upcoming={upcoming}
-              recent={recent}
-              onNavigate={handleNavigate}
-              onOpenTask={setOpenTask}
-            />
-          </TabsContent>
-
-          <TabsContent value="demandas" className="mt-6">
-            <CollaboratorDemandsTab
-              tasks={tasks}
-              clientGroups={clientGroups}
-              clientFilter={clientFilter}
-              onFilterChange={setClientFilter}
-              onOpenTask={setOpenTask}
-            />
-          </TabsContent>
-        </Tabs>
-
-        <div className="text-center pt-2 pb-8">
-          <p className="text-xs text-slate-300">Powered by StatusMedia</p>
-        </div>
+    <PortalLayout publicAccess clientName={subtitle} nav={nav} active={tab} onNavigate={setTab}>
+      <div className="max-w-[1320px] mx-auto">
+        {tab === 'inicio' ? (
+          <HomeTab
+            member={member}
+            tasks={tasks}
+            onOpen={t => setOpenId(t.id)}
+            onGo={(next, f) => { if (f) setFilter(f); setTab(next) }}
+          />
+        ) : (
+          <DemandsTab tasks={tasks} filter={filter} setFilter={setFilter} onOpen={t => setOpenId(t.id)} />
+        )}
       </div>
 
-      {/* Modal de detalhe */}
-      {openTask && (
-        <TaskDetailModal
-          task={openTask}
-          portalToken={token!}
-          onClose={() => setOpenTask(null)}
-          onUpdated={handleTaskUpdated}
-        />
+      {openTask && token && (
+        <TaskModal task={openTask} token={token} onClose={() => setOpenId(null)} onUpdated={updateTask} />
       )}
-    </div>
+    </PortalLayout>
   )
 }

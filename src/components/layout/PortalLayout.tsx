@@ -23,6 +23,8 @@ interface PortalLayoutProps {
   nav?:         PortalNavItem[]
   active?:      string
   onNavigate?:  (key: string) => void
+  /** Portal do colaborador (sem login): esconde Notificações e Sair */
+  publicAccess?: boolean
 }
 
 // Moldura do portal do cliente no mesmo visual de vidro do acesso da agência:
@@ -92,6 +94,7 @@ export function PortalLayout({
   nav = [],
   active,
   onNavigate,
+  publicAccess = false,
 }: PortalLayoutProps) {
   const { signOut } = useAuth()
   const isDesktop = useIsDesktop()
@@ -155,8 +158,12 @@ export function PortalLayout({
         </nav>
 
         <div className="flex-shrink-0 px-2.5 pb-3 pt-2 space-y-0.5" style={{ borderTop: '1px solid var(--sm-sidebar-border)' }}>
-          <RailButton icon={Bell} label="Notificações" collapsed={collapsed} badge={badgeCount} dotOnly onClick={() => onPick(() => onBellClick?.())} />
-          <RailButton icon={LogOut} label="Sair" collapsed={collapsed} onClick={() => signOut()} />
+          {!publicAccess && (
+            <>
+              <RailButton icon={Bell} label="Notificações" collapsed={collapsed} badge={badgeCount} dotOnly onClick={() => onPick(() => onBellClick?.())} />
+              <RailButton icon={LogOut} label="Sair" collapsed={collapsed} onClick={() => signOut()} />
+            </>
+          )}
           <p
             title={APP_VERSION_TITLE}
             className={`pt-1 text-[10px] font-medium tabular-nums tracking-wide select-none whitespace-nowrap ${collapsed ? 'text-center' : 'pl-[15.5px]'}`}

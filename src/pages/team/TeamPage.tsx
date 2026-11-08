@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { PartnersPanel } from './PartnersPanel'
+import { DeliverableTypePicker, DeliveryReviewBlock, DeliveryModal, hasPendingDelivery, DELIVERABLE_LABEL } from './DeliveryReview'
 import { useClients } from '@/hooks/useClients'
 import { supabase } from '@/integrations/supabase/client'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -18,7 +19,7 @@ import {
   useTeamMembers, useTeamTasks,
   useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember,
   useCreateAndDelegateTask, useDelegateTask,
-  type TeamMember, type TeamTask, type TaskLink,
+  type TeamMember, type TeamTask, type TaskLink, type DeliverableType,
 } from '@/hooks/useTeamMembers'
 
 // ── Cores disponíveis para membros ────────────────────────────────────────────
@@ -93,7 +94,7 @@ function buildWhatsAppMessage(name: string, portalUrl: string) {
     check + ' Ver todas as suas tarefas e prazos' + nl +
     clip  + ' Acessar os arquivos e referências que enviamos' + nl +
     memo  + ' Deixar observações sobre cada demanda' + nl +
-    out   + ' Enviar o link de entrega quando finalizar' + nl +
+    out   + ' Entregar o trabalho pronto (vídeo, imagem, carrossel ou link)' + nl +
     nl +
     'Qualquer dúvida é só me chamar aqui!'
   )
@@ -411,6 +412,7 @@ function TaskEditPanel({
   const [priority, setPri]     = useState(task.priority)
   const [status,   setStatus]  = useState(task.status)
   const [clientId, setClient]  = useState<string>(task.client_id ?? '__none__')
+  const [deliverable, setDeliverable] = useState<DeliverableType | null>(task.deliverable_type ?? null)
   const [saving,   setSaving]  = useState(false)
 
   // Links / referências
@@ -430,6 +432,7 @@ function TaskEditPanel({
         status,
         client_id:   clientId === '__none__' ? null : clientId,
         task_links:  links,
+        deliverable_type: deliverable,
       })
     } finally {
       setSaving(false)
@@ -496,23 +499,9 @@ function TaskEditPanel({
       </div>
 
       {/* Links / referências */}
-      <LinksEditor links={links} onChange={setLinks} compact />
+      <DeliverableTypePicker value={deliverable} onChange={setDeliverable} compact />
 
-      {/* Entrega do colaborador (read-only) */}
-      {(task.collaborator_note || task.delivery_url) && (
-        <div className="bg-[color:var(--sm-bg-alt)] rounded-lg p-2 space-y-1">
-          <p className="text-[10px] font-semibold text-[#2563EB] mb-1">Entrega do colaborador</p>
-          {task.collaborator_note && (
-            <p className="text-[11px] text-[#2563EB]">{task.collaborator_note}</p>
-          )}
-          {task.delivery_url && (
-            <a href={task.delivery_url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[11px] text-[#2563EB] underline hover:underline">
-              <ExternalLink className="w-3 h-3" /> Ver entrega
-            </a>
-          )}
-        </div>
-      )}
+      <LinksEditor links={links} onChange={setLinks} compact />
 
       {/* Botões */}
       <div className="flex gap-2 pt-1">
@@ -574,6 +563,9 @@ function TaskViewModal({
                 <span className="inline-flex items-center gap-1 text-[11.5px]" style={{ color: 'var(--sm-text-3)' }}>
                   <Building2 className="w-3 h-3" /> {task.clients.company_name}
                 </span>
+              )}
+              {task.deliverable_type && (
+                <span className="text-[11.5px] font-medium" style={{ color: 'var(--sm-text-3)' }}>{DELIVERABLE_LABEL[task.deliverable_type]}</span>
               )}
               {task.due_date && (
                 <span className="inline-flex items-center gap-1 text-[11.5px] tabular-nums" style={{ color: overdue ? '#EF4444' : 'var(--sm-text-3)', fontWeight: overdue ? 600 : 500 }}>
@@ -688,24 +680,11 @@ function TaskViewModal({
             </div>
           )}
 
-          {/* Entrega do colaborador */}
-          {(task.collaborator_note || task.delivery_url) && (
-            <div className="bg-[color:var(--sm-bg-alt)] rounded-xl p-3.5 border border-[color:var(--sm-border)] space-y-1.5">
-              <p className="text-[10px] font-semibold text-[#2563EB] uppercase tracking-wider">Entrega do colaborador</p>
-              {task.collaborator_note && (
-                <p className="text-[12px] text-[#2563EB] leading-relaxed">{task.collaborator_note}</p>
-              )}
-              {task.delivery_url && (
-                <a href={task.delivery_url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[11px] text-[#2563EB] hover:underline font-medium">
-                  <ExternalLink className="w-3 h-3" /> Ver entrega enviada
-                </a>
-              )}
-            </div>
-          )}
+          {/* Entrega do colaborador: conferir, pedir ajuste ou mandar ao Planejamento */}
+          <DeliveryReviewBlock task={task} onDone={onClose} />
 
           {/* Sem conteúdo extra */}
-          {!task.description && links.length === 0 && !task.collaborator_note && !task.delivery_url && (
+          {!task.description && links.length === 0 && !task.collaborator_note && !task.delivery_url && !(task.deliveries?.length) && (
             <p className="text-[12px] text-[#94a3b8] text-center py-4">Nenhum detalhe adicional cadastrado.</p>
           )}
         </div>
@@ -1173,6 +1152,7 @@ function NewTaskModal({
   const [priority,    setPriority]   = useState('media')
   const [status,      setStatus]     = useState('a_fazer')
   const [clientId,    setClientId]   = useState<string | null>(null)
+  const [deliverable, setDeliverable] = useState<DeliverableType | null>(null)
 
   // Links / referências
   const [links, setLinks] = useState<TaskLink[]>([])
@@ -1193,6 +1173,7 @@ function NewTaskModal({
         assignee_id: member.id,
         assignee:    member.name,
         task_links:  links,
+        deliverable_type: deliverable,
       })
       toast('Demanda criada e delegada!', 'success')
       onClose()
@@ -1321,6 +1302,9 @@ function NewTaskModal({
             {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
           </select>
         </div>
+
+        {/* O que vai ser entregue: vira o formato do post no Planejamento */}
+        <DeliverableTypePicker value={deliverable} onChange={setDeliverable} />
 
         {/* Links e referências */}
         <LinksEditor links={links} onChange={setLinks} />
@@ -1481,6 +1465,7 @@ function TaskCard({
   isDragging?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const pendingDelivery = hasPendingDelivery(task)
   const st  = STATUS_CONFIG[task.status]   ?? STATUS_CONFIG.a_fazer
   const pri = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.media
   const overdue = isOverdue(task.due_date, task.status)
@@ -1528,22 +1513,18 @@ function TaskCard({
         )}
       </div>
 
-      {(task.collaborator_note || task.delivery_url) && (
-        <button onClick={() => setOpen(!open)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold" style={{ color: '#2563EB' }}>
-          <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
-          Ver entrega do colaborador
+      {(task.collaborator_note || task.delivery_url || !!task.deliveries?.length) && (
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); setOpen(true) }}
+          className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold"
+          style={{ color: '#2563EB' }}
+        >
+          {pendingDelivery && <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />}
+          {pendingDelivery ? 'Conferir entrega' : task.planner_id ? 'No Planejamento' : 'Ver entrega'}
         </button>
       )}
-      {open && (
-        <div className="rounded-lg p-2 space-y-1 text-[12px]" style={{ background: 'var(--sm-bg-alt)' }}>
-          {task.collaborator_note && <p style={{ color: 'var(--sm-text-1)' }}>{task.collaborator_note}</p>}
-          {task.delivery_url && (
-            <a href={task.delivery_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold hover:underline" style={{ color: '#2563EB' }}>
-              <ExternalLink className="w-3 h-3" /> Ver entrega
-            </a>
-          )}
-        </div>
-      )}
+      {open && <DeliveryModal task={task} onClose={() => setOpen(false)} />}
 
       {member && (
         <div className="flex items-center gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--sm-border)' }}>
