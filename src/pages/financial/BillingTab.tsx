@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Copy, Eye, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useClients } from '@/hooks/useClients'
-import { useAgencyWhatsapp } from '@/hooks/useAgencyWhatsapp'
 import { useToast } from '@/components/ui/toast'
 import {
   useBillingSettings, useSaveBillingSettings, useBillingLog, useBillingPreview,
@@ -27,7 +26,6 @@ export function BillingTab() {
   const { data: saved, isLoading } = useBillingSettings()
   const save = useSaveBillingSettings()
   const preview = useBillingPreview()
-  const { data: wa } = useAgencyWhatsapp()
   const { data: clients = [] } = useClients()
   const toggleClient = useToggleClientAutoBilling()
   const { data: log = [] } = useBillingLog()
@@ -50,10 +48,9 @@ export function BillingTab() {
   const missing = useMemo(() => {
     const m: string[] = []
     if (!d.pix_key && !d.bank_details) m.push('Informe a chave Pix ou os dados bancários para o cliente saber onde pagar.')
-    if (d.channel_whatsapp && wa?.status !== 'connected') m.push('O WhatsApp da agência não está conectado: os lembretes por WhatsApp não vão sair.')
     if (!d.channel_whatsapp && !d.channel_email) m.push('Escolha pelo menos um canal (WhatsApp ou e-mail).')
     return m
-  }, [d, wa])
+  }, [d])
 
   const withClients = (clients as any[]).filter(c => c.valor_mensal || c.status === 'ativo')
   const noContact = withClients.filter(c => c.auto_billing !== false && (d.channel_whatsapp ? !c.whatsapp : true) && (d.channel_email ? !c.email : true))

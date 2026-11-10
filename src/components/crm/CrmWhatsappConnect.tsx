@@ -1,8 +1,8 @@
 // ── Conectar o WhatsApp da agência ───────────────────────────────────────────
 // Aparece na página WhatsApp e em CRM › Configurações. A agência escaneia o QR
-// code com o próprio celular, como no WhatsApp Web. Esse número passa a enviar
-// tudo em nome da agência: avisos de conteúdo para os clientes, avisos de post
-// publicado e o CRM (ver supabase/functions/_shared/whatsapp.ts).
+// code com o próprio celular, como no WhatsApp Web. Desde 10/11/2026 os avisos
+// automáticos saem pelo número oficial da Status Media; o da agência fica para o
+// CRM, os grupos e o assistente (ver supabase/functions/_shared/whatsapp.ts).
 // Some da tela quando o recurso não está disponível para a conta.
 
 import { Loader2, Smartphone, CheckCircle2, Unplug } from 'lucide-react'
@@ -41,7 +41,7 @@ export function CrmWhatsappConnect({ n }: { n?: string } = {}) {
           </span>
         </h2>
         <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-          Conecte o WhatsApp da agência. Por ele saem os avisos de conteúdo para os seus clientes, os avisos de post publicado e as mensagens, propostas e contratos do CRM. Sem ele conectado, nenhuma mensagem de WhatsApp é enviada: os avisos ficam só no sininho do app.
+          Os avisos automáticos para os seus clientes e para a equipe (conteúdo para aprovar, post publicado, cobrança) saem pelo WhatsApp oficial da Status Media, mesmo sem o seu número conectado. Conecte o WhatsApp da agência para mandar as mensagens, propostas e contratos do CRM, o retorno automático aos leads e os avisos nos grupos de WhatsApp.
         </p>
       </div>
 

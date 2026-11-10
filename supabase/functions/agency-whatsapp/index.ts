@@ -138,6 +138,16 @@ Deno.serve(async (req) => {
         return json({ ok: true, status: 'disconnected', hasInstance: false, available: !!ADMIN_TOKEN || (count ?? 0) > 0 })
       }
       const r = await uaz('/instance/status', inst.instance_token)
+      // Token que não vale mais (instância do servidor antigo, migração de 10/11/2026,
+      // ou apagada no painel da UazAPI): a tela mostra "Conectar", e o connect cria
+      // uma instância nova no servidor atual
+      if (r.status === 401) {
+        await sb.from('agency_whatsapp').upsert(
+          { user_id: agencyId, status: 'disconnected', phone: null, profile_name: null, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' },
+        )
+        return json({ ok: true, status: 'disconnected', hasInstance: false, available: !!ADMIN_TOKEN })
+      }
       if (!r.ok) return json({ ok: false, error: 'Não consegui falar com o servidor do WhatsApp.' }, 502)
       const s = readState(r.data)
       await saveState(s)

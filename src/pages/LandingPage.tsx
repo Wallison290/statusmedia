@@ -587,11 +587,11 @@ function WhatsAppSection() {
         <Reveal className="lg:col-span-5 lg:order-2">
           <Eyebrow n="04">WhatsApp da agência</Eyebrow>
           <h2 className="font-display font-bold mt-6 text-[clamp(2.4rem,5vw,4.4rem)] leading-[0.98] tracking-[-0.035em]">
-            Os avisos saem do <span className="text-[var(--accent)]">seu</span> número.
+            Avisos no WhatsApp, <span className="text-[var(--accent)]">sem esforço</span>.
           </h2>
           <p className="mt-7 text-[16.5px] leading-relaxed text-[var(--muted)] max-w-[460px]">
-            Conecte o WhatsApp da agência lendo um QR code. A partir daí o cliente recebe o conteúdo para aprovar,
-            a proposta e o contrato de um número que ele já conhece. E você recebe os avisos de post publicado e de proposta aceita.
+            O cliente recebe pelo WhatsApp o conteúdo para aprovar e os lembretes de pagamento, pelo número oficial da Status Media.
+            Conecte o WhatsApp da agência com um QR code para mandar a proposta e o contrato de um número que ele já conhece.
           </p>
           <ul className="mt-8 space-y-3">
             {['Conteúdo novo para aprovar', 'Proposta e contrato com um clique', 'Aviso quando o cliente aprova ou aceita'].map(t => (

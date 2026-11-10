@@ -79,7 +79,7 @@ function AgencyWhatsappPopup() {
           </DialogTitle>
           <DialogDescription>
             {data.hasInstance ? 'O WhatsApp da agência está desconectado.' : 'O WhatsApp da agência ainda não foi conectado.'}
-            {' '}Os avisos para você e para os seus clientes não estão saindo pelo WhatsApp.
+            {' '}Os avisos para os seus clientes continuam saindo pelo WhatsApp oficial da Status Media. Conecte o seu número para mandar mensagens do CRM e os avisos nos grupos de WhatsApp.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
