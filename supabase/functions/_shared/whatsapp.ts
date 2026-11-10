@@ -25,11 +25,12 @@ const AGENCY_BASE = (Deno.env.get('AGENCY_UAZAPI_URL') ?? '').replace(/\/$/, '')
 export async function agencySender(sb: Supa, userId: string): Promise<Sender | null> {
   if (!AGENCY_BASE || !userId) return null
   const [{ data: inst }, { data: state }] = await Promise.all([
-    sb.from('whatsapp_instances').select('instance_token').eq('user_id', userId).maybeSingle(),
+    sb.from('whatsapp_instances').select('instance_token, server_url').eq('user_id', userId).maybeSingle(),
     sb.from('agency_whatsapp').select('status, phone').eq('user_id', userId).maybeSingle(),
   ])
   if (!inst?.instance_token || state?.status !== 'connected') return null
-  return { base: AGENCY_BASE, token: inst.instance_token, phone: state.phone ?? null }
+  // cada instância no servidor dela (migration 117); vazio = servidor do secret
+  return { base: (inst.server_url || AGENCY_BASE).replace(/\/$/, ''), token: inst.instance_token, phone: state.phone ?? null }
 }
 
 export function normalizeNumber(raw: string): string {
@@ -67,10 +68,34 @@ export async function sendVia(s: Sender, to: string, text: string): Promise<{ ok
 }
 
 /** Envia pelo WhatsApp da agência. `notConnected` diferencia "não conectou" de falha. */
+// ── Número oficial da Status Media (decisão de 10/11/2026) ──────────────────
+// Avisos às agências, código de verificação e mensagens automáticas aos clientes
+// (cobrança, lembretes, aprovação, avisos ao colaborador) saem pelo número da
+// plataforma (secrets STATUSMEDIA_WA_URL + STATUSMEDIA_WA_TOKEN). O número de
+// cada agência fica para: grupos de WhatsApp (o número oficial não está neles),
+// conversa com leads do CRM (crm-followup usa agencySender direto) e o assistente.
+// Sem os secrets, ou se o número oficial falhar, usa o número da agência.
+const PLATAFORMA_BASE  = (Deno.env.get('STATUSMEDIA_WA_URL') ?? '').replace(/\/$/, '')
+const PLATAFORMA_TOKEN = Deno.env.get('STATUSMEDIA_WA_TOKEN') ?? ''
+
+export function platformSender(): Sender | null {
+  return PLATAFORMA_BASE && PLATAFORMA_TOKEN ? { base: PLATAFORMA_BASE, token: PLATAFORMA_TOKEN, phone: null } : null
+}
+
 export async function sendForAgency(
   sb: Supa, userId: string, to: string, text: string,
-): Promise<{ ok: boolean; id?: string; error?: string; notConnected?: boolean }> {
+): Promise<{ ok: boolean; id?: string; error?: string; notConnected?: boolean; via?: 'plataforma' | 'agencia' }> {
+  const grupo = to.includes('@g.us')
+  const oficial = grupo ? null : platformSender()
+  if (oficial) {
+    const r = await sendVia(oficial, to, text)
+    if (r.ok) return { ...r, via: 'plataforma' }
+    console.warn('whatsapp: número oficial falhou, tentando pelo da agência', r.error)
+    const agency = await agencySender(sb, userId)
+    if (!agency) return r
+    return { ...(await sendVia(agency, to, text)), via: 'agencia' }
+  }
   const agency = await agencySender(sb, userId)
   if (!agency) return { ok: false, error: NOT_CONNECTED, notConnected: true }
-  return sendVia(agency, to, text)
+  return { ...(await sendVia(agency, to, text)), via: 'agencia' }
 }

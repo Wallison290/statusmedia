@@ -231,7 +231,8 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
   const sent = await sendForAgency(supabase, n.user_id, target, text)
 
   // Incrementa tentativas sempre.
-  await supabase.rpc('increment_delivery_attempts', { p_notification_id: n.id }).catch(() => {})
+  // rpc() devolve um builder sem .catch na versão atual do supabase-js: o erro vem no retorno, não como exceção
+  await supabase.rpc('increment_delivery_attempts', { p_notification_id: n.id })
 
   // Fan-out para grupos configurados da agência.
   const { data: groups } = await (supabase as any)
@@ -251,7 +252,7 @@ async function processNotification(supabase: Supa, n: NotificationRow): Promise<
   if (sent.ok) {
     return finish('sent', {
       provider_msg_id: sent.id ?? null, to_number: normalizeNumber(target), error: null,
-      provider: 'agency_whatsapp',
+      provider: sent.via === 'plataforma' ? 'statusmedia_whatsapp' : 'agency_whatsapp',
     })
   }
   // Falha fica como 'failed' → o sweep tenta de novo na próxima passada.

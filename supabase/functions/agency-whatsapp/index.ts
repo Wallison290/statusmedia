@@ -43,8 +43,14 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
+// Cada instância mora num servidor (whatsapp_instances.server_url, migration 117): os números antigos
+// continuam no servidor antigo; instâncias novas e chamadas de admin usam o servidor do secret.
+const SERVIDOR_DO_TOKEN = new Map<string, string>()
+const lembrarServidor = (row: any) => { if (row?.instance_token && row?.server_url) SERVIDOR_DO_TOKEN.set(row.instance_token, String(row.server_url).replace(/\/$/, '')) }
+
 async function uaz(path: string, token: string, init: { method?: string; body?: unknown; admin?: boolean } = {}) {
-  const res = await fetch(`${BASE}${path}`, {
+  const base = init.admin ? BASE : (SERVIDOR_DO_TOKEN.get(token) ?? BASE)
+  const res = await fetch(`${base}${path}`, {
     method: init.method ?? 'GET',
     headers: { 'Content-Type': 'application/json', ...(init.admin ? { admintoken: token } : { token }) },
     body: init.body ? JSON.stringify(init.body) : undefined,
@@ -96,6 +102,7 @@ Deno.serve(async (req) => {
   const action = String(body?.action ?? 'status')
 
   const { data: inst } = await sb.from('whatsapp_instances').select('*').eq('user_id', agencyId).maybeSingle()
+  lembrarServidor(inst)
 
   /** Liga o webhook de mensagens recebidas da instância, uma vez só. */
   async function ensureWebhook(row: any) {
@@ -158,8 +165,9 @@ Deno.serve(async (req) => {
         })
       }
       const { data: created } = await sb.from('whatsapp_instances')
-        .insert({ instance_name: name, instance_token: token, user_id: agencyId, assigned_at: new Date().toISOString() })
+        .insert({ instance_name: name, instance_token: token, user_id: agencyId, assigned_at: new Date().toISOString(), server_url: BASE })
         .select().single()
+      lembrarServidor(created)
       return created
     }
 
@@ -172,6 +180,7 @@ Deno.serve(async (req) => {
       if (!instance) {
         const { data: claimed } = await sb.rpc('claim_whatsapp_instance', { p_user: agencyId })
         instance = claimed?.id ? claimed : null
+        lembrarServidor(instance)
       }
       if (!instance) {
         return json({ ok: false, error: 'Nenhum WhatsApp disponível para conectar agora. Fale com o suporte da StatusMedia.' }, 409)

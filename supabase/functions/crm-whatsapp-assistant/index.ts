@@ -79,9 +79,12 @@ function phoneKey(raw: string | null | undefined): string | null {
   return d.slice(0, 2) + d.slice(-8)
 }
 
+// servidor de cada instância (migration 117); sem registro, o do secret
+const SERVIDOR_DO_TOKEN = new Map<string, string>()
 async function reply(token: string, number: string, text: string) {
-  if (!UAZ_URL || !token) return
-  await fetch(`${UAZ_URL}/send/text`, {
+  const base = SERVIDOR_DO_TOKEN.get(token) ?? UAZ_URL
+  if (!base || !token) return
+  await fetch(`${base}/send/text`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', token },
     body: JSON.stringify({ number, text }),
@@ -281,8 +284,9 @@ Deno.serve(async (req) => {
 
   // A instância que recebeu diz de qual agência é o número
   if (!/^[0-9a-f-]{36}$/i.test(instId)) return skip('inst inválida na URL do webhook')
-  const { data: inst } = await sb.from('whatsapp_instances').select('user_id, instance_token').eq('id', instId).maybeSingle()
+  const { data: inst } = await sb.from('whatsapp_instances').select('user_id, instance_token, server_url').eq('id', instId).maybeSingle()
   if (!inst?.user_id) return skip('instância não encontrada')
+  if (inst.server_url && inst.instance_token) SERVIDOR_DO_TOKEN.set(inst.instance_token, String(inst.server_url).replace(/\/$/, ''))
 
   const { data: agency } = await sb
     .from('profiles')
