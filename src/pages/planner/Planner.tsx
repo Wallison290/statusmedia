@@ -1705,6 +1705,11 @@ export function Planner() {
     if (waClientIds.length === 0 && waGroupJids.length === 0) return
     setWaSending(true)
     try {
+      // Sessão velha (aba aberta há muito tempo): renova o login antes de enviar,
+      // senão a função recusa com "Token inválido"
+      const { data: ses } = await supabase.auth.getSession()
+      const exp = ses.session?.expires_at ?? 0
+      if (!ses.session || exp * 1000 < Date.now() + 60_000) await supabase.auth.refreshSession()
       // Notifica cada cliente selecionado (grupos vão numa chamada separada, pra não duplicar)
       for (const clientId of waClientIds) {
         const { data, error } = await supabase.functions.invoke('notify-whatsapp', {
