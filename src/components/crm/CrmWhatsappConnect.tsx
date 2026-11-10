@@ -34,14 +34,33 @@ export function CrmWhatsappConnect({ n }: { n?: string } = {}) {
       <div>
         <h2 className="flex items-baseline gap-2" style={{ color: 'var(--sm-text-1)' }}>
           {n && <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: '#2563EB' }}>{n}</span>}
-          <span className="font-display text-[17px] font-bold">Meu WhatsApp</span>
+          <span className="font-display text-[17px] font-bold">WhatsApp</span>
           <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium self-center ml-1" style={{ color: 'var(--sm-text-3)' }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: data.status === 'connected' ? '#22C55E' : '#F59E0B' }} />
-            {data.status === 'connected' ? 'Conectado' : data.status === 'connecting' ? 'Aguardando leitura' : 'Desconectado'}
+            Número da agência: {data.status === 'connected' ? 'conectado' : data.status === 'connecting' ? 'aguardando leitura' : 'desconectado'}
           </span>
         </h2>
-        <p className="text-[12px] mt-0.5" style={{ color: 'var(--sm-text-3)' }}>
-          Os avisos automáticos para os seus clientes e para a equipe (conteúdo para aprovar, post publicado, cobrança) saem pelo WhatsApp oficial da Status Media, mesmo sem o seu número conectado. Conecte o WhatsApp da agência para mandar as mensagens, propostas e contratos do CRM, o retorno automático aos leads e os avisos nos grupos de WhatsApp.
+      </div>
+
+      {/* 1. Avisos automáticos: já funcionam, sem conectar nada */}
+      <div className="rounded-xl px-3 py-2.5 space-y-1" style={{ background: 'rgba(34,197,94,0.08)' }}>
+        <p className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: '#22C55E' }} />
+          Avisos automáticos: já funcionam, não precisa conectar nada
+        </p>
+        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>
+          Conteúdo para aprovar, post publicado e cobrança saem pelo <strong>WhatsApp oficial da Status Media</strong> para os seus clientes e a sua equipe.
+        </p>
+      </div>
+
+      {/* 2. Número da agência: só para o CRM */}
+      <div className="space-y-1">
+        <p className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: 'var(--sm-text-1)' }}>
+          <Smartphone className="w-4 h-4 flex-shrink-0" style={{ color: '#2563EB' }} />
+          WhatsApp da agência: para o CRM
+        </p>
+        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--sm-text-2)' }}>
+          Conecte o número da sua agência para enviar pelo CRM: primeira mensagem aos leads, propostas, contratos e o retorno automático. Também é usado para os avisos nos grupos de WhatsApp dos clientes.
         </p>
       </div>
 
